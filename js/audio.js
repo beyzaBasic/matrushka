@@ -10,6 +10,7 @@ export class AudioManager {
       this.master.gain.value = 0.85;
       this.master.connect(this.ac.destination);
     }
+    if (this.ac.state === 'suspended') this.ac.resume();
     return this.ac;
   }
   unlock() {
@@ -74,6 +75,7 @@ export class AudioManager {
     lfo.start(t); o.start(t); lfo.stop(t + dur + 0.05); o.stop(t + dur + 0.05);
   }
   spawn() {
+    this.unlock();
     this.bloop(480, 0.25, 0.22, 0.25);
     setTimeout(() => this.puff(0.08, 0.06, 2200), 20);
   }
