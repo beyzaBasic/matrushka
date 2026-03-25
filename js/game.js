@@ -274,13 +274,14 @@ export class Game {
 
   // ── Absorb / Merge ────────────────────────────────────────────────
   _triggerCombo(x, y) {
+    if (state.currentLevel < TUTORIAL_LEVELS) return;
     if (state.lastComboFrame === state.frameCount) return;
     state.lastComboFrame = state.frameCount;
     state.combo++;
     state.comboTimer = Date.now() + 3000;
     const multiplier = Math.min(state.combo, 9);
     state.mainBorderFlash = 35;
-    if (state.combo >= 2 && state.currentLevel > 3) {
+    if (state.combo >= 2) {
       state.comboDisplays.push({ alpha: 1.0, scale: 1.4, x, y, text: `COMBO x${multiplier}` });
       this.audio.combo(state.combo);
     }
@@ -308,13 +309,13 @@ export class Game {
           big.contains = [...allLevels].sort((a, b) => b - a);
           big.absorbAnim = 35; big.boing = 1.2; state.mainBorderFlash = 40;
           this.audio.absorb(big.level);
-          if (currentLevel <= 2) state.actionTexts.push({ alpha: 1.0, x: big.x, y: big.y - big.r - 10 * S, text: 'Absorbed', color: LEVELS[small.level].color });
+          state.actionTexts.push({ alpha: 1.0, x: big.x, y: big.y - big.r - 10 * S, text: 'Absorbed', color: LEVELS[small.level].color });
           state.chainWaves.push({ x: small.x, y: small.y, r: small.r * 0.4, maxR: small.r * 2.2, color: LEVELS[small.level].color, t: 0, maxT: 18 });
           state.chainWaves.push({ x: big.x, y: big.y, r: big.r * 0.3, maxR: big.r * 2.5, color: LEVELS[big.level].color, t: 0, maxT: 22 });
           this._celebrate(big.x, big.y, LEVELS[small.level].color);
           state.absorbingInto.push({ x: small.x, y: small.y, tx: big.x, ty: big.y, r: small.r, color: small.color, bigColor: big.color, t: 0, maxT: 22 });
           state.circles = circles.filter(cc => cc !== small);
-          if (!state.levelSuccess && this.goals.checkGoal(big)) state.circles = state.circles.filter(cc => cc !== big);
+          if (this.goals.checkGoal(big)) { const _id = big.id; setTimeout(() => { state.circles = state.circles.filter(c => c.id !== _id); }, 80); }
           if (currentLevel === 1 && !state.levelSuccess) {
             setTimeout(() => {
               if (!state.levelSuccess && !this.physics.sceneHasAbsorbPending()) {
@@ -343,8 +344,9 @@ export class Game {
             const newC = { id: Math.random(), x: mx, y: my, r: LEVELS[nL].r, level: nL, color: LEVELS[nL].color, vx: 0, vy: -2 * S, isBeingDragged: false, contains: [], absorbAnim: 30, boing: 1.0, absorbGlow: 0 };
             state.circles = circles.filter(c => c.id !== A.id && c.id !== B.id);
             state.circles.push(newC);
-            if (currentLevel <= 2) state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
+            
             this.audio.merge(nL);
+            state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
             if (currentLevel === 1 && !state.levelSuccess) {
               setTimeout(() => {
                 if (!state.levelSuccess && !this.physics.sceneHasAbsorbPending()) {
@@ -364,7 +366,7 @@ export class Game {
               state.chainWaves.push({ x: mx, y: my, r: LEVELS[nL].r, maxR: LEVELS[nL].r * 4.5, color: '#fff', t: 0, maxT: 28 });
               this._celebrate(mx, my, LEVELS[nL].color);
             }
-            if (!state.levelSuccess && this.goals.checkGoal(newC)) state.circles = state.circles.filter(cc => cc !== newC);
+            if (this.goals.checkGoal(newC)) { const _id = newC.id; setTimeout(() => { state.circles = state.circles.filter(c => c.id !== _id); }, 80); }
             return;
           }
         }
@@ -411,9 +413,9 @@ export class Game {
 
     // Tutorial
     this.tutorial.update();
+    if (state.currentLevel === 0) this.hints.update(this.physics.canAbsorb.bind(this.physics));
 
     // Hints
-    this.hints.update(this.physics.canAbsorb.bind(this.physics));
 
     // Çarpışmalar + blast + absorb/merge
     this.physics.solveCollisions();
@@ -469,8 +471,11 @@ export class Game {
     // Absorb animasyonu
     R.drawAbsorbAnims();
 
-    // Contextual hints
-    this.hints.draw();
+    // Tutorial ipuçları (sadece level 0)
+    if (state.currentLevel === 0) {
+      this.tutorial.drawHint();
+      this.hints.drawAllChains(this.goals);
+    }
 
     // Success overlay
     R.drawSuccessOverlay(this.goals);
@@ -481,10 +486,8 @@ export class Game {
     R.drawBlastProjectiles();
 
     // Tutorial ipucu
-    this.tutorial.drawHint();
 
     // Hint zincirleri
-    this.hints.drawAllChains(this.goals);
 
     // Action + combo metinleri
     R.drawActionTexts();
