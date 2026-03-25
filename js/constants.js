@@ -1,5 +1,5 @@
 // ── constants.js ──────────────────────────────────────────────────
-export const TUTORIAL_LEVELS = 3;
+export const TUTORIAL_LEVELS = 2;
 
 export function buildLayout() {
   const DPR = window.devicePixelRatio || 1;
@@ -29,42 +29,37 @@ export function buildLevels(MAIN_R) {
 }
 
 export const LEVEL_DEFS = [
-  // ── TUTORIAL (0-2) ──────────────────────────────────────────────
+  // ── TUTORIAL (0-1) ──────────────────────────────────────────────
   {goals:[{level:3,contains:[2,1]}]},                                              // 0
   {goals:[{level:2,contains:[1,0]}]},                                              // 1
-  {goals:[{level:3,contains:[2,1]}]},                                              // 2
 
-  // ── ARC 1: YEŞİL (L01-L05) ─────────────────────────────────────
-  // Giriş → Tırman → Derin → Nefes → BOSS
-  {goals:[{level:3,contains:[2]}]},                                                // L01  4.5 — kolay giriş
-  {goals:[{level:3,contains:[2]},{level:2,contains:[1]}]},                         // L02  8.0 — 2 slot, sığ
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2]}]},                       // L03 10.5 — 2 slot, biri derin
-  {goals:[{level:3,contains:[2]},{level:2,contains:[1,0]}]},                       // L04  8.5 — nefes (2 slot, tanıdık)
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2,1]}]},                     // L05 12.0 — BOSS: 2 slot, ikisi derin
+  // ── L01-L05: Zorluk ~4-12, renk rotasyonu başlıyor ────────────
+  {goals:[{level:3,contains:[2]}]},                                                // L01 — yeşil giriş
+  {goals:[{level:3,contains:[2]},{level:2,contains:[1]}]},                         // L02 — yeşil + turuncu
+  {goals:[{level:4,contains:[3]},{level:3,contains:[2]}]},                         // L03 — mavi + yeşil (yeni renk erken tanıtım)
+  {goals:[{level:3,contains:[2]},{level:2,contains:[1,0]}]},                       // L04 — nefes: yeşil + sarı-pembe
+  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2,1]}]},                     // L05 — BOSS: yeşil double derin
 
-  // ── ARC 2: MAVİ (L06-L10) ──────────────────────────────────────
-  // Giriş → Tırman → Derin → Nefes → BOSS
-  {goals:[{level:4,contains:[3]}]},                                                // L06  5.5 — kolay giriş, yeni renk
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2]}]},                         // L07 10.0 — 2 slot
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2,1]}]},                       // L08 11.5 — 2 slot, derin
-  {goals:[{level:4,contains:[3]},{level:4,contains:[3]}]},                         // L09  9.0 — nefes (2 slot, tekrar)
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},                     // L10 14.0 — BOSS: 2 slot, ikisi derin
+  // ── L06-L10: Zorluk ~5-14, mavi-yeşil karışımı ──────────────
+  {goals:[{level:4,contains:[3]}]},                                                // L06 — mavi giriş
+  {goals:[{level:4,contains:[3]},{level:2,contains:[1,0]}]},                       // L07 — mavi + sarı-pembe sürpriz
+  {goals:[{level:3,contains:[2,1]},{level:4,contains:[3]}]},                       // L08 — yeşil derin + mavi
+  {goals:[{level:4,contains:[3]},{level:3,contains:[2]}]},                         // L09 — nefes: mavi + yeşil tanıdık
+  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},                     // L10 — BOSS: mavi double derin
 
-  // ── ARC 3: MOR (L11-L15) ───────────────────────────────────────
-  // Giriş → Tırman → Sürpriz → Nefes → BOSS
-  {goals:[{level:5,contains:[4]}]},                                                // L11  6.5 — kolay giriş, yeni renk
-  {goals:[{level:5,contains:[4]},{level:4,contains:[3]}]},                         // L12 12.0 — 2 slot
-  {goals:[{level:5,contains:[4]},{level:3,contains:[2,1]}]},                       // L13 12.5 — sürpriz: mor + yeşil mix
-  {goals:[{level:5,contains:[4]},{level:4,contains:[3]}]},                         // L14 12.0 — nefes (tanıdık kombinasyon)
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4,3]}]},                     // L15 17.0 — BOSS: 2 slot, ikisi derin
+  // ── L11-L15: Zorluk ~6-17, mor devreye giriyor ──────────────
+  {goals:[{level:5,contains:[4]}]},                                                // L11 — mor giriş
+  {goals:[{level:5,contains:[4]},{level:3,contains:[2]}]},                         // L12 — mor + yeşil atlama
+  {goals:[{level:4,contains:[3,2]},{level:5,contains:[4]}]},                       // L13 — mavi derin + mor sürpriz
+  {goals:[{level:5,contains:[4]},{level:4,contains:[3]}]},                         // L14 — nefes: mor + mavi tanıdık
+  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4,3]}]},                     // L15 — BOSS: mor double derin
 
-  // ── ARC 4: KIRMIZI (L16-L20) ───────────────────────────────────
-  // Giriş → Tırman → Sürpriz → Nefes → BOSS
-  {goals:[{level:6,contains:[5]}]},                                                // L16  7.5 — kolay giriş, yeni renk
-  {goals:[{level:6,contains:[5]},{level:5,contains:[4]}]},                         // L17 14.0 — 2 slot
-  {goals:[{level:6,contains:[5]},{level:4,contains:[3,2]}]},                       // L18 14.5 — sürpriz: kırmızı + mavi mix
-  {goals:[{level:6,contains:[5]},{level:5,contains:[4]}]},                         // L19 14.0 — nefes (tanıdık kombinasyon)
-  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4]}]},                     // L20 19.0 — BOSS: 2 slot, ikisi derin
+  // ── L16-L20: Zorluk ~7-19, kırmızı + full mix ───────────────
+  {goals:[{level:6,contains:[5]}]},                                                // L16 — kırmızı giriş
+  {goals:[{level:6,contains:[5]},{level:3,contains:[2,1]}]},                       // L17 — kırmızı + yeşil sürpriz
+  {goals:[{level:5,contains:[4,3]},{level:6,contains:[5]}]},                       // L18 — mor derin + kırmızı
+  {goals:[{level:6,contains:[5]},{level:4,contains:[3]}]},                         // L19 — nefes: kırmızı + mavi
+  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4]}]},                     // L20 — BOSS: kırmızı double derin
 
   // ── ENDLESS (L21+) ─────────────────────────────────────────────
   {goals:[{level:6,contains:[5,4]},{level:5,contains:[4,3]}]},                     // L21

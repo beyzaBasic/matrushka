@@ -238,12 +238,7 @@ export class Game {
       );
       return;
     }
-    if (state.currentLevel === 2) {
-      const xOffs = [-MAIN_R * 0.28, MAIN_R * 0.28, -MAIN_R * 0.28, MAIN_R * 0.28, 0];
-      const seq = [0, 0, 1, 1, 3].map((lv, i) => ({ lv, xOff: xOffs[i] }));
-      this._dropSequential(seq, () => { state.introDropsDone = true; state.lastSpawn = Date.now(); });
-      return;
-    }
+
     state.introDropsDone = true;
   }
 
@@ -387,7 +382,7 @@ export class Game {
     if (state.mainBorderFlash > 0) state.mainBorderFlash--;
 
     // Spawn
-    const spawnBlocked = state.currentLevel === 2 && this.physics.sceneHasActionPending();
+    const spawnBlocked = false;
     if (!state.gameOver && !state.levelSuccess && state.introDropsDone && now - state.lastSpawn > 1400
         && state.currentLevel !== 0 && state.currentLevel !== 1 && !spawnBlocked) {
       this._spawnCircle(); state.lastSpawn = now;
