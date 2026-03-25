@@ -15,6 +15,7 @@ export class Game {
     state.ctx = canvas.getContext('2d');
 
     this.audio    = new AudioManager();
+    state.audio   = this.audio;
     this.physics  = new PhysicsManager();
     this.goals    = new GoalManager();
     this.blast    = new BlastManager();
@@ -309,7 +310,7 @@ export class Game {
           big.contains = [...allLevels].sort((a, b) => b - a);
           big.absorbAnim = 35; big.boing = 1.2; state.mainBorderFlash = 40;
           this.audio.absorb(big.level);
-          state.actionTexts.push({ alpha: 1.0, x: big.x, y: big.y - big.r - 10 * S, text: 'Absorbed', color: LEVELS[small.level].color });
+          if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: big.x, y: big.y - big.r - 10 * S, text: 'Absorbed', color: LEVELS[small.level].color });
           state.chainWaves.push({ x: small.x, y: small.y, r: small.r * 0.4, maxR: small.r * 2.2, color: LEVELS[small.level].color, t: 0, maxT: 18 });
           state.chainWaves.push({ x: big.x, y: big.y, r: big.r * 0.3, maxR: big.r * 2.5, color: LEVELS[big.level].color, t: 0, maxT: 22 });
           this._celebrate(big.x, big.y, LEVELS[small.level].color);
@@ -346,7 +347,7 @@ export class Game {
             state.circles.push(newC);
             
             this.audio.merge(nL);
-            state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
+            if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
             if (currentLevel === 1 && !state.levelSuccess) {
               setTimeout(() => {
                 if (!state.levelSuccess && !this.physics.sceneHasAbsorbPending()) {
@@ -377,6 +378,7 @@ export class Game {
   // ── Update loop ───────────────────────────────────────────────────
   _update() {
     if (state.isPaused) return;
+    if (state.levelSuccess) { this.goals.updateFlyingGoals(this.audio); return; }
 
     const now = Date.now();
     const { S, CX, CY, MAIN_R } = state;
@@ -413,7 +415,7 @@ export class Game {
 
     // Tutorial
     this.tutorial.update();
-    if (state.currentLevel === 0) this.hints.update(this.physics.canAbsorb.bind(this.physics));
+    if (state.currentLevel < TUTORIAL_LEVELS) this.hints.update(this.physics.canAbsorb.bind(this.physics));
 
     // Hints
 
@@ -472,9 +474,9 @@ export class Game {
     R.drawAbsorbAnims();
 
     // Tutorial ipuçları (sadece level 0)
-    if (state.currentLevel === 0) {
+    if (state.currentLevel < TUTORIAL_LEVELS) {
       this.hints.draw();
-      this.tutorial.drawHint();
+      if (state.currentLevel === 0) this.tutorial.drawHint();
       this.hints.drawAllChains(this.goals);
     }
 
@@ -483,7 +485,7 @@ export class Game {
 
     // Blast
     const bRect = this.blast.getBtnRect();
-    if (bRect) R.drawBlastBtn(bRect, this.blast.isEnabled(bRect));
+    if (bRect) R.drawBlastBtn(bRect, !state.levelSuccess && this.blast.isEnabled(bRect));
     R.drawBlastProjectiles();
 
     // Tutorial ipucu

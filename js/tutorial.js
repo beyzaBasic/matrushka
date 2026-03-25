@@ -37,6 +37,7 @@ export class TutorialManager {
   // Topu düşür, settle edince (vy<0.8) cb çağır
   _drop(circle, cb) {
     state.circles.push(circle);
+    if (state.audio) state.audio.spawn();
     const iv = setInterval(() => {
       const c = state.circles.find(x => x.id === circle.id);
       if (!c || Math.abs(c.vy) < 0.8) {
@@ -65,7 +66,7 @@ export class TutorialManager {
           this.makeCircle(0, CX - MAIN_R * 0.38, CY - MAIN_R * 0.72),
           () => {
             if (state.tut0Step !== 0) return;
-            state.circles.push(this.makeCircle(0, CX + MAIN_R * 0.15, CY - MAIN_R * 0.72));
+            const c0 = this.makeCircle(0, CX + MAIN_R * 0.15, CY - MAIN_R * 0.72); state.circles.push(c0); if (state.audio) state.audio.spawn();
           }
         );
       }, 400);
@@ -84,7 +85,7 @@ export class TutorialManager {
           if (state.tut0Step !== 1 || state._tut1done) return;
           state._tut1done = true;
           const pos = this.safePos(1);
-          state.circles.push(this.makeCircle(1, pos.x, CY - MAIN_R * 0.72));
+          const c2 = this.makeCircle(1, pos.x, CY - MAIN_R * 0.72); state.circles.push(c2); if (state.audio) state.audio.spawn();
         }
       );
 
@@ -99,7 +100,7 @@ export class TutorialManager {
         () => {
           if (state.tut0Step !== 2) return;
           const pos = this.safePos(1);
-          state.circles.push(this.makeCircle(1, pos.x, CY - MAIN_R * 0.72));
+          const c2 = this.makeCircle(1, pos.x, CY - MAIN_R * 0.72); state.circles.push(c2); if (state.audio) state.audio.spawn();
         }
       );
 
@@ -109,7 +110,7 @@ export class TutorialManager {
         this.makeCircle(2, CX - MAIN_R * 0.30, CY - MAIN_R * 0.72),
         () => {
           if (state.tut0Step !== 3) return;
-          state.circles.push(this.makeCircle(2, CX + MAIN_R * 0.10, CY - MAIN_R * 0.72));
+          const c3 = this.makeCircle(2, CX + MAIN_R * 0.10, CY - MAIN_R * 0.72); state.circles.push(c3); if (state.audio) state.audio.spawn();
         }
       );
     }

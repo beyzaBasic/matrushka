@@ -1,10 +1,11 @@
 // ── hints.js ──────────────────────────────────────────────────────
 import { state } from './state.js';
+import { TUTORIAL_LEVELS } from './constants.js';
 
 export class HintManager {
   update(canAbsorbFn) {
     state.hintPairs = [];
-    if (state.currentLevel > 2) return;
+    if (state.currentLevel >= TUTORIAL_LEVELS) return;
     if (state.currentLevel === 0 && (state.tut0Step < 0 || state.tut0Step >= 4)) return;
     const { circles, LEVELS } = state;
     for (let i = 0; i < circles.length; i++) {
@@ -23,7 +24,7 @@ export class HintManager {
 
   draw() {
     const { ctx, hintPairs, currentLevel, S } = state;
-    if (currentLevel > 2 || hintPairs.length === 0) return;
+    if (currentLevel >= TUTORIAL_LEVELS || hintPairs.length === 0) return;
     const t = Date.now() * 0.001;
     for (const h of hintPairs) {
       if (h.alpha < 0.02) continue;

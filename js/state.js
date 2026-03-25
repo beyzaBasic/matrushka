@@ -18,7 +18,7 @@ export const state = {
   levelSuccess: false, levelSuccessAlpha: 0,
   levelStars: 0, blastUsedThisLevel: 0, introDropsDone: false,
   // Tutorial
-  tut0Step: -1, tut0Transitioning: false,
+  tut0Step: -1, tut0Transitioning: false, _step1Spawned: false,
   // Oyun durumu
   gameOver: false, gameOverAlpha: 0, isPaused: false,
   lastSpawn: 0, mainBorderFlash: 0,
@@ -30,6 +30,8 @@ export const state = {
   mousePos: { x: 0, y: 0 }, prevMousePos: { x: 0, y: 0 }, mouseVel: { x: 0, y: 0 },
   // Blast
   BLAST_BTNS: [],
+  // Audio (game.js init eder)
+  audio: null,
   // UI hit areas
   _pauseBtn: null, _resumeBtn: null, _nextLevelBtn: null, _gameOverBtn: null,
 };
