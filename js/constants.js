@@ -19,7 +19,7 @@ export function buildLevels(MAIN_R) {
   // Renk sırası: sıcaktan soğuğa — sarı turuncudan önce gelir
   return [
     { r: Math.round(MAIN_R * (28 / 360)),  color: '#FF5EBC', vy: 1.4 }, // 0 pembe
-    { r: Math.round(MAIN_R * (38 / 360)),  color: '#F5FF00', vy: 1.8 }, // 1 sarı
+    { r: Math.round(MAIN_R * (38 / 360)),  color: '#FFD700', vy: 1.8 }, // 1 sarı
     { r: Math.round(MAIN_R * (51 / 360)),  color: '#FF9500', vy: 2.2 }, // 2 turuncu
     { r: Math.round(MAIN_R * (68 / 360)),  color: '#00C853', vy: 2.7 }, // 3 yeşil
     { r: Math.round(MAIN_R * (90 / 360)),  color: '#00B0FF', vy: 3.2 }, // 4 mavi
@@ -29,38 +29,53 @@ export function buildLevels(MAIN_R) {
 }
 
 export const LEVEL_DEFS = [
-  {goals:[{level:3,contains:[2,1]}]},
-  {goals:[{level:2,contains:[1,0]}]},
-  {goals:[{level:3,contains:[2,1]}]},
-  {goals:[{level:3,contains:[2]}]},
-  {goals:[{level:3,contains:[2]},{level:2,contains:[1]}]},
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2]}]},
-  {goals:[{level:3,contains:[2,1]},{level:2,contains:[1,0]}]},
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2,1]}]},
-  {goals:[{level:4,contains:[3]}]},
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2]}]},
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2,1]}]},
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3]},{level:3,contains:[2]}]},
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},
-  {goals:[{level:5,contains:[4]}]},
-  {goals:[{level:5,contains:[4]},{level:4,contains:[3]}]},
-  {goals:[{level:5,contains:[4]},{level:3,contains:[2,1]}]},
-  {goals:[{level:5,contains:[4,3]},{level:4,contains:[3,2]},{level:3,contains:[2]}]},
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4,3]}]},
-  {goals:[{level:6,contains:[5]}]},
-  {goals:[{level:6,contains:[5]},{level:5,contains:[4]}]},
-  {goals:[{level:6,contains:[5]},{level:4,contains:[3,2]}]},
-  {goals:[{level:6,contains:[5,4]},{level:5,contains:[4,3]},{level:4,contains:[3,2]}]},
-  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4]}]},
-  {goals:[{level:6,contains:[5,4]},{level:5,contains:[4,3]}]},
-  {goals:[{level:6,contains:[5,4,3]},{level:6,contains:[5]}]},
-  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4]},{level:5,contains:[4,3]}]},
-  {goals:[{level:6,contains:[5,4,3]},{level:5,contains:[4,3]},{level:4,contains:[3,2]}]},
-  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4,3]},{level:6,contains:[5]}]},
+  // ── TUTORIAL (0-2) ──────────────────────────────────────────────
+  {goals:[{level:3,contains:[2,1]}]},                                              // 0
+  {goals:[{level:2,contains:[1,0]}]},                                              // 1
+  {goals:[{level:3,contains:[2,1]}]},                                              // 2
+
+  // ── ARC 1: YEŞİL (L01-L05) ─────────────────────────────────────
+  // Giriş → Tırman → Derin → Nefes → BOSS
+  {goals:[{level:3,contains:[2]}]},                                                // L01  4.5 — kolay giriş
+  {goals:[{level:3,contains:[2]},{level:2,contains:[1]}]},                         // L02  8.0 — 2 slot, sığ
+  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2]}]},                       // L03 10.5 — 2 slot, biri derin
+  {goals:[{level:3,contains:[2]},{level:2,contains:[1,0]}]},                       // L04  8.5 — nefes (2 slot, tanıdık)
+  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2,1]}]},                     // L05 12.0 — BOSS: 2 slot, ikisi derin
+
+  // ── ARC 2: MAVİ (L06-L10) ──────────────────────────────────────
+  // Giriş → Tırman → Derin → Nefes → BOSS
+  {goals:[{level:4,contains:[3]}]},                                                // L06  5.5 — kolay giriş, yeni renk
+  {goals:[{level:4,contains:[3]},{level:3,contains:[2]}]},                         // L07 10.0 — 2 slot
+  {goals:[{level:4,contains:[3]},{level:3,contains:[2,1]}]},                       // L08 11.5 — 2 slot, derin
+  {goals:[{level:4,contains:[3]},{level:4,contains:[3]}]},                         // L09  9.0 — nefes (2 slot, tekrar)
+  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},                     // L10 14.0 — BOSS: 2 slot, ikisi derin
+
+  // ── ARC 3: MOR (L11-L15) ───────────────────────────────────────
+  // Giriş → Tırman → Sürpriz → Nefes → BOSS
+  {goals:[{level:5,contains:[4]}]},                                                // L11  6.5 — kolay giriş, yeni renk
+  {goals:[{level:5,contains:[4]},{level:4,contains:[3]}]},                         // L12 12.0 — 2 slot
+  {goals:[{level:5,contains:[4]},{level:3,contains:[2,1]}]},                       // L13 12.5 — sürpriz: mor + yeşil mix
+  {goals:[{level:5,contains:[4]},{level:4,contains:[3]}]},                         // L14 12.0 — nefes (tanıdık kombinasyon)
+  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4,3]}]},                     // L15 17.0 — BOSS: 2 slot, ikisi derin
+
+  // ── ARC 4: KIRMIZI (L16-L20) ───────────────────────────────────
+  // Giriş → Tırman → Sürpriz → Nefes → BOSS
+  {goals:[{level:6,contains:[5]}]},                                                // L16  7.5 — kolay giriş, yeni renk
+  {goals:[{level:6,contains:[5]},{level:5,contains:[4]}]},                         // L17 14.0 — 2 slot
+  {goals:[{level:6,contains:[5]},{level:4,contains:[3,2]}]},                       // L18 14.5 — sürpriz: kırmızı + mavi mix
+  {goals:[{level:6,contains:[5]},{level:5,contains:[4]}]},                         // L19 14.0 — nefes (tanıdık kombinasyon)
+  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4]}]},                     // L20 19.0 — BOSS: 2 slot, ikisi derin
+
+  // ── ENDLESS (L21+) ─────────────────────────────────────────────
+  {goals:[{level:6,contains:[5,4]},{level:5,contains:[4,3]}]},                     // L21
+  {goals:[{level:6,contains:[5,4,3]},{level:6,contains:[5]}]},                     // L22
+  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4]},{level:5,contains:[4,3]}]}, // L23
+  {goals:[{level:6,contains:[5,4,3]},{level:5,contains:[4,3]},{level:4,contains:[3,2]}]}, // L24
+  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5,4,3]},{level:6,contains:[5]}]},   // L25
 ];
 
 export const BLAST_BTNS_TEMPLATE = [
-  { id: 'yellow', levels: [1], color: '#F5FF00', maxCharges: 4 },
+  { id: 'yellow', levels: [1], color: '#FFD700', maxCharges: 4 },
   { id: 'orange', levels: [2], color: '#FF9500', maxCharges: 3 },
   { id: 'green',  levels: [3], color: '#00C853', maxCharges: 2 },
   { id: 'blue',   levels: [4], color: '#00B0FF', maxCharges: 2 },
