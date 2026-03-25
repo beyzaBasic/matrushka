@@ -473,6 +473,7 @@ export class Game {
 
     // Tutorial ipuçları (sadece level 0)
     if (state.currentLevel === 0) {
+      this.hints.draw();
       this.tutorial.drawHint();
       this.hints.drawAllChains(this.goals);
     }
