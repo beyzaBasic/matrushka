@@ -15,17 +15,30 @@ export function buildLayout() {
   return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD };
 }
 
-export function buildLevels(MAIN_R) {
-  // Renk sırası: sıcaktan soğuğa — sarı turuncudan önce gelir
-  return [
-    { r: Math.round(MAIN_R * (28 / 360)),  color: '#FF5EBC', vy: 1.4 }, // 0 pembe
-    { r: Math.round(MAIN_R * (38 / 360)),  color: '#FFD700', vy: 1.8 }, // 1 sarı
-    { r: Math.round(MAIN_R * (51 / 360)),  color: '#FF9500', vy: 2.2 }, // 2 turuncu
-    { r: Math.round(MAIN_R * (68 / 360)),  color: '#00C853', vy: 2.7 }, // 3 yeşil
-    { r: Math.round(MAIN_R * (90 / 360)),  color: '#00B0FF', vy: 3.2 }, // 4 mavi
-    { r: Math.round(MAIN_R * (120 / 360)), color: '#AA00FF', vy: 3.8 }, // 5 mor
-    { r: Math.round(MAIN_R * (160 / 360)), color: '#FF1744', vy: 4.5 }, // 6 kırmızı
-  ];
+// Boyut oranları — renkten bağımsız, değişmez
+const LEVEL_RATIOS = [
+  { ratio: 28 / 360, vy: 1.4 },
+  { ratio: 38 / 360, vy: 1.8 },
+  { ratio: 51 / 360, vy: 2.2 },
+  { ratio: 68 / 360, vy: 2.7 },
+  { ratio: 90 / 360, vy: 3.2 },
+  { ratio: 120 / 360, vy: 3.8 },
+  { ratio: 160 / 360, vy: 4.5 },
+];
+
+/**
+ * palette: world-config'den gelen 8 renk dizisi.
+ * 7 level için palette'in ilk 7 rengi kullanılır (index 0-6).
+ * palette verilmezse eski hardcoded renkler fallback olarak çalışır.
+ */
+export function buildLevels(MAIN_R, palette) {
+  const fallback = ['#FF5EBC','#FFD700','#FF9500','#00C853','#00B0FF','#AA00FF','#FF1744'];
+  const colors = (palette && palette.length >= 7) ? palette : fallback;
+  return LEVEL_RATIOS.map((lv, i) => ({
+    r: Math.round(MAIN_R * lv.ratio),
+    color: colors[i],
+    vy: lv.vy,
+  }));
 }
 
 export const LEVEL_DEFS = [

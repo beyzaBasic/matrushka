@@ -24,16 +24,34 @@ canvas { display: block; touch-action: none; }
 <body>
 <canvas id="c"></canvas>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
 <script type="module">
   import { Game } from './js/game.js';
+  import { MapScreen } from './js/map.js';
 
-  const game = new Game(document.getElementById('c'));
-  game.start();
+  const canvas = document.getElementById('c');
 
-  window.addEventListener('keydown', e => {
-    if (e.key === ' ') {
-      import('./js/state.js').then(({ state }) => { state.isPaused = !state.isPaused; });
-    }
+  function startGame(cpIdx) {
+    canvas.style.display = 'block';
+    const game = new Game(canvas);
+    game.startFromCheckpoint(cpIdx);
+    window._matrushkaGame = game;
+    window.addEventListener('keydown', e => {
+      if (e.key === ' ') {
+        import('./js/state.js').then(({ state }) => { state.isPaused = !state.isPaused; });
+      }
+    });
+  }
+
+  // Harita görünene kadar canvas gizli
+  canvas.style.display = 'none';
+
+  const map = new MapScreen();
+  window._matrushkaMap = map;
+
+  map.show((cpIdx) => {
+    map.hide();
+    setTimeout(() => startGame(cpIdx), 500);
   });
 </script>
 </body>

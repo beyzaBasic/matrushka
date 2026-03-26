@@ -8,6 +8,7 @@ import { BlastManager } from './blast.js';
 import { HintManager } from './hints.js';
 import { TutorialManager } from './tutorial.js';
 import { Renderer } from './renderer.js';
+import { LEVELS_PER_CP, levelFromCpIdx, cpIdxFromLevel, getWorldConfig } from './world-config.js';
 
 export class Game {
   constructor(canvas) {
@@ -28,11 +29,33 @@ export class Game {
     window.addEventListener('resize', () => { this._applyLayout(); });
   }
 
+  // ── Dünya paleti ─────────────────────────────────────────────────
+  _currentPalette() {
+    const cpIdx = cpIdxFromLevel(state.currentLevel || 0, TUTORIAL_LEVELS);
+    return getWorldConfig(cpIdx).palette;
+  }
+
+  // Level değişince LEVELS renklerini güncelle, sahnedeki topları ve blast butonlarını yeniden boya
+  _applyWorldPalette() {
+    const palette = this._currentPalette();
+    state.LEVELS = buildLevels(state.MAIN_R, palette);
+    // Sahnedeki topların rengini güncelle
+    for (const c of state.circles) {
+      c.color = state.LEVELS[c.level].color;
+    }
+    // Blast buton renklerini güncelle
+    for (const btn of state.BLAST_BTNS) {
+      const lv = btn.levels[0];
+      if (lv < state.LEVELS.length) btn.color = state.LEVELS[lv].color;
+    }
+  }
+
   // ── Layout ────────────────────────────────────────────────────────
   _applyLayout() {
     const L = buildLayout();
     Object.assign(state, L);
-    state.LEVELS = buildLevels(L.MAIN_R);
+    const palette = this._currentPalette();
+    state.LEVELS = buildLevels(L.MAIN_R, palette);
     // canvas boyutlandır
     const { canvas, ctx } = state;
     canvas.width  = Math.round(L.CSS_W * L.DPR);
@@ -70,7 +93,7 @@ export class Game {
 
     if (state.gameOver) {
       const gb = state._gameOverBtn;
-      if (gb && x >= gb.x && x <= gb.x + gb.w && y >= gb.y && y <= gb.y + gb.h) this._resetGame();
+      if (gb && x >= gb.x && x <= gb.x + gb.w && y >= gb.y && y <= gb.y + gb.h) this._restartCurrentLevel();
       return;
     }
 
@@ -154,9 +177,58 @@ export class Game {
   }
 
   // ── Başlat / Sıfırla ──────────────────────────────────────────────
-  start() {
-    this._resetGame();
+  // index.html'den çağrılır — cpIdx: seçilen checkpoint
+  startFromCheckpoint(cpIdx) {
+    const internalLevel = cpIdx === 0
+      ? 0
+      : levelFromCpIdx(cpIdx, TUTORIAL_LEVELS);
+    this._startFromLevel(internalLevel);
     requestAnimationFrame(() => this._loop());
+  }
+
+  // Eski start() — geriye dönük uyumluluk
+  start() {
+    this.startFromCheckpoint(0);
+  }
+
+  _getProgress() {
+    try { return JSON.parse(localStorage.getItem('matrushka_progress') || '{}'); }
+    catch(e) { return {}; }
+  }
+
+  _startFromLevel(internalLevel) {
+    state.currentLevel      = internalLevel;
+    state.circles           = [];
+    state.particles         = [];
+    state.blastAnims        = [];
+    state.absorbingInto     = [];
+    state.chainWaves        = [];
+    state.actionTexts       = [];
+    state.comboDisplays     = [];
+    state.BLAST_BTNS        = BLAST_BTNS_TEMPLATE.map(b => ({ ...b, charges: b.maxCharges }));
+    state.combo             = 0;
+    state.comboTimer        = 0;
+    state.gameOver          = false;
+    state.gameOverAlpha     = 0;
+    state.levelSuccess      = false;
+    state.levelSuccessAlpha = 0;
+    state.levelStars        = 0;
+    state.isPaused          = false;
+    state.lastSpawn         = 0;
+    state.introDropsDone    = false;
+    state.blastUsedThisLevel = 0;
+    state.tut0Step          = -1;  // _preloadArena set eder
+    state.tut0Transitioning = false;
+    state._tut1done         = false;
+    state._nextLevelBtn     = null;
+    state._gameOverBtn      = null;
+    this.goals.initLevelGoals();
+    this._preloadArena();
+  }
+
+  _restartCurrentLevel() {
+    const lvl = state.currentLevel; // mevcut level'ı sakla
+    this._startFromLevel(lvl);
   }
 
   _resetGame() {
@@ -180,12 +252,31 @@ export class Game {
     state.tut0Transitioning = false;
     state._nextLevelBtn  = null;
     state._gameOverBtn   = null;
-    this.goals.initLevelGoals();
-    this._preloadArena();
+    // _preloadArena ve goals.init _startFromLevel tarafından çağrılır
   }
 
   _nextLevel() {
-    state.currentLevel++;
+    const nextLevel = state.currentLevel + 1;
+    const completedGameLevels = nextLevel - TUTORIAL_LEVELS; // Tutorial hariç
+    const isCheckpoint = completedGameLevels > 0 && completedGameLevels % LEVELS_PER_CP === 0;
+
+    if (isCheckpoint) {
+      const cpIdx = Math.floor(completedGameLevels / LEVELS_PER_CP) - 1;
+      // index.html üzerinden map'e eriş
+      if (window._matrushkaMap) {
+        window._matrushkaMap.showCheckpoint(cpIdx, () => {
+          this._doNextLevel(nextLevel);
+        });
+      } else {
+        this._doNextLevel(nextLevel);
+      }
+      return;
+    }
+    this._doNextLevel(nextLevel);
+  }
+
+  _doNextLevel(nextLevel) {
+    state.currentLevel = nextLevel;
     state.circles        = [];
     state.particles      = [];
     state.blastAnims     = [];
@@ -198,6 +289,7 @@ export class Game {
     state.comboTimer     = 0;
     state.lastSpawn      = 0;
     state.blastUsedThisLevel = 0;
+    this._applyWorldPalette();
     this.goals.initLevelGoals();
     this._preloadArena();
   }
@@ -473,12 +565,14 @@ export class Game {
     // Absorb animasyonu
     R.drawAbsorbAnims();
 
-    // Tutorial ipuçları (sadece level 0)
+    // Tutorial ipuçları (sadece tutorial'da)
     if (state.currentLevel < TUTORIAL_LEVELS) {
       this.hints.draw();
       if (state.currentLevel === 0) this.tutorial.drawHint();
-      this.hints.drawAllChains(this.goals);
     }
+
+    // Hint zincirleri — her levelda göster
+    this.hints.drawAllChains(this.goals);
 
     // Success overlay
     R.drawSuccessOverlay(this.goals);
