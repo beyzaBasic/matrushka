@@ -21,6 +21,7 @@ export const state = {
   tut0Step: -1, tut0Transitioning: false, _step1Spawned: false,
   // Oyun durumu
   gameOver: false, gameOverAlpha: 0, isPaused: false, mapVisible: false,
+  nextBall: null, heldBall: null, ballDropped: false,
   lastSpawn: 0, mainBorderFlash: 0,
   combo: 0, comboTimer: 0,
   frameCount: 0, gameTime: 0, lastComboFrame: -1,

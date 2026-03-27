@@ -62,17 +62,46 @@ export class PhysicsManager {
           }
         }
       }
+      // U şekli fizik sınırları:
+      // - Alt yarım daire (y >= CY): tam daire sınırı
+      // - Üst kısım (y < CY): sadece sol (x < CX-MAIN_R) ve sağ (x > CX+MAIN_R) duvarlar
       for (const c of circles) {
         if (c.isBeingDragged) continue;
-        const dx = c.x - CX, dy = c.y - CY, d = Math.hypot(dx, dy) || 0.01;
-        if (d + c.r > MAIN_R) {
-          const nx = dx / d, ny = dy / d;
-          c.x = CX + nx * (MAIN_R - c.r); c.y = CY + ny * (MAIN_R - c.r);
-          const dot = c.vx * nx + c.vy * ny;
-          if (dot > 0) {
-            c.vx -= (1 + WALL_BOUNCE) * dot * nx; c.vy -= (1 + WALL_BOUNCE) * dot * ny;
-            const strength = Math.min(dot * 0.05, 0.30);
-            c.squish = { t: 1.0, amt: strength, ax: nx, ay: ny };
+        const dx = c.x - CX, dy = c.y - CY;
+
+        if (dy >= 0) { // CY'nin altı: daire sınırı
+          // Alt yarım daire sınırı
+          const d = Math.hypot(dx, dy) || 0.01;
+          if (d + c.r > MAIN_R) {
+            const nx = dx / d, ny = dy / d;
+            c.x = CX + nx * (MAIN_R - c.r);
+            c.y = CY + ny * (MAIN_R - c.r);
+            const dot = c.vx * nx + c.vy * ny;
+            if (dot > 0) {
+              c.vx -= (1 + WALL_BOUNCE) * dot * nx;
+              c.vy -= (1 + WALL_BOUNCE) * dot * ny;
+              c.squish = { t: 1.0, amt: Math.min(dot * 0.05, 0.30), ax: nx, ay: ny };
+            }
+          }
+        } else {
+          // Üst kısım — sadece sol ve sağ duvar (x sınırı = MAIN_R)
+          // Sol duvar
+          if (c.x - c.r < CX - MAIN_R) {
+            c.x = CX - MAIN_R + c.r;
+            if (c.vx < 0) { c.vx = -c.vx * WALL_BOUNCE; }
+            c.squish = { t: 1.0, amt: 0.2, ax: -1, ay: 0 };
+          }
+          // Sağ duvar
+          if (c.x + c.r > CX + MAIN_R) {
+            c.x = CX + MAIN_R - c.r;
+            if (c.vx > 0) { c.vx = -c.vx * WALL_BOUNCE; }
+            c.squish = { t: 1.0, amt: 0.2, ax: 1, ay: 0 };
+          }
+          // Üstten kaçmasın (score alanı sınırı)
+          const SCORE_AREA = state.SCORE_AREA || 230;
+          if (c.y - c.r < SCORE_AREA + 10) {
+            c.y = SCORE_AREA + 10 + c.r;
+            if (c.vy < 0) c.vy = Math.abs(c.vy) * 0.3;
           }
         }
       }
@@ -85,10 +114,10 @@ export class PhysicsManager {
       if (c.absorbAnim > 0) c.absorbAnim--;
       if (c.boing > 0) c.boing = Math.max(0, c.boing - 0.05);
       if (c.isBeingDragged) {
+        // U içinde serbestçe taşınabilir, sadece sol/sağ duvar sınırı
         const tx = mousePos.x, ty = mousePos.y;
-        const dd = Math.hypot(tx - CX, ty - CY), maxD = MAIN_R - c.r;
-        if (dd > maxD) { const a = Math.atan2(ty - CY, tx - CX); c.x = CX + Math.cos(a) * maxD; c.y = CY + Math.sin(a) * maxD; }
-        else { c.x = tx; c.y = ty; }
+        c.x = Math.max(CX - MAIN_R + c.r, Math.min(CX + MAIN_R - c.r, tx));
+        c.y = Math.max(state.SCORE_AREA + c.r, ty);
         continue;
       }
       c.vy += 0.22 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;

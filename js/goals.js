@@ -1,6 +1,7 @@
 // ── goals.js ──────────────────────────────────────────────────────
 import { state } from './state.js';
 import { LEVEL_DEFS, TUTORIAL_LEVELS } from './constants.js';
+import { getWorldConfig, cpIdxFromLevel } from './world-config.js';
 
 export class GoalManager {
   getLevelDef() {
@@ -93,7 +94,9 @@ export class GoalManager {
           state.levelSuccess = true;
           state.levelStars = state.blastUsedThisLevel === 0 ? 3 : state.blastUsedThisLevel <= 1 ? 2 : 1;
           audio.levelComplete();
-          const cols = ['#FFD700', '#FF5EBC', '#00C853', '#00B0FF', '#FF9500', '#fff'];
+          const cpIdx = cpIdxFromLevel(state.currentLevel, TUTORIAL_LEVELS);
+          const palette = getWorldConfig(cpIdx).palette;
+          const cols = [...palette, '#fff', '#FFD700'];
           for (let p = 0; p < 50; p++) {
             const a = Math.random() * Math.PI * 2, sp = (3 + Math.random() * 8) * S;
             particles.push({ x: CX + (Math.random() - 0.5) * MAIN_R, y: CY + (Math.random() - 0.5) * MAIN_R, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3 * S, r: (4 + Math.random() * 7) * S, color: cols[Math.floor(Math.random() * cols.length)], life: 100, maxLife: 100 });

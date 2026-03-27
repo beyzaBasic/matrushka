@@ -25,364 +25,144 @@ export const TOTAL_CHECKPOINTS = 20;
 
 export const WORLD_CONFIG = [
 
-  // ── CP 0: Klasik (Tutorial + L1-10) ─────────────────────────────
-  // Orijinal oyun renkleri
+  // ── CP 00: Klasik (Tutorial + L1-10) ─────────────────────────
   {
-    id: 0,
-    name: 'Klasik',
-    subtitle: 'Hoş geldin',
+    id: 0, name: 'Klasik', subtitle: 'Hoş geldin',
     bgColor: '#0d0a1a',
-    palette: [
-      '#FF5EBC',  // 0 — pembe
-      '#FFD700',  // 1 — sarı
-      '#FF9500',  // 2 — turuncu
-      '#00C853',  // 3 — yeşil
-      '#00B0FF',  // 4 — mavi
-      '#AA00FF',  // 5 — mor
-      '#FF1744',  // 6 — kırmızı
-    ],
+    palette: ['#FF5EBC','#FFD700','#FF9500','#00C853','#00B0FF','#AA00FF','#FF1744'],
   },
 
-  // ── CP 1: Lav (L11-20) ───────────────────────────────────────────
-  // Sıcak, yanıcı, enerjik
+  // ── CP 01: Gökkuşağı (L11-20) ────────────────────────────────
   {
-    id: 1,
-    name: 'Lav',
-    subtitle: 'Isı yükseliyor',
-    bgColor: '#1a0500',
-    palette: [
-      '#FFF176',  // 0 — soluk sarı
-      '#FFD600',  // 1 — altın
-      '#FF9100',  // 2 — yanık turuncu
-      '#FF3D00',  // 3 — lav kırmızısı
-      '#DD2C00',  // 4 — koyu lav
-      '#BF360C',  // 5 — demir kırmızı
-      '#4E342E',  // 6 — volkanik kahve
-    ],
+    id: 1, name: 'Gökkuşağı', subtitle: 'Tüm renkler',
+    bgColor: '#0a0a0a',
+    palette: ['#FF0000','#FF7700','#FFE000','#00CC00','#0055FF','#8800FF','#FF00CC'],
   },
 
-  // ── CP 2: Bataklık (L21-30) ──────────────────────────────────────
-  // Asit, toksik, gizemli yeşil
+  // ── CP 02: Şeker Dükkanı (L21-30) ────────────────────────────
   {
-    id: 2,
-    name: 'Bataklık',
-    subtitle: 'Derinlere dalıyoruz',
-    bgColor: '#010d00',
-    palette: [
-      '#CCFF90',  // 0 — asit yeşil açık
-      '#B2FF59',  // 1 — neon lime
-      '#76FF03',  // 2 — elektrik yeşil
-      '#00E676',  // 3 — parlak yeşil
-      '#00BFA5',  // 4 — zümrüt
-      '#1B5E20',  // 5 — orman koyu
-      '#33691E',  // 6 — yosun
-    ],
+    id: 2, name: 'Şeker Dükkanı', subtitle: 'Tatlı dünya',
+    bgColor: '#120818',
+    palette: ['#FF66AA','#FFD700','#00DD66','#00AAFF','#BB44FF','#FF8800','#00FFCC'],
   },
 
-  // ── CP 3: Okyanus (L31-40) ───────────────────────────────────────
-  // Derin mavi, soğuk, serin
+  // ── CP 03: Okyanus (L31-40) ───────────────────────────────────
   {
-    id: 3,
-    name: 'Okyanus',
-    subtitle: 'Sonsuz derinlik',
+    id: 3, name: 'Okyanus', subtitle: 'Sonsuz derinlik',
     bgColor: '#00051a',
-    palette: [
-      '#E0F7FA',  // 0 — buz mavisi
-      '#80DEEA',  // 1 — turkuaz açık
-      '#26C6DA',  // 2 — aqua
-      '#0288D1',  // 3 — okyanus mavisi
-      '#01579B',  // 4 — derin deniz
-      '#1A237E',  // 5 — lacivert
-      '#0D1B4B',  // 6 — abissal karanlık
-    ],
+    palette: ['#00FFFF','#00AAFF','#0055FF','#00FF99','#FF00FF','#0000CC','#003366'],
   },
 
-  // ── CP 4: Fırtına (L41-50) ───────────────────────────────────────
-  // Mor, gri, elektrik — dramatik
+  // ── CP 04: Neon (L41-50) ─────────────────────────────────────
   {
-    id: 4,
-    name: 'Fırtına',
-    subtitle: 'Şimşekler çakıyor',
-    bgColor: '#06001a',
-    palette: [
-      '#E8EAF6',  // 0 — soluk leylak
-      '#B39DDB',  // 1 — soft mor
-      '#7E57C2',  // 2 — iris
-      '#5E35B1',  // 3 — elektrik mor
-      '#4527A0',  // 4 — fırtına moru
-      '#E040FB',  // 5 — şimşek pembesi
-      '#1A0533',  // 6 — gece yarısı
-    ],
-  },
-
-  // ── CP 5: Kum (L51-60) ───────────────────────────────────────────
-  // Sıcak toprak tonları, çöl atmosferi
-  {
-    id: 5,
-    name: 'Çöl',
-    subtitle: 'Sonsuz kum',
-    bgColor: '#1a1000',
-    palette: [
-      '#FFF9C4',  // 0 — soluk krem
-      '#FFE082',  // 1 — kum sarısı
-      '#FFB300',  // 2 — amber
-      '#FF8F00',  // 3 — karamel
-      '#E65100',  // 4 — terracotta
-      '#BF360C',  // 5 — kızıl toprak
-      '#3E2723',  // 6 — çöl gecesi
-    ],
-  },
-
-  // ── CP 6: Buz (L61-70) ───────────────────────────────────────────
-  // Soğuk beyaz, kristal, parlak
-  {
-    id: 6,
-    name: 'Buz',
-    subtitle: 'Kristal soğuk',
-    bgColor: '#001830',
-    palette: [
-      '#FFFFFF',  // 0 — beyaz
-      '#E3F2FD',  // 1 — çok açık mavi
-      '#90CAF9',  // 2 — buz mavisi
-      '#42A5F5',  // 3 — açık mavi
-      '#1565C0',  // 4 — derin mavi
-      '#0D47A1',  // 5 — buz altı
-      '#01003D',  // 6 — donmuş gece
-    ],
-  },
-
-  // ── CP 7: Neon (L71-80) ──────────────────────────────────────────
-  // Siber, parlak, retro-fütüristik
-  {
-    id: 7,
-    name: 'Neon',
-    subtitle: 'Siber dünya',
+    id: 4, name: 'Neon', subtitle: 'Siber dünya',
     bgColor: '#000514',
-    palette: [
-      '#F8FF00',  // 0 — neon sarı
-      '#00FFF0',  // 1 — cyan
-      '#00FF41',  // 2 — matrix yeşil
-      '#FF00FF',  // 3 — magenta
-      '#FF4500',  // 4 — neon turuncu
-      '#7B00FF',  // 5 — elektrik mor
-      '#FF0055',  // 6 — neon pembe
-    ],
+    palette: ['#FF00FF','#00FFFF','#FF0066','#00FF00','#FFFF00','#FF6600','#6600FF'],
   },
 
-  // ── CP 8: Mercan (L81-90) ────────────────────────────────────────
-  // Pembe, turuncu, sıcak deniz
+  // ── CP 05: Buz (L51-60) ──────────────────────────────────────
   {
-    id: 8,
-    name: 'Mercan',
-    subtitle: 'Sıcak sular',
-    bgColor: '#1a0008',
-    palette: [
-      '#FCE4EC',  // 0 — çok açık pembe
-      '#F48FB1',  // 1 — mercan pembesi
-      '#F06292',  // 2 — somon
-      '#E91E63',  // 3 — koyu pembe
-      '#FF7043',  // 4 — mercan turuncu
-      '#FF5722',  // 5 — kor turuncu
-      '#BF360C',  // 6 — koyu mercan
-    ],
+    id: 5, name: 'Buz', subtitle: 'Kristal soğuk',
+    bgColor: '#001830',
+    palette: ['#FFFFFF','#AADDFF','#55AAFF','#0077FF','#00CCFF','#0033CC','#001166'],
   },
 
-  // ── CP 9: Altın (L91-100) ────────────────────────────────────────
-  // Zengin, parlak, prestijli
+  // ── CP 06: Zehir (L61-70) ────────────────────────────────────
   {
-    id: 9,
-    name: 'Altın',
-    subtitle: 'Saf zafer',
-    bgColor: '#130e00',
-    palette: [
-      '#FFFDE7',  // 0 — krem
-      '#FFF59D',  // 1 — soluk altın
-      '#FFEE58',  // 2 — altın sarısı
-      '#FDD835',  // 3 — parlak altın
-      '#F9A825',  // 4 — amber altın
-      '#E65100',  // 5 — bronz
-      '#3E2723',  // 6 — koyu bronz
-    ],
-  },
-
-  // ── CP 10: Zehir (L101-110) ──────────────────────────────────────
-  // Toksik, tehlikeli, karanlık yeşil-mor
-  {
-    id: 10,
-    name: 'Zehir',
-    subtitle: 'Tehlikeli karışım',
+    id: 6, name: 'Zehir', subtitle: 'Tehlikeli karışım',
     bgColor: '#070010',
-    palette: [
-      '#F3E5F5',  // 0 — soluk leylak
-      '#CE93D8',  // 1 — açık mor
-      '#AB47BC',  // 2 — zehir moru
-      '#7B1FA2',  // 3 — koyu mor
-      '#69F0AE',  // 4 — zehir yeşili
-      '#00C853',  // 5 — asit yeşil
-      '#1B5E20',  // 6 — koyu zehir
-    ],
+    palette: ['#CCFF00','#00FF66','#FF00AA','#AA00FF','#FF6600','#009900','#660099'],
   },
 
-  // ── CP 11: Güneş Batımı (L111-120) ───────────────────────────────
-  // Turuncu, pembe, mor — romantik gökyüzü
+  // ── CP 07: Güneş (L71-80) ────────────────────────────────────
   {
-    id: 11,
-    name: 'Güneş Batımı',
-    subtitle: 'Son ışık',
+    id: 7, name: 'Güneş', subtitle: 'Sıcak ve parlak',
+    bgColor: '#1a1000',
+    palette: ['#FFE000','#FFAA00','#FF6600','#FF3300','#FF0066','#FFFF66','#CC3300'],
+  },
+
+  // ── CP 08: Mercan (L81-90) ───────────────────────────────────
+  {
+    id: 8, name: 'Mercan', subtitle: 'Sıcak sular',
+    bgColor: '#1a0008',
+    palette: ['#FF4466','#FF7744','#FFAA22','#FF2288','#CC0044','#FF99AA','#880022'],
+  },
+
+  // ── CP 09: Hazine (L91-100) ──────────────────────────────────
+  {
+    id: 9, name: 'Hazine', subtitle: 'Altın ve zafer',
+    bgColor: '#130e00',
+    palette: ['#FFD700','#FF2200','#0066FF','#00CC44','#FF6600','#CC00FF','#00DDFF'],
+  },
+
+  // ── CP 10: Gece (L101-110) ───────────────────────────────────
+  {
+    id: 10, name: 'Gece', subtitle: 'Büyülü karanlık',
+    bgColor: '#000814',
+    palette: ['#AA00FF','#0000FF','#FF0055','#00FFCC','#FF6600','#4400CC','#001133'],
+  },
+
+  // ── CP 11: Güneş Batımı (L111-120) ───────────────────────────
+  {
+    id: 11, name: 'Güneş Batımı', subtitle: 'Son ışık',
     bgColor: '#1a0510',
-    palette: [
-      '#FFF3E0',  // 0 — şafak beyazı
-      '#FFCC80',  // 1 — açık turuncu
-      '#FFA726',  // 2 — turuncu
-      '#FF7043',  // 3 — ateş
-      '#E91E63',  // 4 — gün batımı pembesi
-      '#9C27B0',  // 5 — alacakaranlık moru
-      '#1A0020',  // 6 — gece
-    ],
+    palette: ['#FF0066','#FF9900','#FFEE00','#00FF88','#0088FF','#8800FF','#FF0099'],
   },
 
-  // ── CP 12: Opal (L121-130) ───────────────────────────────────────
-  // İnci, gökkuşağı, sedefli
+  // ── CP 12: Uzay (L121-130) ───────────────────────────────────
   {
-    id: 12,
-    name: 'Opal',
-    subtitle: 'Sedef parlaklık',
-    bgColor: '#050510',
-    palette: [
-      '#E0F2F1',  // 0 — sedef beyaz
-      '#80CBC4',  // 1 — aquamarin
-      '#26A69A',  // 2 — jade
-      '#7E57C2',  // 3 — ametist
-      '#EC407A',  // 4 — pembe opal
-      '#29B6F6',  // 5 — gökyüzü
-      '#0D3349',  // 6 — koyu opal
-    ],
-  },
-
-  // ── CP 13: Kan (L131-140) ────────────────────────────────────────
-  // Kırmızı, bordo, dramatik
-  {
-    id: 13,
-    name: 'Kan',
-    subtitle: 'Son sınır',
-    bgColor: '#0f0000',
-    palette: [
-      '#FFCDD2',  // 0 — açık pembe kırmızı
-      '#EF9A9A',  // 1 — soluk kan
-      '#E53935',  // 2 — kan kırmızısı
-      '#C62828',  // 3 — koyu kan
-      '#B71C1C',  // 4 — bordo
-      '#7F0000',  // 5 — koyu bordo
-      '#1C0000',  // 6 — siyah kan
-    ],
-  },
-
-  // ── CP 14: Uzay (L141-150) ───────────────────────────────────────
-  // Kozmik, derin, yıldızlı
-  {
-    id: 14,
-    name: 'Uzay',
-    subtitle: 'Galaksinin ötesi',
+    id: 12, name: 'Uzay', subtitle: 'Galaksinin ötesi',
     bgColor: '#000008',
-    palette: [
-      '#E8EAF6',  // 0 — yıldız beyazı
-      '#7986CB',  // 1 — nebula mavisi
-      '#3949AB',  // 2 — kozmik mavi
-      '#8E24AA',  // 3 — galaksi moru
-      '#00ACC1',  // 4 — kuasar
-      '#F4511E',  // 5 — kırmızı dev yıldız
-      '#01000D',  // 6 — derin uzay
-    ],
+    palette: ['#FFFFFF','#AAAAFF','#FF4444','#4444FF','#FFAA00','#00FFAA','#220044'],
   },
 
-  // ── CP 15: Jöle (L151-160) ───────────────────────────────────────
-  // Translucent, canlı, tatlı
+  // ── CP 13: Opal (L131-140) ───────────────────────────────────
   {
-    id: 15,
-    name: 'Jöle',
-    subtitle: 'Tatlı kaos',
-    bgColor: '#0a001a',
-    palette: [
-      '#FFEB3B',  // 0 — sarı jöle
-      '#FF9800',  // 1 — turuncu jöle
-      '#E91E63',  // 2 — pembe jöle
-      '#9C27B0',  // 3 — mor jöle
-      '#3F51B5',  // 4 — mavi jöle
-      '#009688',  // 5 — yeşil jöle
-      '#F44336',  // 6 — kırmızı jöle
-    ],
+    id: 13, name: 'Opal', subtitle: 'Sedef parlaklık',
+    bgColor: '#050510',
+    palette: ['#FF66FF','#66FFFF','#66FF66','#FFFF66','#FF6666','#6666FF','#FF66AA'],
   },
 
-  // ── CP 16: Granit (L161-170) ─────────────────────────────────────
-  // Metalik, soğuk, endüstriyel
+  // ── CP 14: Gece Yarısı (L141-150) ────────────────────────────
   {
-    id: 16,
-    name: 'Granit',
-    subtitle: 'Demir ve çelik',
-    bgColor: '#080808',
-    palette: [
-      '#ECEFF1',  // 0 — beyaz gri
-      '#B0BEC5',  // 1 — gümüş
-      '#78909C',  // 2 — çelik
-      '#546E7A',  // 3 — demir
-      '#37474F',  // 4 — antrasit
-      '#CFD8DC',  // 5 — krom (kontrast)
-      '#102027',  // 6 — siyah çelik
-    ],
-  },
-
-  // ── CP 17: Volkan (L171-180) ─────────────────────────────────────
-  // Turuncu, sarı, siyah — volkanik
-  {
-    id: 17,
-    name: 'Volkan',
-    subtitle: 'Patlama anı',
-    bgColor: '#0f0500',
-    palette: [
-      '#FFFF8D',  // 0 — parlak sarı
-      '#FFD740',  // 1 — altın sarısı
-      '#FFAB40',  // 2 — kor turuncu
-      '#FF6D00',  // 3 — lav
-      '#DD2C00',  // 4 — volkan kırmızısı
-      '#FF4081',  // 5 — pembe kor (kontrast)
-      '#1A0A00',  // 6 — kül siyahı
-    ],
-  },
-
-  // ── CP 18: Aura (L181-190) ───────────────────────────────────────
-  // Gökkuşağı, tüm renkler, final öncesi
-  {
-    id: 18,
-    name: 'Aura',
-    subtitle: 'Tüm renkler bir arada',
-    bgColor: '#050005',
-    palette: [
-      '#FF4081',  // 0 — pembe
-      '#FF6D00',  // 1 — turuncu
-      '#FFD600',  // 2 — sarı
-      '#00E676',  // 3 — yeşil
-      '#00B0FF',  // 4 — mavi
-      '#D500F9',  // 5 — mor
-      '#FF1744',  // 6 — kırmızı
-    ],
-  },
-
-  // ── CP 19: Kaos (L191-200) ───────────────────────────────────────
-  // Karanlık, karşıt, final — maksimum zorluk
-  {
-    id: 19,
-    name: 'Kaos',
-    subtitle: 'Son sınav',
+    id: 14, name: 'Gece Yarısı', subtitle: 'Neon ve karanlık',
     bgColor: '#000000',
-    palette: [
-      '#EEFF41',  // 0 — asit sarı
-      '#FF1744',  // 1 — kırmızı
-      '#00E5FF',  // 2 — cyan
-      '#FF9100',  // 3 — turuncu
-      '#D500F9',  // 4 — neon mor
-      '#00E676',  // 5 — neon yeşil
-      '#FFFFFF',  // 6 — beyaz (en büyük, dramatik)
-    ],
+    palette: ['#FF0033','#FF7700','#FFEE00','#00FF55','#0044FF','#9900FF','#FF00BB'],
+  },
+
+  // ── CP 15: Volkan (L151-160) ─────────────────────────────────
+  {
+    id: 15, name: 'Volkan', subtitle: 'Patlama anı',
+    bgColor: '#0f0500',
+    palette: ['#FFFF8D','#FFD740','#FFAB40','#FF6D00','#DD2C00','#FF4081','#1A0A00'],
+  },
+
+  // ── CP 16: Retro (L161-170) ──────────────────────────────────
+  {
+    id: 16, name: 'Retro', subtitle: 'Pixel çağı',
+    bgColor: '#0a0010',
+    palette: ['#FF2244','#FF8800','#FFDD00','#00AAFF','#AA00FF','#00CC88','#FF0088'],
+  },
+
+  // ── CP 17: Fırtına (L171-180) ────────────────────────────────
+  {
+    id: 17, name: 'Fırtına', subtitle: 'Şimşekler çakıyor',
+    bgColor: '#06001a',
+    palette: ['#CCCCFF','#8888FF','#4444FF','#FF44FF','#00FFFF','#FF4444','#220066'],
+  },
+
+  // ── CP 18: Aura (L181-190) ───────────────────────────────────
+  {
+    id: 18, name: 'Aura', subtitle: 'Tüm renkler bir arada',
+    bgColor: '#050005',
+    palette: ['#FF0066','#FF9900','#FFCC00','#00FF88','#0088FF','#8800FF','#FF0099'],
+  },
+
+  // ── CP 19: Kaos (L191-200) ───────────────────────────────────
+  {
+    id: 19, name: 'Kaos', subtitle: 'Son sınav',
+    bgColor: '#000000',
+    palette: ['#FF0000','#FF8800','#FFFF00','#00FF00','#0000FF','#8800FF','#FFFFFF'],
   },
 ];
 
