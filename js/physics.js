@@ -97,10 +97,10 @@ export class PhysicsManager {
             if (c.vx > 0) { c.vx = -c.vx * WALL_BOUNCE; }
             c.squish = { t: 1.0, amt: 0.2, ax: 1, ay: 0 };
           }
-          // Üstten kaçmasın (score alanı sınırı)
-          const SCORE_AREA = state.SCORE_AREA || 230;
-          if (c.y - c.r < SCORE_AREA + 10) {
-            c.y = SCORE_AREA + 10 + c.r;
+          // Üstten kaçmasın — U'nun üst kenarı sınırı
+          const topLimit = state.CY - state.MAIN_R;
+          if (c.y - c.r < topLimit) {
+            c.y = topLimit + c.r;
             if (c.vy < 0) c.vy = Math.abs(c.vy) * 0.3;
           }
         }

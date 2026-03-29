@@ -9,6 +9,7 @@ export const state = {
   MIN_DIM: 0, DPR: 1, CSS_W: 0, CSS_H: 0,
   SCORE_AREA: 230, BTN_PAD: 12, BTN_BOTTOM_PAD: 12,
   LEVELS: [],
+  theme: null,           // ThemeManager tarafından set edilir
   // Oyun nesneleri
   circles: [], particles: [], chainWaves: [], absorbingInto: [],
   blastAnims: [], blastBtnAnim: { id: null, t: 0 },
@@ -22,6 +23,7 @@ export const state = {
   // Oyun durumu
   gameOver: false, gameOverAlpha: 0, isPaused: false, mapVisible: false,
   nextBall: null, heldBall: null, ballDropped: false,
+  autoDropTimer: 0, autoDropDeadline: 0,
   lastSpawn: 0, mainBorderFlash: 0,
   combo: 0, comboTimer: 0,
   frameCount: 0, gameTime: 0, lastComboFrame: -1,

@@ -9,6 +9,7 @@ import { HintManager } from './hints.js';
 import { TutorialManager } from './tutorial.js';
 import { Renderer } from './renderer.js';
 import { LEVELS_PER_CP, levelFromCpIdx, cpIdxFromLevel, getWorldConfig } from './world-config.js';
+import { ThemeManager } from './theme.js';
 
 export class Game {
   constructor(canvas) {
@@ -23,6 +24,7 @@ export class Game {
     this.hints    = new HintManager();
     this.tutorial = new TutorialManager();
     this.renderer = new Renderer();
+    this.theme    = new ThemeManager();
 
     this._applyLayout();
     this._setupInput();
@@ -30,32 +32,13 @@ export class Game {
   }
 
   // ── Dünya paleti ─────────────────────────────────────────────────
-  _currentPalette() {
-    const cpIdx = cpIdxFromLevel(state.currentLevel || 0, TUTORIAL_LEVELS);
-    return getWorldConfig(cpIdx).palette;
-  }
-
-  // Level değişince LEVELS renklerini güncelle, sahnedeki topları ve blast butonlarını yeniden boya
-  _applyWorldPalette() {
-    const palette = this._currentPalette();
-    state.LEVELS = buildLevels(state.MAIN_R, palette);
-    // Sahnedeki topların rengini güncelle
-    for (const c of state.circles) {
-      c.color = state.LEVELS[c.level].color;
-    }
-    // Blast buton renklerini güncelle
-    for (const btn of state.BLAST_BTNS) {
-      const lv = btn.levels[0];
-      if (lv < state.LEVELS.length) btn.color = state.LEVELS[lv].color;
-    }
-  }
+  // Tema yönetimi ThemeManager'a devredildi — _applyWorldPalette kaldırıldı
 
   // ── Layout ────────────────────────────────────────────────────────
   _applyLayout() {
     const L = buildLayout();
     Object.assign(state, L);
-    const palette = this._currentPalette();
-    state.LEVELS = buildLevels(L.MAIN_R, palette);
+    this.theme?.reapplyAfterResize();
     // canvas boyutlandır
     const { canvas, ctx } = state;
     canvas.width  = Math.round(L.CSS_W * L.DPR);
@@ -149,8 +132,18 @@ export class Game {
       if (distFromCenter < MAIN_R * 1.15) {
         const nb = state.nextBall;
         state.nextBall = null;
-        const dropX = Math.max(CX - MAIN_R + nb.r + 2, Math.min(CX + MAIN_R - nb.r - 2, x));
-        const dropY = CY - MAIN_R + nb.r + 2;
+        // X sınırı
+        let dropX = Math.max(CX - MAIN_R + nb.r + 2, Math.min(CX + MAIN_R - nb.r - 2, x));
+        // Y: U kenarından başla
+        let dropY = CY - MAIN_R + nb.r + 4;
+        // Daire sınırı — drop noktası daire içinde olmalı
+        const dDrop = Math.hypot(dropX - CX, dropY - CY);
+        if (dDrop + nb.r > MAIN_R - 2) {
+          // Daire içine çek
+          const a = Math.atan2(dropY - CY, dropX - CX);
+          dropX = CX + Math.cos(a) * (MAIN_R - nb.r - 2);
+          dropY = CY + Math.sin(a) * (MAIN_R - nb.r - 2);
+        }
         const ball = this._makeBallObj(nb.level, dropX, dropY);
         ball.vy = 2;
         state.circles.push(ball);
@@ -270,6 +263,7 @@ export class Game {
     state._tut1done         = false;
     state._nextLevelBtn     = null;
     state._gameOverBtn      = null;
+    this.theme.applyForLevel(internalLevel);
     this.goals.initLevelGoals();
     this._preloadArena();
     // İlk topu üret
@@ -342,7 +336,7 @@ export class Game {
     state.comboTimer     = 0;
     state.lastSpawn      = 0;
     state.blastUsedThisLevel = 0;
-    this._applyWorldPalette();
+    this.theme.applyForLevel(nextLevel);
     this.goals.initLevelGoals();
     this._preloadArena();
     // İlk topu üret (tutorial değilse)
@@ -430,6 +424,7 @@ export class Game {
     const nx = CX;                // yatayda tam orta
     const ny = CY - MAIN_R + r;  // topun tepesi U üst kenarında
     state.nextBall = { level: lv, r, color: LEVELS[lv].color, x: nx, y: ny };
+    state.autoDropDeadline = Date.now() + 4000; // 4s otomatik düşme
   }
 
   // Oyuncu topu aldı — heldBall oluştur
@@ -440,6 +435,7 @@ export class Game {
     if (dist > nb.r * 1.8) return false; // Sadece top üzerine gelince al
     state.heldBall = { ...nb, x: touchX, y: touchY };
     state.nextBall = null;
+    state.autoDropDeadline = 0; // oyuncu aldı, timer dur
     this.audio.pick();
     return true;
   }
@@ -459,8 +455,12 @@ export class Game {
       dropX = CX + Math.cos(a) * maxD;
       dropY = CY + Math.sin(a) * maxD;
     }
+    // Sol/sağ duvar sınırı
+    dropX = Math.max(CX - MAIN_R + hb.r + 2, Math.min(CX + MAIN_R - hb.r - 2, dropX));
+    // Üst sınır — U kenarının içinde
+    dropY = Math.max(CY - MAIN_R + hb.r + 4, dropY);
     // Yalnızca arena içindeyse bırak
-    if (Math.hypot(dropX - CX, dropY - CY) < MAIN_R) {
+    if (Math.hypot(dropX - CX, dropY - CY) < MAIN_R + hb.r) {
       const ball = this._makeBallObj(hb.level, dropX, dropY);
       state.circles.push(ball);
       this.audio.spawn();
@@ -468,7 +468,9 @@ export class Game {
     state.heldBall = null;
     // 0.5s sonra yeni top üret
     setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
+      if (!state.levelSuccess && !state.gameOver) {
+        this._generateNextBall(); // _generateNextBall içinde timer başlar
+      }
     }, 500);
   }
 
@@ -562,7 +564,21 @@ export class Game {
 
     if (state.mainBorderFlash > 0) state.mainBorderFlash--;
 
-    // Spawn — otomatik spawn kaldırıldı, oyuncu sürükle-bırak ile top ekler
+    // Otomatik düşme — oyuncu 4s içinde almazsa top kendisi düşer
+    if (state.nextBall && !state.heldBall && !state.levelSuccess && !state.gameOver &&
+        state.autoDropDeadline > 0 && now >= state.autoDropDeadline) {
+      const nb = state.nextBall;
+      state.nextBall = null;
+      state.autoDropDeadline = 0;
+      const autoY = CY - MAIN_R + nb.r + 4;
+      const ball = this._makeBallObj(nb.level, nb.x, autoY);
+      ball.vy = 2;
+      state.circles.push(ball);
+      this.audio.spawn();
+      setTimeout(() => {
+        if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
+      }, 500);
+    }
 
     // Hedef animasyonları
     this.goals.updateFlyingGoals(this.audio);
@@ -616,16 +632,21 @@ export class Game {
     const R = this.renderer;
     const { ctx, W, H, CX, CY, MAIN_R, S, circles, LEVELS } = state;
 
-    // Arka plan
+    // Arka plan — theme'den
+    const th = state.theme;
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0d0a1a'); bg.addColorStop(0.5, '#0a0f1e'); bg.addColorStop(1, '#060810');
+    bg.addColorStop(0,   th?.bgTop || '#0d0a1a');
+    bg.addColorStop(0.5, th?.bgMid || '#0a0f1e');
+    bg.addColorStop(1,   th?.bgBot || '#060810');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-    // Arena rengi — sahnedeki en yüksek level
+    // Arena rengi — sahnedeki en yüksek level, yoksa theme accent
     let topLevel = 0;
     for (const cc of circles) { if (cc.level > topLevel) topLevel = cc.level; for (const lv of cc.contains) if (lv > topLevel) topLevel = lv; }
     const def = this.goals.getLevelDef();
-    const arenaColor = circles.length > 0 ? LEVELS[topLevel].color : (LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
+    const arenaColor = circles.length > 0
+      ? LEVELS[topLevel].color
+      : (th?.arenaBase || LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
 
     // Arena — U şekli (üst açık)
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
@@ -656,14 +677,33 @@ export class Game {
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // nextBall göstergesi (sağ üst)
+    // nextBall göstergesi — orta üst
     if (state.nextBall) {
       const nb = state.nextBall;
       ctx.save();
-      ctx.globalAlpha = 0.4 + 0.15 * Math.sin(Date.now() * 0.004);
-      ctx.font = `${Math.round(10*S)}px "ui-rounded",sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText('SONRAKI', nb.x, nb.y - nb.r - 6*S);
+
+      // Timer arc — kaç saniye kaldı
+      if (state.autoDropDeadline > 0) {
+        const remaining = Math.max(0, state.autoDropDeadline - Date.now());
+        const progress = remaining / 4000; // 1→0
+        const arcR = nb.r + 8 * S;
+        // Arka arc (soluk)
+        ctx.beginPath();
+        ctx.arc(nb.x, nb.y, arcR, -Math.PI/2, -Math.PI/2 + Math.PI*2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 3 * S; ctx.stroke();
+        // Kalan süre arc
+        const urgency = progress < 0.3; // son saniyede kırmızı
+        ctx.beginPath();
+        ctx.arc(nb.x, nb.y, arcR, -Math.PI/2, -Math.PI/2 + Math.PI*2*progress);
+        ctx.strokeStyle = urgency ? '#FF4444' : nb.color;
+        ctx.lineWidth = 3 * S;
+        ctx.shadowColor = urgency ? '#FF4444' : nb.color;
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
       ctx.globalAlpha = 1;
       R.drawSphere({ ...nb, boing:0, absorbAnim:0, squish:null, absorbGlow:0, isBeingDragged:false, contains:[] });
       ctx.restore();
@@ -720,6 +760,9 @@ export class Game {
     R.drawComboDisplays();
 
     // Pause butonu
+    // Palet rehberi — sol üst köşe
+    if (!state.levelSuccess && !state.gameOver) R.drawPaletteGuide();
+
     R.drawPauseBtn();
     if (state.isPaused) {
       R.drawPauseOverlay();

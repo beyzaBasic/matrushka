@@ -189,7 +189,7 @@ export class Renderer {
     }
     const titleColor = circles.length > 0
       ? LEVELS[aTop].color
-      : (LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
+      : (state.theme?.arenaBase || LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font      = `bold ${Math.round(28 * S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
@@ -700,4 +700,118 @@ export class Renderer {
     ctx.fillText('All moves learned.',CX,demoY+42); ctx.fillText('Good luck! 🎉',CX,demoY+42+fs+8);
     ctx.restore();
   }
+  // ── Palet rehberi — sol üst köşe, dikey chain (küçük→büyük) ─────
+  drawPaletteGuide() {
+    const { ctx, LEVELS, S, CX, CY, MAIN_R } = state;
+    if (!LEVELS || LEVELS.length === 0) return;
+
+    const n      = LEVELS.length;
+    const t      = Date.now() * 0.001;
+    const { H }  = state;
+
+    // ok ve boşluk
+    const arrowH = Math.round(8 * S);
+    const gap    = Math.round(2 * S);
+
+    // U'nun üst kenarı — chain buradan yukarı uzanacak
+    const uTop   = CY - MAIN_R;
+    const padBot = Math.round(12 * S);   // chain alt padding (U'ya mesafe)
+    const padTop = Math.round(10 * S);   // chain üst padding (ekran üstüne mesafe)
+
+    // Kullanılabilir yükseklik: ekran üstü → U üstü
+    const availH = uTop - padTop - padBot;
+
+    // scale: chain availH'ye TAM sığacak şekilde — üst limit yok
+    const sumR2  = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
+    const scale  = (availH - (n - 1) * (arrowH + gap * 2)) / sumR2;
+
+    // Her top yarıçapı (ölçekli)
+    const radii = LEVELS.map(lv => Math.max(4, Math.round(lv.r * scale)));
+
+    // Toplam chain yüksekliği
+    const totalH = radii.reduce((s, r) => s + r * 2, 0) + (n - 1) * (arrowH + gap * 2);
+
+    // X: sol kenara yasla
+    const guideX = radii[n-1] + Math.round(6 * S);
+
+    // Y: chain bottom = uTop - padBot, yukarı doğru uzanır
+    const startY = uTop - padBot - totalH;
+
+    ctx.save();
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    let curY = startY;
+
+    for (let i = 0; i < n; i++) {
+      const lv  = LEVELS[i];
+      const r   = radii[i];
+      const cx  = guideX;
+      const cy  = curY + r;
+      const pulse = 0.78 + 0.22 * Math.sin(t * 2.2 + i * 0.85);
+
+      ctx.globalAlpha = pulse * 0.92;
+
+      // Top — candy gradient
+      const g = ctx.createRadialGradient(cx - r*0.25, cy - r*0.3, r*0.05, cx, cy, r);
+      g.addColorStop(0,    this.shadeColor(lv.color, 80));
+      g.addColorStop(0.35, lv.color);
+      g.addColorStop(1,    this.shadeColor(lv.color, -60));
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle   = g;
+      ctx.shadowColor = lv.color;
+      ctx.shadowBlur  = 6 * S;
+      ctx.fill();
+
+      // Specular
+      ctx.shadowBlur = 0;
+      const sg = ctx.createRadialGradient(cx-r*0.28, cy-r*0.28, 0, cx-r*0.28, cy-r*0.28, r*0.22);
+      sg.addColorStop(0, 'rgba(255,255,255,0.82)');
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath();
+      ctx.arc(cx - r*0.28, cy - r*0.28, r*0.22, 0, Math.PI * 2);
+      ctx.fillStyle = sg;
+      ctx.fill();
+
+      // Ok: bu top → bir sonraki top (hint chain stili, bir sonraki topun rengiyle)
+      if (i < n - 1) {
+        const nextColor = LEVELS[i + 1].color;
+        const lineX  = cx;
+        const lineY1 = cy + r + gap;
+        const aw     = Math.max(4, Math.round(5 * S));
+        const ay     = lineY1 + arrowH;
+
+        ctx.globalAlpha = 0.75;
+
+        // Çizgi (düz, ince)
+        ctx.beginPath();
+        ctx.moveTo(lineX, lineY1);
+        ctx.lineTo(lineX, ay - aw * 0.8);
+        ctx.strokeStyle = nextColor;
+        ctx.lineWidth   = 1.5 * S;
+        ctx.stroke();
+
+        // Dolu ok ucu (▼)
+        ctx.beginPath();
+        ctx.moveTo(lineX - aw,  ay - aw * 0.8);
+        ctx.lineTo(lineX + aw,  ay - aw * 0.8);
+        ctx.lineTo(lineX,       ay + aw * 0.4);
+        ctx.closePath();
+        ctx.fillStyle   = nextColor;
+        ctx.shadowColor = nextColor;
+        ctx.shadowBlur  = 4 * S;
+        ctx.fill();
+        ctx.shadowBlur  = 0;
+      }
+
+      curY += r * 2 + arrowH + gap * 2;
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
+    ctx.restore();
+  }
+
+
 }

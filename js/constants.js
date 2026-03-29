@@ -6,10 +6,10 @@ export function buildLayout() {
   const CSS_W = window.innerWidth, CSS_H = window.innerHeight;
   const W = CSS_W, H = CSS_H, MIN_DIM = Math.min(W, H), CX = W / 2;
   const SCORE_AREA = 230, BTN_PAD = 12, BTN_BOTTOM_PAD = 12;
-  const _R_EST = Math.floor(Math.min(W * 0.49, (H - SCORE_AREA) / 2 - 2));
+  const _R_EST = Math.floor(Math.min(W * 0.48, (H - SCORE_AREA) / 2 - 2));
   const BTN_H_EST = Math.round(_R_EST * 0.62 * 0.42);
   const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
-  const MAIN_R = Math.floor(Math.min(W * 0.49, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
+  const MAIN_R = Math.floor(Math.min(W * 0.48, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
   const CY = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
   const S = MIN_DIM / 800;
   return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD };
