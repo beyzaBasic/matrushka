@@ -9,7 +9,7 @@ export const state = {
   MIN_DIM: 0, DPR: 1, CSS_W: 0, CSS_H: 0,
   SCORE_AREA: 230, BTN_PAD: 12, BTN_BOTTOM_PAD: 12,
   LEVELS: [],
-  theme: null,           // ThemeManager tarafından set edilir
+  theme: null,
   // Oyun nesneleri
   circles: [], particles: [], chainWaves: [], absorbingInto: [],
   blastAnims: [], blastBtnAnim: { id: null, t: 0 },

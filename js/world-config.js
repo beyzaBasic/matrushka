@@ -1,204 +1,129 @@
 // ── world-config.js ───────────────────────────────────────────────
-// Tüm checkpoint'lerin özelliklerini tek yerden yönetir.
-// map.js, game.js ve ileride eklenecek her sistem buradan okur.
-//
-// Her checkpoint 10 level kapsar (LEVELS_PER_CP = 10).
-// 20 checkpoint = 200 level toplam.
-//
-// Checkpoint index → internal level:
-//   internalLevel = cpIdx * 10 + TUTORIAL_LEVELS (2)
-//
-// Yeni özellik eklemek için sadece bu dosyaya alan ekle,
-// sisteme bağlamak için ilgili manager'a bir satır eklemek yeter.
+// Her CP: 7 renk, aynı CP içinde görsel mesafe > 0.15 (belirgin farklılık).
+// Küçükten büyüğe: palette[0] = level 0, palette[6] = level 6.
 
 export const LEVELS_PER_CP = 10;
 export const TOTAL_CHECKPOINTS = 20;
 
-// ── Checkpoint tanımları ──────────────────────────────────────────
-// Her obje bir "dünya" = 1 checkpoint = 10 level
-// ── Renk seti tasarım ilkesi ─────────────────────────────────────
-// Her checkpoint 7 top rengi içerir (level 0→6, küçükten büyüğe).
-// Renkler birbirinden belirgin şekilde ayrışır (gökkuşağı mantığı)
-// ama aynı set içinde atmosferik uyum taşır.
-// palette[0] = en küçük top (level 0), palette[6] = en büyük top (level 6)
-// (8. eleman harita küresinin dış halkası için — oyun toplarına uygulanmaz)
-
 export const WORLD_CONFIG = [
 
-  // ── CP 00: Klasik (Tutorial + L1-10) ─────────────────────────
-  {
-    id: 0, name: 'Klasik', subtitle: 'Hoş geldin',
+  // CP 00: Klasik
+  { id: 0, name: 'Klasik', subtitle: 'Hoş geldin',
     bgColor: '#0d0a1a',
-    palette: ['#FF5EBC','#FFD700','#FF9500','#00C853','#00B0FF','#AA00FF','#FF1744'],
-  },
+    palette: ['#ff3d3d', '#ffad32', '#d4ff28', '#0aff33', '#28b7ff', '#7732ff', '#ff3dde'] },
 
-  // ── CP 01: Gökkuşağı (L11-20) ────────────────────────────────
-  {
-    id: 1, name: 'Gökkuşağı', subtitle: 'Tüm renkler',
+  // CP 01: Gökkuşağı
+  { id: 1, name: 'Gökkuşağı', subtitle: 'Tüm renkler',
     bgColor: '#0a0a0a',
-    palette: ['#FF0000','#FF7700','#FFE000','#00CC00','#0055FF','#8800FF','#FF00CC'],
-  },
+    palette: ['#ff6532', '#ffed28', '#5bff0a', '#0affc1', '#2870ff', '#b219ff', '#ff3276'] },
 
-  // ── CP 02: Şeker Dükkanı (L21-30) ────────────────────────────
-  {
-    id: 2, name: 'Şeker Dükkanı', subtitle: 'Tatlı dünya',
+  // CP 02: Şeker Dükkanı
+  { id: 2, name: 'Şeker Dükkanı', subtitle: 'Tatlı dünya',
     bgColor: '#120818',
-    palette: ['#FF66AA','#FFD700','#00DD66','#00AAFF','#BB44FF','#FF8800','#00FFCC'],
-  },
+    palette: ['#f777b7', '#ad63f6', '#38d9f9', '#24f347', '#eafa42', '#fa8950', '#f81037'] },
 
-  // ── CP 03: Okyanus (L31-40) ───────────────────────────────────
-  {
-    id: 3, name: 'Okyanus', subtitle: 'Sonsuz derinlik',
+  // CP 03: Okyanus
+  { id: 3, name: 'Okyanus', subtitle: 'Sonsuz derinlik',
     bgColor: '#00051a',
-    palette: ['#00FFFF','#00AAFF','#0055FF','#00FF99','#FF00FF','#0000CC','#003366'],
-  },
+    palette: ['#5bf1ff', '#1884f0', '#0527d0', '#0e947e', '#f91f43', '#f59e46', '#a335f2'] },
 
-  // ── CP 04: Neon (L41-50) ─────────────────────────────────────
-  {
-    id: 4, name: 'Neon', subtitle: 'Siber dünya',
+  // CP 04: Neon
+  { id: 4, name: 'Neon', subtitle: 'Siber dünya',
     bgColor: '#000514',
-    palette: ['#FF00FF','#00FFFF','#FF0066','#00FF00','#FFFF00','#FF6600','#6600FF'],
-  },
+    palette: ['#ff19fe', '#fff428', '#0affea', '#0a0aff', '#06ee06', '#ff6619', '#ff003f'] },
 
-  // ── CP 05: Buz (L51-60) ──────────────────────────────────────
-  {
-    id: 5, name: 'Buz', subtitle: 'Kristal soğuk',
+  // CP 05: Buz
+  { id: 5, name: 'Buz', subtitle: 'Kristal soğuk',
     bgColor: '#001830',
-    palette: ['#FFFFFF','#AADDFF','#55AAFF','#0077FF','#00CCFF','#0033CC','#001166'],
-  },
+    palette: ['#e6ecef', '#a8c6e5', '#5091eb', '#0b50da', '#011c6f', '#f58f46', '#39de7e'] },
 
-  // ── CP 06: Zehir (L61-70) ────────────────────────────────────
-  {
-    id: 6, name: 'Zehir', subtitle: 'Tehlikeli karışım',
+  // CP 06: Zehir
+  { id: 6, name: 'Zehir', subtitle: 'Tehlikeli karışım',
     bgColor: '#070010',
-    palette: ['#CCFF00','#00FF66','#FF00AA','#AA00FF','#FF6600','#009900','#660099'],
-  },
+    palette: ['#c1ff0a', '#ff19d8', '#7f00ff', '#0ee68c', '#ffb728', '#00d2e5', '#f80606'] },
 
-  // ── CP 07: Güneş (L71-80) ────────────────────────────────────
-  {
-    id: 7, name: 'Güneş', subtitle: 'Sıcak ve parlak',
+  // CP 07: Güneş
+  { id: 7, name: 'Güneş', subtitle: 'Sıcak ve parlak',
     bgColor: '#1a1000',
-    palette: ['#FFE000','#FFAA00','#FF6600','#FF3300','#FF0066','#FFFF66','#CC3300'],
-  },
+    palette: ['#ffe770', '#ff470a', '#ba0707', '#690e06', '#3383f4', '#13eb49', '#7b3ff2'] },
 
-  // ── CP 08: Mercan (L81-90) ───────────────────────────────────
-  {
-    id: 8, name: 'Mercan', subtitle: 'Sıcak sular',
+  // CP 08: Mercan
+  { id: 8, name: 'Mercan', subtitle: 'Sıcak sular',
     bgColor: '#1a0008',
-    palette: ['#FF4466','#FF7744','#FFAA22','#FF2288','#CC0044','#FF99AA','#880022'],
-  },
+    palette: ['#f5856f', '#ff1965', '#bc1404', '#16e0f2', '#ffe53d', '#a338ee', '#18dc59'] },
 
-  // ── CP 09: Hazine (L91-100) ──────────────────────────────────
-  {
-    id: 9, name: 'Hazine', subtitle: 'Altın ve zafer',
+  // CP 09: Hazine
+  { id: 9, name: 'Hazine', subtitle: 'Altın ve zafer',
     bgColor: '#130e00',
-    palette: ['#FFD700','#FF2200','#0066FF','#00CC44','#FF6600','#CC00FF','#00DDFF'],
-  },
+    palette: ['#ffd83d', '#ff1e0a', '#006aff', '#11d483', '#c519ff', '#20d8e8', '#f39e48'] },
 
-  // ── CP 10: Gece (L101-110) ───────────────────────────────────
-  {
-    id: 10, name: 'Gece', subtitle: 'Büyülü karanlık',
+  // CP 10: Gece
+  { id: 10, name: 'Gece', subtitle: 'Büyülü karanlık',
     bgColor: '#000814',
-    palette: ['#AA00FF','#0000FF','#FF0055','#00FFCC','#FF6600','#4400CC','#001133'],
-  },
+    palette: ['#6632ff', '#0065f4', '#d819ff', '#11d4c4', '#f20c33', '#f9a42e', '#10c62e'] },
 
-  // ── CP 11: Güneş Batımı (L111-120) ───────────────────────────
-  {
-    id: 11, name: 'Güneş Batımı', subtitle: 'Son ışık',
+  // CP 11: Güneş Batımı
+  { id: 11, name: 'Güneş Batımı', subtitle: 'Son ışık',
     bgColor: '#1a0510',
-    palette: ['#FF0066','#FF9900','#FFEE00','#00FF88','#0088FF','#8800FF','#FF0099'],
-  },
+    palette: ['#ff6d3d', '#ff3287', '#b335f2', '#d61100', '#fedb4c', '#4393e4', '#16e87f'] },
 
-  // ── CP 12: Uzay (L121-130) ───────────────────────────────────
-  {
-    id: 12, name: 'Uzay', subtitle: 'Galaksinin ötesi',
+  // CP 12: Uzay
+  { id: 12, name: 'Uzay', subtitle: 'Galaksinin ötesi',
     bgColor: '#000008',
-    palette: ['#FFFFFF','#AAAAFF','#FF4444','#4444FF','#FFAA00','#00FFAA','#220044'],
-  },
+    palette: ['#f2f2f2', '#f159d8', '#4598ec', '#35f2c3', '#8c30e8', '#fadb42', '#0022cc'] },
 
-  // ── CP 13: Opal (L131-140) ───────────────────────────────────
-  {
-    id: 13, name: 'Opal', subtitle: 'Sedef parlaklık',
+  // CP 13: Opal
+  { id: 13, name: 'Opal', subtitle: 'Sedef parlaklık',
     bgColor: '#050510',
-    palette: ['#FF66FF','#66FFFF','#66FF66','#FFFF66','#FF6666','#6666FF','#FF66AA'],
-  },
+    palette: ['#e9859e', '#78a4e2', '#70dbb7', '#edd36d', '#ae6edd', '#5dc0d4', '#e69065'] },
 
-  // ── CP 14: Gece Yarısı (L141-150) ────────────────────────────
-  {
-    id: 14, name: 'Gece Yarısı', subtitle: 'Neon ve karanlık',
+  // CP 14: Gece Yarısı
+  { id: 14, name: 'Gece Yarısı', subtitle: 'Neon ve karanlık',
     bgColor: '#000000',
-    palette: ['#FF0033','#FF7700','#FFEE00','#00FF55','#0044FF','#9900FF','#FF00BB'],
-  },
+    palette: ['#ff0a0a', '#ff9328', '#eeff32', '#00f466', '#0a84ff', '#8c19ff', '#e5e5e5'] },
 
-  // ── CP 15: Volkan (L151-160) ─────────────────────────────────
-  {
-    id: 15, name: 'Volkan', subtitle: 'Patlama anı',
+  // CP 15: Volkan
+  { id: 15, name: 'Volkan', subtitle: 'Patlama anı',
     bgColor: '#0f0500',
-    palette: ['#FFFF8D','#FFD740','#FFAB40','#FF6D00','#DD2C00','#FF4081','#1A0A00'],
-  },
+    palette: ['#fff58e', '#ff7028', '#cd0808', '#771107', '#5583c3', '#7ad7df', '#67dc2c'] },
 
-  // ── CP 16: Retro (L161-170) ──────────────────────────────────
-  {
-    id: 16, name: 'Retro', subtitle: 'Pixel çağı',
+  // CP 16: Retro
+  { id: 16, name: 'Retro', subtitle: 'Pixel çağı',
     bgColor: '#0a0010',
-    palette: ['#FF2244','#FF8800','#FFDD00','#00AAFF','#AA00FF','#00CC88','#FF0088'],
-  },
+    palette: ['#ff3299', '#19ebff', '#fff83d', '#8c19ff', '#4cf513', '#ff8228', '#0a5bff'] },
 
-  // ── CP 17: Fırtına (L171-180) ────────────────────────────────
-  {
-    id: 17, name: 'Fırtına', subtitle: 'Şimşekler çakıyor',
+  // CP 17: Fırtına
+  { id: 17, name: 'Fırtına', subtitle: 'Şimşekler çakıyor',
     bgColor: '#06001a',
-    palette: ['#CCCCFF','#8888FF','#4444FF','#FF44FF','#00FFFF','#FF4444','#220066'],
-  },
+    palette: ['#dadde5', '#283aff', '#980aff', '#7f6fcc', '#0d61d7', '#3c04ae', '#f28435'] },
 
-  // ── CP 18: Aura (L181-190) ───────────────────────────────────
-  {
-    id: 18, name: 'Aura', subtitle: 'Tüm renkler bir arada',
+  // CP 18: Aura
+  { id: 18, name: 'Aura', subtitle: 'Tüm renkler bir arada',
     bgColor: '#050005',
-    palette: ['#FF0066','#FF9900','#FFCC00','#00FF88','#0088FF','#8800FF','#FF0099'],
-  },
+    palette: ['#18f096', '#b01ff9', '#f7449e', '#ffde3d', '#f22816', '#3574f2', '#74e622'] },
 
-  // ── CP 19: Kaos (L191-200) ───────────────────────────────────
-  {
-    id: 19, name: 'Kaos', subtitle: 'Son sınav',
+  // CP 19: Kaos
+  { id: 19, name: 'Kaos', subtitle: 'Son sınav',
     bgColor: '#000000',
-    palette: ['#FF0000','#FF8800','#FFFF00','#00FF00','#0000FF','#8800FF','#FFFFFF'],
-  },
+    palette: ['#ff193f', '#ff8228', '#eeff32', '#00ff55', '#0a84ff', '#9f19ff', '#ffffff'] },
+
 ];
 
-// ── Yardımcı fonksiyonlar ─────────────────────────────────────────
-
-/**
- * Checkpoint index'ine göre dünya config'i döndürür.
- * 7 tema döngüsel tekrar eder (CP 7 → Tema 0, CP 8 → Tema 1, vs.)
- */
 export function getWorldConfig(cpIdx) {
-  // 20 benzersiz checkpoint var, sınırı aş olursa son tekrar eder
   const idx = Math.max(0, Math.min(cpIdx, WORLD_CONFIG.length - 1));
   return WORLD_CONFIG[idx];
 }
 
-/**
- * Internal level'dan checkpoint index'i hesapla.
- * (TUTORIAL_LEVELS = 2 varsayılır)
- */
 export function cpIdxFromLevel(internalLevel, tutorialLevels = 2) {
   const gameLevel = internalLevel - tutorialLevels;
   if (gameLevel < 0) return 0;
   return Math.floor(gameLevel / LEVELS_PER_CP);
 }
 
-/**
- * Checkpoint index'inden internal level hesapla.
- */
 export function levelFromCpIdx(cpIdx, tutorialLevels = 2) {
   return cpIdx * LEVELS_PER_CP + tutorialLevels;
 }
 
-/**
- * O checkpoint'in level aralığını döndürür (display için).
- * Örn: cp 0 → { lo: 1, hi: 10 }
- */
 export function cpLevelRange(cpIdx) {
   const lo = cpIdx * LEVELS_PER_CP + 1;
   const hi = (cpIdx + 1) * LEVELS_PER_CP;

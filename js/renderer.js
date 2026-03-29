@@ -700,54 +700,51 @@ export class Renderer {
     ctx.fillText('All moves learned.',CX,demoY+42); ctx.fillText('Good luck! 🎉',CX,demoY+42+fs+8);
     ctx.restore();
   }
-  // ── Palet rehberi — sol üst köşe, dikey chain (küçük→büyük) ─────
+  // ── Palet rehberi — Level title top → slot bottom arası, dikey chain ──
   drawPaletteGuide() {
-    const { ctx, LEVELS, S, CX, CY, MAIN_R } = state;
+    const { ctx, LEVELS, S, CX, CY, MAIN_R, MIN_DIM } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    const n      = LEVELS.length;
-    const t      = Date.now() * 0.001;
-    const { H }  = state;
+    const n = LEVELS.length;
+    const t = Date.now() * 0.001;
 
-    // ok ve boşluk
-    const arrowH = Math.round(8 * S);
+    // ── Koordinat referansları (goalSlotPos ile aynı formül) ──────────
+    // Title: y=22, font=28*S → top = 22 - fontSize/2
+    const titleFontH = Math.round(28 * S);
+    const titleTop   = 22 - titleFontH / 2 - 2 * S;
+
+    // Slot bottom: goalSlotPos(0) hesabı (goals.js ile senkron)
+    const nGoals  = state.goalSlots ? state.goalSlots.length : 1;
+    const GEM_R   = nGoals <= 1 ? 64 : nGoals === 2 ? 54 : 44;
+    const TOP = 10, TTL = Math.round(28 * MIN_DIM / 800) + 8, MID = 4;
+    const gemTop  = TOP + TTL + MID;
+    const slotBot = gemTop + GEM_R * 2 + 6 * S;   // slot alt kenarı + küçük pad
+
+    // ── Chain yüksekliği bu aralığa tam sığsın ───────────────────────
+    const availH = slotBot - titleTop;
+    const arrowH = Math.round(6 * S);
     const gap    = Math.round(2 * S);
-
-    // U'nun üst kenarı — chain buradan yukarı uzanacak
-    const uTop   = CY - MAIN_R;
-    const padBot = Math.round(12 * S);   // chain alt padding (U'ya mesafe)
-    const padTop = Math.round(10 * S);   // chain üst padding (ekran üstüne mesafe)
-
-    // Kullanılabilir yükseklik: ekran üstü → U üstü
-    const availH = uTop - padTop - padBot;
-
-    // scale: chain availH'ye TAM sığacak şekilde — üst limit yok
     const sumR2  = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
     const scale  = (availH - (n - 1) * (arrowH + gap * 2)) / sumR2;
 
-    // Her top yarıçapı (ölçekli)
-    const radii = LEVELS.map(lv => Math.max(4, Math.round(lv.r * scale)));
-
-    // Toplam chain yüksekliği
+    const radii  = LEVELS.map(lv => Math.max(3, Math.round(lv.r * scale)));
     const totalH = radii.reduce((s, r) => s + r * 2, 0) + (n - 1) * (arrowH + gap * 2);
 
     // X: sol kenara yasla
     const guideX = radii[n-1] + Math.round(6 * S);
 
-    // Y: chain bottom = uTop - padBot, yukarı doğru uzanır
-    const startY = uTop - padBot - totalH;
+    // startY: title top hizasından başla
+    const startY = titleTop;
 
     ctx.save();
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
 
     let curY = startY;
 
     for (let i = 0; i < n; i++) {
-      const lv  = LEVELS[i];
-      const r   = radii[i];
-      const cx  = guideX;
-      const cy  = curY + r;
+      const lv    = LEVELS[i];
+      const r     = radii[i];
+      const cx    = guideX;
+      const cy    = curY + r;
       const pulse = 0.78 + 0.22 * Math.sin(t * 2.2 + i * 0.85);
 
       ctx.globalAlpha = pulse * 0.92;
@@ -761,7 +758,7 @@ export class Renderer {
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fillStyle   = g;
       ctx.shadowColor = lv.color;
-      ctx.shadowBlur  = 6 * S;
+      ctx.shadowBlur  = 4 * S;
       ctx.fill();
 
       // Specular
@@ -774,35 +771,31 @@ export class Renderer {
       ctx.fillStyle = sg;
       ctx.fill();
 
-      // Ok: bu top → bir sonraki top (hint chain stili, bir sonraki topun rengiyle)
+      // Ok: gri, hint chain boyutunda küçük dolu daire
       if (i < n - 1) {
-        const nextColor = LEVELS[i + 1].color;
-        const lineX  = cx;
         const lineY1 = cy + r + gap;
-        const aw     = Math.max(4, Math.round(5 * S));
-        const ay     = lineY1 + arrowH;
+        const lineY2 = lineY1 + arrowH;
+        const aw     = Math.max(2, Math.round(2.5 * S));
 
-        ctx.globalAlpha = 0.75;
+        ctx.globalAlpha = 0.45;
 
-        // Çizgi (düz, ince)
+        // Çizgi
         ctx.beginPath();
-        ctx.moveTo(lineX, lineY1);
-        ctx.lineTo(lineX, ay - aw * 0.8);
-        ctx.strokeStyle = nextColor;
-        ctx.lineWidth   = 1.5 * S;
+        ctx.moveTo(cx, lineY1);
+        ctx.lineTo(cx, lineY2 - aw);
+        ctx.strokeStyle = 'rgba(200,200,200,0.6)';
+        ctx.lineWidth   = 1.2 * S;
         ctx.stroke();
 
-        // Dolu ok ucu (▼)
+        // Ok ucu — gri dolu üçgen
         ctx.beginPath();
-        ctx.moveTo(lineX - aw,  ay - aw * 0.8);
-        ctx.lineTo(lineX + aw,  ay - aw * 0.8);
-        ctx.lineTo(lineX,       ay + aw * 0.4);
+        ctx.moveTo(cx - aw * 1.4, lineY2 - aw * 1.2);
+        ctx.lineTo(cx + aw * 1.4, lineY2 - aw * 1.2);
+        ctx.lineTo(cx,             lineY2 + aw * 0.4);
         ctx.closePath();
-        ctx.fillStyle   = nextColor;
-        ctx.shadowColor = nextColor;
-        ctx.shadowBlur  = 4 * S;
+        ctx.fillStyle  = 'rgba(200,200,200,0.65)';
+        ctx.shadowBlur = 0;
         ctx.fill();
-        ctx.shadowBlur  = 0;
       }
 
       curY += r * 2 + arrowH + gap * 2;

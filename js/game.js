@@ -32,7 +32,7 @@ export class Game {
   }
 
   // ── Dünya paleti ─────────────────────────────────────────────────
-  // Tema yönetimi ThemeManager'a devredildi — _applyWorldPalette kaldırıldı
+  // Tema yönetimi ThemeManager'a devredildi
 
   // ── Layout ────────────────────────────────────────────────────────
   _applyLayout() {
@@ -149,8 +149,8 @@ export class Game {
         state.circles.push(ball);
         this.audio.spawn();
         setTimeout(() => {
-          if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
-        }, 500);
+          if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+        }, 300);
         return;
       }
     }
@@ -424,7 +424,7 @@ export class Game {
     const nx = CX;                // yatayda tam orta
     const ny = CY - MAIN_R + r;  // topun tepesi U üst kenarında
     state.nextBall = { level: lv, r, color: LEVELS[lv].color, x: nx, y: ny };
-    state.autoDropDeadline = Date.now() + 4000; // 4s otomatik düşme
+    state.autoDropDeadline = Date.now() + 3000; // 3s otomatik düşme
   }
 
   // Oyuncu topu aldı — heldBall oluştur
@@ -435,8 +435,11 @@ export class Game {
     if (dist > nb.r * 1.8) return false; // Sadece top üzerine gelince al
     state.heldBall = { ...nb, x: touchX, y: touchY };
     state.nextBall = null;
-    state.autoDropDeadline = 0; // oyuncu aldı, timer dur
     this.audio.pick();
+    // Hemen yeni top üret — oyuncu sürüklerken nextBall görünür, timer başlar
+    setTimeout(() => {
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    }, 300);
     return true;
   }
 
@@ -466,12 +469,9 @@ export class Game {
       this.audio.spawn();
     }
     state.heldBall = null;
-    // 0.5s sonra yeni top üret
     setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver) {
-        this._generateNextBall(); // _generateNextBall içinde timer başlar
-      }
-    }, 500);
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    }, 300);
   }
 
   // ── Absorb / Merge ────────────────────────────────────────────────
@@ -685,7 +685,7 @@ export class Game {
       // Timer arc — kaç saniye kaldı
       if (state.autoDropDeadline > 0) {
         const remaining = Math.max(0, state.autoDropDeadline - Date.now());
-        const progress = remaining / 4000; // 1→0
+        const progress = remaining / 3000; // 1→0
         const arcR = nb.r + 8 * S;
         // Arka arc (soluk)
         ctx.beginPath();
@@ -760,8 +760,8 @@ export class Game {
     R.drawComboDisplays();
 
     // Pause butonu
-    // Palet rehberi — sol üst köşe
-    if (!state.levelSuccess && !state.gameOver) R.drawPaletteGuide();
+    // Palet rehberi — her zaman görünür
+    if (!state.gameOver) R.drawPaletteGuide();
 
     R.drawPauseBtn();
     if (state.isPaused) {

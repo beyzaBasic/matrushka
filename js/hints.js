@@ -95,7 +95,6 @@ export class HintManager {
   }
 
   drawAllChains(goalManager) {
-    if (state.levelSuccess && state.levelSuccessAlpha > 0.5) return;
     const def = goalManager.getLevelDef(), n = def.goals.length;
     for (let i = 0; i < n; i++) this._drawChain(goalManager.goalSlotPos(i), def.goals[i]);
   }
