@@ -515,7 +515,7 @@ export class Game {
 
   _celebrate(x, y, color) {
     const { S } = state;
-    const count = 18; // mobil için azaltıldı (eski: 28)
+    const count = 10; // mobil için azaltıldı
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2, speed = (3 + Math.random() * 7) * S;
       state.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 5 * S, r: (5 + Math.random() * 9) * S, color, life: 55 + Math.random() * 30, maxLife: 85 });
@@ -523,15 +523,18 @@ export class Game {
   }
 
   _checkAbsorption() {
-    const { circles, LEVELS, S, currentLevel } = state;
+    const { circles, LEVELS, S, currentLevel, frameCount } = state;
 
-    // Absorb
+    // Absorb — her frame
     for (let i = 0; i < circles.length; i++) {
       for (let j = 0; j < circles.length; j++) {
         if (i === j) continue;
         const big = circles[i], small = circles[j];
         if (!this.physics.canAbsorb(big, small)) continue;
-        if (Math.hypot(big.x - small.x, big.y - small.y) < big.r * 0.75) {
+        const dx = big.x - small.x, dy = big.y - small.y;
+        const threshold = big.r * 0.75;
+        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) continue;
+        if (Math.hypot(dx, dy) < threshold) {
           const allLevels = new Set([...big.contains, small.level, ...small.contains]);
           big.contains = [...allLevels].sort((a, b) => b - a);
           big.absorbAnim = 35; big.boing = 1.2; state.mainBorderFlash = 40;
@@ -548,19 +551,22 @@ export class Game {
       }
     }
 
-    // Merge
+    // Merge — her 2 framede bir yeterli
+    if (frameCount % 2 !== 0) return;
     for (let lv = 0; lv < LEVELS.length - 1; lv++) {
       const same = circles.filter(c => c.level === lv && c.contains.length === 0 && !c.isBeingDragged);
       if (same.length < 2) continue;
       for (let a = 0; a < same.length; a++) {
         for (let b = a + 1; b < same.length; b++) {
           const A = same[a], B = same[b];
-          if (Math.hypot(A.x - B.x, A.y - B.y) < (A.r + B.r) * 1.15) {
+          const dx = A.x - B.x, dy = A.y - B.y;
+          const mergeThreshold = (A.r + B.r) * 1.15;
+          if (Math.abs(dx) > mergeThreshold || Math.abs(dy) > mergeThreshold) continue;
+          if (Math.hypot(dx, dy) < mergeThreshold) {
             const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, nL = lv + 1;
             const newC = { id: Math.random(), x: mx, y: my, r: LEVELS[nL].r, level: nL, color: LEVELS[nL].color, vx: 0, vy: -2 * S, isBeingDragged: false, contains: [], absorbAnim: 30, boing: 1.0, absorbGlow: 0 };
             state.circles = circles.filter(c => c.id !== A.id && c.id !== B.id);
             state.circles.push(newC);
-            
             this.audio.merge(nL);
             if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
             this._triggerCombo(mx, my);
@@ -668,12 +674,12 @@ export class Game {
 
     // Tutorial + Hints (2 framede bir yeterli — görsel fark yok)
     this.tutorial.update();
-    if (state.currentLevel < TUTORIAL_LEVELS && state.frameCount % 2 === 0) {
+    if (state.currentLevel < TUTORIAL_LEVELS && state.frameCount % 3 === 0) {
       this.hints.update(this.physics.canAbsorb.bind(this.physics));
     }
 
     // Particle sayısı sınırı — mobilde 150 üzeri ciddi yavaşlama
-    if (state.particles.length > 150) state.particles.length = 150;
+    if (state.particles.length > 80) state.particles.length = 80;
 
     // Çarpışmalar + blast + absorb/merge
     this.physics.solveCollisions();

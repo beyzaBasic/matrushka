@@ -65,7 +65,7 @@ export class PhysicsManager {
     if (n === 0) return;
     const RESTITUTION = 0.75, WALL_BOUNCE = 0.45;
     // Mobilde 5 iterasyon yeterli — 8 gereksiz yük
-    const ITERS = n <= 6 ? 5 : n <= 10 ? 4 : 3;
+    const ITERS = n <= 4 ? 3 : n <= 8 ? 2 : 2;
     for (let iter = 0; iter < ITERS; iter++) {
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
@@ -150,7 +150,7 @@ export class PhysicsManager {
         this._clampToU(c);
         continue;
       }
-      c.vy += 0.30 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
+      c.vy += 0.35 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
       this._clampToU(c);
       if (c.squish && c.squish.t > 0) c.squish.t = Math.max(0, c.squish.t - 0.09);
       c.absorbGlow = 0;
@@ -160,16 +160,20 @@ export class PhysicsManager {
   updateAbsorbGlow() {
     const { circles } = state;
     const n = circles.length;
-    // Önce sıfırla
+    // Her 3 framede bir güncelle — görsel fark yok, %66 tasarruf
+    if ((state.frameCount || 0) % 3 !== 0) return;
     for (let i = 0; i < n; i++) circles[i].absorbGlow = 0;
     for (let i = 0; i < n; i++) {
+      const a = circles[i];
       for (let j = i + 1; j < n; j++) {
-        const a = circles[i], b = circles[j];
+        const b = circles[j];
+        // Seviye farkı yoksa absorb olamaz — erken çık
+        if (a.level === b.level) continue;
         const big = a.level > b.level ? a : b, small = a.level > b.level ? b : a;
-        if (!this.canAbsorb(big, small)) continue;
+        if (big.contains.length > 0) continue;
+        if (small.level !== big.level - 1) continue;
         const triggerDist = (big.r + small.r) * 2.2;
         const dx = big.x - small.x, dy = big.y - small.y;
-        // Erken AABB kontrolü — Math.hypot'tan önce
         if (Math.abs(dx) > triggerDist || Math.abs(dy) > triggerDist) continue;
         const d = Math.hypot(dx, dy);
         if (d < triggerDist) {
