@@ -21,17 +21,16 @@ export class ThemeManager {
     // state.theme: tüm çizim kodlarının okuyacağı tek kaynak
     state.theme = {
       cpIdx,
-      name:    cfg.name,
-      bgColor: cfg.bgColor,
+      name:      cfg.name,
+      bgColor:   cfg.bgColor,
       palette,
-      // Türetilmiş renkler (tekrar hesaplama gerekmesin)
-      arenaBase:  palette[6],          // en büyük top rengi — arena ana rengi
-      accentMid:  palette[3],          // orta ton — hint chain, ok
-      accentLo:   palette[1],          // düşük ton — ikincil vurgular
-      // Arka plan gradient duraksama renkleri (bgColor temel, biraz açık/koyu türetilir)
-      bgTop:    cfg.bgColor,
-      bgMid:    _blend(cfg.bgColor, palette[5], 0.08),
-      bgBot:    _blend(cfg.bgColor, palette[6], 0.05),
+      arenaBase: palette[6],
+      accentMid: palette[3],
+      accentLo:  palette[1],
+      // Arka plan gradient — world-config'den gelir, palette hue'larından türetilmiş
+      bgTop: cfg.bgTop || cfg.bgColor,
+      bgMid: cfg.bgMid || _blend(cfg.bgColor, palette[5], 0.08),
+      bgBot: cfg.bgBot || _blend(cfg.bgColor, palette[6], 0.05),
     };
 
     // Sahnedeki mevcut topları ve blast butonlarını da güncelle
@@ -47,10 +46,13 @@ export class ThemeManager {
   // Level değişiminde CP değişip değişmediğini kontrol et, değiştiyse uygula
   applyForLevel(internalLevel) {
     const cpIdx = cpIdxFromLevel(internalLevel, TUTORIAL_LEVELS);
-    // Zaten aynı CP'deyse tekrar kurma (performans)
     if (state.theme && state.theme.cpIdx === cpIdx) {
-      // MAIN_R resize'dan değişmiş olabilir — LEVELS'ı yenile ama theme'i koru
+      // Aynı CP — LEVELS'ı yenile ve blast renklerini de güncelle
       state.LEVELS = buildLevels(state.MAIN_R, state.theme.palette);
+      for (const btn of state.BLAST_BTNS) {
+        const lv = btn.levels[0];
+        if (lv < state.LEVELS.length) btn.color = state.LEVELS[lv].color;
+      }
       return;
     }
     this.apply(cpIdx);

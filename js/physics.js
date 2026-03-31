@@ -2,6 +2,36 @@
 import { state } from './state.js';
 
 export class PhysicsManager {
+
+  // U sınırı — kesin clamp, her yerden çağrılır
+  _clampToU(c) {
+    const { CX, CY, MAIN_R } = state;
+    const BOUNCE = 0.55;
+    // X: duvarlar arası her zaman
+    c.x = Math.max(CX - MAIN_R + c.r, Math.min(CX + MAIN_R - c.r, c.x));
+    // Y üst sınır — bounce
+    if (c.y - c.r < CY - MAIN_R) {
+      c.y = CY - MAIN_R + c.r;
+      if (c.vy < 0) { c.vy = Math.abs(c.vy) * BOUNCE; }
+    }
+    // Alt yarım daire — bounce + squish
+    const dx = c.x - CX, dy = c.y - CY;
+    if (dy >= 0) {
+      const d = Math.hypot(dx, dy) || 0.01;
+      if (d + c.r > MAIN_R) {
+        const nx = dx/d, ny = dy/d;
+        c.x = CX + nx * (MAIN_R - c.r);
+        c.y = CY + ny * (MAIN_R - c.r);
+        const dot = c.vx*nx + c.vy*ny;
+        if (dot > 0) {
+          c.vx -= (1 + BOUNCE) * dot * nx;
+          c.vy -= (1 + BOUNCE) * dot * ny;
+          c.squish = { t: 1.0, amt: Math.min(dot * 0.05, 0.30), ax: nx, ay: ny };
+        }
+      }
+    }
+  }
+
   canAbsorb(big, small) {
     if (big === small) return false;
     if (big.level <= small.level) return false;
@@ -31,7 +61,7 @@ export class PhysicsManager {
 
   solveCollisions() {
     const { circles, CX, CY, MAIN_R } = state;
-    const RESTITUTION = 0.65, WALL_BOUNCE = 0.35;
+    const RESTITUTION = 0.75, WALL_BOUNCE = 0.45;
     for (let iter = 0; iter < 8; iter++) {
       for (let i = 0; i < circles.length; i++) {
         for (let j = i + 1; j < circles.length; j++) {
@@ -106,6 +136,8 @@ export class PhysicsManager {
         }
       }
     }
+    // Son clamp — tüm toplar U içinde
+    for (const c of state.circles) this._clampToU(c);
   }
 
   updateCirclePhysics() {
@@ -114,13 +146,14 @@ export class PhysicsManager {
       if (c.absorbAnim > 0) c.absorbAnim--;
       if (c.boing > 0) c.boing = Math.max(0, c.boing - 0.05);
       if (c.isBeingDragged) {
-        // U içinde serbestçe taşınabilir, sadece sol/sağ duvar sınırı
-        const tx = mousePos.x, ty = mousePos.y;
-        c.x = Math.max(CX - MAIN_R + c.r, Math.min(CX + MAIN_R - c.r, tx));
-        c.y = Math.max(state.SCORE_AREA + c.r, ty);
+        // mousePos zaten _onMove'da clamp edildi — _clampToU ile garantile
+        c.x = mousePos.x;
+        c.y = mousePos.y;
+        this._clampToU(c);
         continue;
       }
       c.vy += 0.22 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
+      this._clampToU(c);
       if (c.squish && c.squish.t > 0) c.squish.t = Math.max(0, c.squish.t - 0.09);
       c.absorbGlow = 0;
     }

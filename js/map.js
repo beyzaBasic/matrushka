@@ -109,6 +109,21 @@ export class MapScreen {
     this._app  = app;
     this._div  = div;
 
+    // Gradient arka plan canvas — PixiJS tek renk, gradient için HTML canvas overlay
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
+    div.insertBefore(bgCanvas, app.view);
+    app.view.style.position = 'relative';
+    app.view.style.zIndex = '1';
+    this._bgCanvas = bgCanvas;
+    this._bgCtx = bgCanvas.getContext('2d');
+    this._bgTopRGB = { r: 5, g: 10, b: 20 };
+    this._bgMidRGB = { r: 3, g: 5, b: 15 };
+    this._bgBotRGB = { r: 1, g: 2, b: 8 };
+    // Saydam arka plan — gradient canvas göstersin
+    app.renderer.background.color = 0x000000;
+    app.renderer.background.alpha = 0;
+
     const W = app.screen.width, H = app.screen.height;
     this._worldH = H * 0.18 * TOTAL_CHECKPOINTS + H * 0.5;
 
@@ -370,18 +385,23 @@ export class MapScreen {
     this._scrollY += (this._targetY - this._scrollY) * 0.1;
     this._world.y = -this._scrollY;
 
-    // Arka plan
+    // Arka plan gradient — 3 nokta (top/mid/bot) palette'e göre
     const H = this._app.screen.height;
     const t = (this._scrollY + H / 2) / this._worldH;
     const ci = Math.max(0, Math.min(TOTAL_CHECKPOINTS - 1, Math.round(t * (TOTAL_CHECKPOINTS - 1))));
-    const tgt = hexToRGB(getWorldConfig(ci).bgColor);
-    this._bgRGB.r += (tgt.r - this._bgRGB.r) * 0.04;
-    this._bgRGB.g += (tgt.g - this._bgRGB.g) * 0.04;
-    this._bgRGB.b += (tgt.b - this._bgRGB.b) * 0.04;
-    this._app.renderer.background.color =
-      (Math.round(this._bgRGB.r) << 16) |
-      (Math.round(this._bgRGB.g) << 8)  |
-       Math.round(this._bgRGB.b);
+    const cfg = getWorldConfig(ci);
+    const tgt = hexToRGB(cfg.bgColor);
+    const lerp = 0.03;
+    this._bgTopRGB.r += (tgt.r - this._bgTopRGB.r) * lerp;
+    this._bgTopRGB.g += (tgt.g - this._bgTopRGB.g) * lerp;
+    this._bgTopRGB.b += (tgt.b - this._bgTopRGB.b) * lerp;
+    // Canvas güncelle — tek düz renk, smooth geçiş
+    const bc = this._bgCanvas, bx = this._bgCtx;
+    if (bc.width !== this._app.screen.width || bc.height !== H) {
+      bc.width = this._app.screen.width; bc.height = H;
+    }
+    bx.fillStyle = `rgb(${Math.round(this._bgTopRGB.r)},${Math.round(this._bgTopRGB.g)},${Math.round(this._bgTopRGB.b)})`;
+    bx.fillRect(0, 0, bc.width, H);
 
     // Sphere'ler
     for (const sp of this._spheres) this._drawSphere(sp, dt);

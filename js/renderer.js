@@ -720,21 +720,24 @@ export class Renderer {
     const gemTop  = TOP + TTL + MID;
     const slotBot = gemTop + GEM_R * 2 + 6 * S;   // slot alt kenarı + küçük pad
 
-    // ── Chain yüksekliği bu aralığa tam sığsın ───────────────────────
-    const availH = slotBot - titleTop;
-    const arrowH = Math.round(6 * S);
-    const gap    = Math.round(2 * S);
+    // ── Chain: title top → slot bottom arasına tam sığsın ─────────
+    const availH = slotBot - Math.max(0, titleTop);
+    const arrowH = Math.max(3, Math.round(5 * S));
+    const gap    = Math.max(1, Math.round(2 * S));
+    const arrowSpace = (n - 1) * (arrowH + gap * 2);
+
+    // scale: availH'e tam sığacak şekilde hesapla
     const sumR2  = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
-    const scale  = (availH - (n - 1) * (arrowH + gap * 2)) / sumR2;
+    const scale  = (availH - arrowSpace) / sumR2;
 
     const radii  = LEVELS.map(lv => Math.max(3, Math.round(lv.r * scale)));
-    const totalH = radii.reduce((s, r) => s + r * 2, 0) + (n - 1) * (arrowH + gap * 2);
+    const totalH = radii.reduce((s, r) => s + r * 2, 0) + arrowSpace;
 
-    // X: sol kenara yasla
-    const guideX = radii[n-1] + Math.round(6 * S);
+    // X: sol kenara yasla — en büyük top + padding
+    const guideX = radii[n - 1] + Math.round(8 * S);
 
-    // startY: title top hizasından başla
-    const startY = titleTop;
+    // startY: title top'tan başla
+    const startY = Math.max(2, titleTop);
 
     ctx.save();
 
