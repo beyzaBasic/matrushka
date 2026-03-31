@@ -150,7 +150,7 @@ export class PhysicsManager {
         this._clampToU(c);
         continue;
       }
-      c.vy += 0.22 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
+      c.vy += 0.30 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
       this._clampToU(c);
       if (c.squish && c.squish.t > 0) c.squish.t = Math.max(0, c.squish.t - 0.09);
       c.absorbGlow = 0;
