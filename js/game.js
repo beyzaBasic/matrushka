@@ -306,6 +306,7 @@ export class Game {
     state._nextLevelBtn     = null;
     state._gameOverBtn      = null;
     this.theme.applyForLevel(internalLevel);
+    this.renderer.clearShapeCache();
     this.goals.initLevelGoals();
     this._preloadArena();
     state.nextBall = null; state.heldBall = null;
@@ -378,6 +379,7 @@ export class Game {
     state.lastSpawn      = 0;
     state.blastUsedThisLevel = 0;
     this.theme.applyForLevel(nextLevel);
+    this.renderer.clearShapeCache();
     this.goals.initLevelGoals();
     this._preloadArena();
     // İlk topu üret (tutorial değilse)

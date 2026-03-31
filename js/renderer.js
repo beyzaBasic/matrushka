@@ -53,10 +53,65 @@ export class Renderer {
   // TOP ÇİZİMİ
   // ════════════════════════════════════════════════════════════════
 
+  // ── Shape Cache ─────────────────────────────────────────────────
+  // key: "shape|r|color|contains" → OffscreenCanvas
+  _shapeCache = new Map();
+
+  _getCacheKey(c) {
+    const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
+    if (shape === 'sphere') return null; // sphere zaten hızlı
+    return `${shape}|${Math.round(c.r)}|${c.color}|${c.contains.join(',')}`;
+  }
+
+  _drawCached(c, drawFn) {
+    const key = this._getCacheKey(c);
+    if (!key) { drawFn(c); return; }
+
+    // Squish/boing varsa cache kullanma — deformasyon anlık
+    if ((c.boing > 0.01) || (c.squish && c.squish.t > 0.05)) {
+      drawFn(c); return;
+    }
+
+    if (!this._shapeCache.has(key)) {
+      const DPR  = window.devicePixelRatio || 1;
+      // Yeterince büyük offscreen canvas — DPR dahil
+      const pad  = Math.ceil(c.r * 0.35); // gölge/glow için pay
+      const size = Math.ceil((c.r * 2 + pad * 2) * DPR);
+      const cx0  = size / 2, cy0 = size / 2;
+      const oc   = new OffscreenCanvas(size, size);
+      const octx = oc.getContext('2d');
+      octx.scale(DPR, DPR);           // retina kalitesi
+      const logicalSize = size / DPR;
+      const fake = { ...c,
+        x: logicalSize / 2, y: logicalSize / 2,
+        r: c.r,
+        boing: 0, squish: null, absorbAnim: 0 };
+      const savedCtx = state.ctx;
+      state.ctx = octx;
+      drawFn(fake);
+      state.ctx = savedCtx;
+      this._shapeCache.set(key, { oc, logicalSize });
+      if (this._shapeCache.size > 200) {
+        this._shapeCache.delete(this._shapeCache.keys().next().value);
+      }
+    }
+
+    const { oc, logicalSize } = this._shapeCache.get(key);
+    const ctx = state.ctx;
+    ctx.save();
+    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28*(c.absorbAnim/35); }
+    ctx.drawImage(oc, c.x - logicalSize/2, c.y - logicalSize/2, logicalSize, logicalSize);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // Cache'i temizle (tema değişince)
+  clearShapeCache() { this._shapeCache.clear(); }
+
   drawSphere(c) {
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
-    if (shape === 'bear') { this._drawBear(c); return; }
-    if (shape === 'matrushka') { this._drawMatrushka(c); return; }
+    if (shape === 'bear') { this._drawCached(c, (fc) => this._drawBear(fc)); return; }
+    if (shape === 'matrushka') { this._drawCached(c, (fc) => this._drawMatrushka(fc)); return; }
 
     const ctx = state.ctx;
     const { S, gameTime, LEVELS } = state;
@@ -1011,18 +1066,23 @@ export class Renderer {
 
     for (let i = 0; i < n; i++) {
       const lv = LEVELS[i];
-      const r  = lv.r * sc;
+      const shape = lv.shape || 'sphere';
+      // Bear/matrushka daha fazla yer kaplıyor — biraz büyüt
+      const rScale = (shape === 'sphere') ? sc : sc * 1.15;
+      const r  = Math.max(5, lv.r * rScale);
       const cx = guideX;
       const cy = curY + r;
 
-      const pulse = 0.8 + 0.2 * Math.sin(t * 2.2 + i * 0.9);
-      ctx.globalAlpha = pulse * 0.9;
-
-      // Shape'e göre mini top çiz
-      const shape = lv.shape || 'sphere';
-      const fakeC = { x: cx, y: cy, r, level: i, color: lv.color,
-        contains: [], boing: 0, absorbAnim: 0, squish: null, absorbGlow: 0,
-        isBeingDragged: false, shape };
+      // Her top tam canlılıkta
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur  = 0;
+      // Gameplay ile birebir aynı şekil — fakeC ile direkt çiz
+      const fakeC = {
+        x: cx, y: cy, r,
+        level: i, color: lv.color, shape,
+        contains: [], boing: 0, absorbAnim: 0,
+        squish: null, absorbGlow: 0, isBeingDragged: false
+      };
       this.drawSphere(fakeC);
 
       // Ok + bağlantı çizgisi
