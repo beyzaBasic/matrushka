@@ -27,11 +27,11 @@ export class ThemeManager {
       arenaBase: palette[6],
       accentMid: palette[3],
       accentLo:  palette[1],
-      // Arka plan gradient — world-config'den gelir, palette hue'larından türetilmiş
+      // Arka plan gradient — bgColor'dan palette aksanlarıyla türetilir
       shape:  cfg.shape || 'sphere',
       bgTop: cfg.bgTop || cfg.bgColor,
-      bgMid: cfg.bgMid || _blend(cfg.bgColor, palette[5], 0.08),
-      bgBot: cfg.bgBot || _blend(cfg.bgColor, palette[6], 0.05),
+      bgMid: cfg.bgMid || _blend(cfg.bgColor, palette[2], 0.18),
+      bgBot: cfg.bgBot || _blend(cfg.bgColor, palette[4], 0.12),
     };
 
     // Sahnedeki mevcut topları ve blast butonlarını da güncelle

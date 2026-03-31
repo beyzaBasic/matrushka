@@ -2,16 +2,39 @@
 export const TUTORIAL_LEVELS = 2;
 
 export function buildLayout() {
-  const DPR = Math.min(window.devicePixelRatio || 1, 2); // 3x retina gereksiz yük
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
   const CSS_W = window.innerWidth, CSS_H = window.innerHeight;
   const W = CSS_W, H = CSS_H, MIN_DIM = Math.min(W, H), CX = W / 2;
-  const SCORE_AREA = 230, BTN_PAD = 12, BTN_BOTTOM_PAD = 12;
-  const _R_EST = Math.floor(Math.min(W * 0.49, (H - SCORE_AREA) / 2 - 2));
-  const BTN_H_EST = Math.round(_R_EST * 0.62 * 0.42);
-  const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
-  const MAIN_R = Math.floor(Math.min(W * 0.49, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
-  const CY = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
   const S = MIN_DIM / 800;
+
+  // Safe area: CSS env() değişkenini oku (Android nav bar, iPhone home indicator)
+  const safeBot = (() => {
+    try {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);visibility:hidden';
+      document.body.appendChild(el);
+      const v = parseInt(getComputedStyle(el).height) || 0;
+      document.body.removeChild(el);
+      return Math.max(v, 0);
+    } catch (_) { return 0; }
+  })();
+
+  // SCORE_AREA: H'ın %27'si, min 160 max 250 — küçük ekranlarda büyük alanı engelleriz
+  const SCORE_AREA = Math.max(160, Math.min(250, Math.round(H * 0.27)));
+
+  // BTN_PAD: ekran genişliğinin %2.5'i
+  const BTN_PAD = Math.max(8, Math.round(MIN_DIM * 0.025));
+
+  // Alt güvenlik payı: safe area + minimum boşluk
+  const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
+
+  // MAIN_R: mevcut alanı blast button için yer bırakarak hesapla
+  const _R_EST       = Math.floor(Math.min(W * 0.46, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
+  const BTN_H_EST    = Math.round(_R_EST * 0.62 * 0.42);
+  const BOTTOM_PAD   = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
+  const MAIN_R       = Math.floor(Math.min(W * 0.46, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
+  const CY           = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
+
   return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD };
 }
 

@@ -1061,46 +1061,56 @@ export class Renderer {
     ctx.fillText('All moves learned.',CX,demoY+42); ctx.fillText('Good luck! 🎉',CX,demoY+42+fs+8);
     ctx.restore();
   }
-  // ── Palet rehberi — U'nun sol border hizasında, score'dan top seviyeye ──
+  // ── Palet rehberi ──────────────────────────────────────────────────
   _paletteGuideCache = null;
 
   _invalidatePaletteGuide() { this._paletteGuideCache = null; }
 
-  drawPaletteGuide() {
-    const { ctx, LEVELS, S, CX, CY, MAIN_R } = state;
+  drawPaletteGuide(goalManager) {
+    const { ctx, LEVELS, S, CY, MAIN_R } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    const n       = LEVELS.length;
-    const arrowH  = 8 * S;
-    const gap     = 3 * S;
-    const chainTop    = 4 * S;
-    const chainBottom = CY - MAIN_R;
-    const availH      = chainBottom - chainTop;
-    if (availH <= 0) return;
+    // 1) Çizim alanı: ilk slotun üstü → son slotun altı
+    let topY = 20, botY = CY - MAIN_R;
+    if (goalManager) {
+      try {
+        const def    = goalManager.getLevelDef();
+        const sp0    = goalManager.goalSlotPos(0);
+        const spLast = goalManager.goalSlotPos((def?.goals?.length || 1) - 1);
+        if (sp0?.cy != null) {
+          topY = sp0.cy   - sp0.gemR;
+          botY = spLast.cy + spLast.gemR;
+        }
+      } catch (_) {}
+    }
+    const availH = botY - topY;
+    if (availH < 10) return;
 
-    const arrowSpace = (n - 1) * (arrowH + gap * 2);
-    const sumR2      = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
-    const sc         = (availH - arrowSpace) / sumR2;
+    // 2) Scale: 7 top + 6 ok birlikte availH'a sığacak
+    //    ok yüksekliği = en küçük top çapının %60'ı (sabit oran)
+    //    sc * (sumR2 + 6 * 2*r0*0.6) = availH  →  sc = availH / (sumR2 + 6*1.2*r0)
+    const n      = LEVELS.length;                                   // 7
+    const sumR2  = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
+    const r0raw  = LEVELS[0].r;
+    const arrowPerSlot = r0raw * 1.2;                              // ok + boşluk = küçük top çapının %60'ı
+    const sc     = availH / (sumR2 + (n - 1) * arrowPerSlot);
+    if (sc <= 0) return;
 
-    // En büyük topun gerçek çizim yarıçapı (bear/matrushka kolları için 1.15x)
-    const bigShape = LEVELS[n - 1].shape || 'sphere';
-    const maxRDraw = LEVELS[n - 1].r * sc * (bigShape === 'sphere' ? 1.0 : 1.15);
+    const aH     = r0raw * sc * 0.5;   // ok üçgeninin yüksekliği
+    const gp     = r0raw * sc * 0.1;   // ok üstü/altı boşluk
 
-    // Sol kenar boşluğu: topun solu ekran kenarına değmesin
-    const padLeft  = 4 * S;
-    // OffscreenCanvas içinde merkez X
-    const guideX   = padLeft + maxRDraw;
-    // Canvas logical genişliği: sol pad + merkez sol yarı + merkez sağ yarı + sağ pay
-    const logW     = Math.ceil(padLeft + maxRDraw * 2 + 4 * S);
-    const logH     = Math.ceil(availH);
+    // 3) Canvas genişliği: en büyük top sığacak kadar
+    const maxR   = LEVELS[n - 1].r * sc;
+    const padL   = 4 * S;
+    const guideX = padL + maxR;
+    const logW   = Math.ceil(padL + maxR * 2 + 4 * S);
+    const logH   = Math.ceil(availH);
 
-    const themeKey = (state.theme?.cpIdx ?? 0) + '|' + Math.round(sc * 1000) + '|' + logW;
+    const themeKey = (state.theme?.cpIdx ?? 0) + '|' + sc.toFixed(4) + '|' + logW + '|' + Math.round(topY) + '|' + Math.round(botY);
 
     if (!this._paletteGuideCache || this._paletteGuideCache.themeKey !== themeKey) {
       const DPR  = Math.min(window.devicePixelRatio || 1, 2);
-      const cw   = Math.ceil(logW * DPR);
-      const ch   = Math.ceil(logH * DPR);
-      const oc   = new OffscreenCanvas(cw, ch);
+      const oc   = new OffscreenCanvas(Math.ceil(logW * DPR), Math.ceil(logH * DPR));
       const octx = oc.getContext('2d');
       octx.scale(DPR, DPR);
 
@@ -1108,52 +1118,42 @@ export class Renderer {
       for (let i = 0; i < n; i++) {
         const lv    = LEVELS[i];
         const shape = lv.shape || 'sphere';
-        const rScale = shape === 'sphere' ? sc : sc * 1.15;
-        const r     = Math.max(5, lv.r * rScale);
+        const r     = lv.r * sc;
         const cx    = guideX, cy = curY + r;
 
-        const fakeC = { x: cx, y: cy, r, level: i, color: lv.color, shape,
-          contains: [], boing: 0, absorbAnim: 0, squish: null, absorbGlow: 0, isBeingDragged: false };
-        const savedCtx = state.ctx;
-        state.ctx = octx;
+        const saved = state.ctx;
+        state.ctx   = octx;
         octx.shadowBlur = 0;
-        this.drawSphere(fakeC);
-        state.ctx = savedCtx;
+        this.drawSphere({ x: cx, y: cy, r, level: i, color: lv.color, shape,
+          contains: [], boing: 0, absorbAnim: 0, squish: null, absorbGlow: 0, isBeingDragged: false });
+        state.ctx = saved;
 
         if (i < n - 1) {
-          const lineTop = cy + r + gap;
-          const arrowY  = lineTop + arrowH * 0.5;
-          const aw      = Math.max(3, 3.5 * S);
-          octx.globalAlpha = 0.3;
-          octx.setLineDash([2*S, 2*S]);
-          octx.strokeStyle = 'rgba(255,255,255,0.5)';
-          octx.lineWidth   = S;
-          octx.beginPath(); octx.moveTo(cx, lineTop); octx.lineTo(cx, arrowY - aw * 1.2); octx.stroke();
-          octx.setLineDash([]);
-          octx.globalAlpha = 0.65;
-          octx.fillStyle   = 'rgba(200,200,200,0.65)';
+          // ok: küçük aşağı üçgen
+          const aw     = Math.max(1.5, aH * 0.7);
+          const lineT  = cy + r + gp;
+          const arrowY = lineT + aH * 0.5;
+          octx.globalAlpha = 0.5;
+          octx.fillStyle   = 'rgba(200,200,200,0.7)';
           octx.beginPath();
-          octx.moveTo(cx - aw*1.4, arrowY - aw*1.2);
-          octx.lineTo(cx + aw*1.4, arrowY - aw*1.2);
-          octx.lineTo(cx,           arrowY + aw*0.4);
-          octx.closePath(); octx.fill();
-          octx.globalAlpha = 0.3;
-          octx.setLineDash([2*S, 2*S]);
-          octx.beginPath(); octx.moveTo(cx, arrowY + aw*0.4); octx.lineTo(cx, lineTop + arrowH); octx.stroke();
-          octx.setLineDash([]);
+          octx.moveTo(cx - aw, arrowY - aH * 0.4);
+          octx.lineTo(cx + aw, arrowY - aH * 0.4);
+          octx.lineTo(cx,      arrowY + aH * 0.6);
+          octx.closePath();
+          octx.fill();
           octx.globalAlpha = 1;
         }
-        curY += r * 2 + arrowH + gap * 2;
+        curY += r * 2 + aH + gp * 2;
       }
 
-      this._paletteGuideCache = { oc, themeKey, startY: chainTop, logW, logH };
+      this._paletteGuideCache = { oc, themeKey, topY, logW, logH };
     }
 
     const c = this._paletteGuideCache;
     ctx.save();
-    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-    // dw/dh ile logical piksel boyutuna ölçekle (DPR canvas'ını doğru boyuta indir)
-    ctx.drawImage(c.oc, 0, c.startY, c.logW, c.logH);
+    ctx.globalAlpha = 0.9;
+    ctx.shadowBlur  = 0;
+    ctx.drawImage(c.oc, 0, c.topY, c.logW, c.logH);
     ctx.restore();
   }
 

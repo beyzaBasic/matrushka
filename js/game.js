@@ -436,10 +436,11 @@ export class Game {
   // U'nun üst kenarı hizasında bekleyen top
   _generateNextBall() {
     const lv = this._randomBallLevel();
-    const { CX, CY, MAIN_R, LEVELS } = state;
+    const { CX, CY, MAIN_R, LEVELS, S } = state;
     const r = LEVELS[lv].r;
-    const nx = CX;                // yatayda tam orta
-    const ny = CY - MAIN_R + r;  // topun tepesi U üst kenarında
+    const nx = CX;
+    const arcR = r + 8 * S;         // timer arc yarıçapı (game.js _draw ile aynı)
+    const ny = CY - MAIN_R + arcR;  // arc'ın üst noktası U üst kenarında
     state.nextBall = { level: lv, r, x: nx, y: ny };
     state.autoDropDeadline = Date.now() + 1000; // 1s otomatik düşme
   }
@@ -586,23 +587,22 @@ export class Game {
   }
 
 
-  // Yeni top sıkışmış mı? Etrafındaki toplarla merge/absorb olamıyorsa ve tam iç içe girmiş
+  // Yeni top yerleşebilir mi? Etrafında hiç boşluk yoksa game over
   _checkNewBallStuck(ball) {
-    const { circles, CX, CY, MAIN_R } = state;
-    let overlapCount = 0;
+    const { circles } = state;
+    let blockedCount = 0;
     for (const c of circles) {
       if (c === ball) continue;
       const dist = Math.hypot(ball.x - c.x, ball.y - c.y);
-      const minD = ball.r + c.r;
-      if (dist < minD * 0.85) { // %85'ten fazla iç içe
+      const minD  = ball.r + c.r;
+      if (dist < minD * 0.8) {
         // Merge veya absorb olabiliyorsa sorun değil
         if (this.physics.canAbsorb(c, ball) || this.physics.canAbsorb(ball, c)) continue;
         if (ball.level === c.level && ball.contains.length === 0 && c.contains.length === 0) continue;
-        overlapCount++;
+        blockedCount++;
       }
     }
-    // 2+ farklı topla sıkışmışsa game over
-    if (overlapCount >= 2) {
+    if (blockedCount >= 2) {
       state.gameOver = true;
       this.audio.gameOver();
     }
@@ -687,16 +687,18 @@ export class Game {
 
     if (!state.gameOver) {
       this._checkAbsorption();
-      // Game over: 1.5s+ eskimiş top U üst kenarına ulaştıysa
-      const gameOverLine = CY - MAIN_R + 4;
+
+      // Game over: Top U üst kenarına yakın, 2s+ beklemiş ve hareketsiz
       const now2 = Date.now();
-      const overflow = state.circles.some(c =>
+      const stuckLine = CY - MAIN_R + 8;
+      const hasStuckBall = state.circles.some(c =>
         !c.isBeingDragged &&
         (now2 - (c.spawnTime || 0)) > 2000 &&
-        c.y - c.r < gameOverLine
+        c.y - c.r < stuckLine &&
+        Math.abs(c.vy || 0) < 0.5 &&
+        Math.abs(c.vx || 0) < 0.5
       );
-      if (overflow) { state.gameOver = true; this.audio.gameOver(); }
-
+      if (hasStuckBall) { state.gameOver = true; this.audio.gameOver(); }
     }
 
     // Her frame: tüm toplar U içinde garantili
@@ -710,9 +712,13 @@ export class Game {
     const R = this.renderer;
     const { ctx, W, H, CX, CY, MAIN_R, S, circles, LEVELS } = state;
 
-    // Arka plan
+    // Arka plan — gradient
     const th = state.theme;
-    ctx.fillStyle = th?.bgTop || '#0d0a1a';
+    const _bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    _bgGrad.addColorStop(0,   th?.bgTop  || '#0d0a1a');
+    _bgGrad.addColorStop(0.5, th?.bgMid  || '#0d0a1a');
+    _bgGrad.addColorStop(1,   th?.bgBot  || '#0d0a1a');
+    ctx.fillStyle = _bgGrad;
     ctx.fillRect(0, 0, W, H);
 
     // Arena rengi — 3 framede bir güncelle (görsel fark yok)
