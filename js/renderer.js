@@ -126,7 +126,7 @@ export class Renderer {
       : (ctx.beginPath(), ctx.arc(c.x, c.y, dr, 0, Math.PI * 2));
 
     ctx.save();
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * (c.absorbAnim / 35); }
+    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 14; }
 
     path(); ctx.fillStyle = this._candyGrad(c.x, c.y, dr, c.color); ctx.fill();
     this._drawInnerRings(c, dr, ax, ay, hasSquish);
@@ -161,7 +161,7 @@ export class Renderer {
 
     // Glow
     if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * (c.absorbAnim / 35); }
-    else { ctx.shadowColor = col; ctx.shadowBlur = R * 0.3; }
+    // shadowBlur yok — cache'de gereksiz
 
     // ── Ölçüler ───────────────────────────────────────────────────
     const bodyW  = R * 0.72;   // gövde yatay yarıçap
@@ -234,7 +234,7 @@ export class Renderer {
     ctx.globalAlpha = 1;
 
     // ── Kafa ──────────────────────────────────────────────────────
-    ctx.shadowColor = col; ctx.shadowBlur = R * 0.2;
+    ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(x, headY, headR, 0, Math.PI * 2);
     ctx.fillStyle = radGrad(x, headY, headR, headR,
@@ -303,8 +303,7 @@ export class Renderer {
     }
 
     // Glow / absorb anim
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * (c.absorbAnim / 35); }
-    else { ctx.shadowColor = col; ctx.shadowBlur = r * 0.4; }
+    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; }
 
     const grad = (cx2, cy2, r2) => {
       const g = ctx.createRadialGradient(cx2 - r2*0.3, cy2 - r2*0.35, r2*0.05, cx2, cy2, r2);
@@ -421,7 +420,7 @@ export class Renderer {
     const offset   = (gameTime * 0.003) % (Math.PI * 2);
     ctx.save();
     ctx.lineWidth   = 3*S + glow*3*S; ctx.lineCap = 'round';
-    ctx.shadowColor = bigColor; ctx.shadowBlur = 10 + glow*18;
+    ctx.shadowColor = bigColor; ctx.shadowBlur = 6 + glow*10;
     ctx.strokeStyle = bigColor; ctx.globalAlpha = 0.4 + glow*0.6;
     for (let s = 0; s < 8; s++) {
       const seg   = (Math.PI * 2) / 8;

@@ -122,7 +122,16 @@ export class Game {
     // nextBall'a dokunuldu mu? → sürüklemeye başla
     if (this._pickUpBall(x, y)) return;
 
-    // Mevcut toplara dokunma — drag devre dışı
+    // Mevcut topa dokunuldu → sürükle
+    const found = state.circles.slice().reverse().find(c =>
+      Math.hypot(x - c.x, y - c.y) < Math.max(c.r * 1.5, 44 * S)
+    );
+    if (found) {
+      state.draggedCircle = found;
+      state.draggedCircle.isBeingDragged = true;
+      this.audio.pick();
+      return;
+    }
 
     // U içine tap → nextBall'ı al, sürüklemeye başla
     if (state.nextBall && !state.heldBall) {
