@@ -40,13 +40,13 @@ export function buildLayout() {
 
 // Boyut oranları — renkten bağımsız
 const LEVEL_RATIOS = [
-  { ratio: 32/360, vy: 1.4 }, // 0 — en küçük
-  { ratio: 42/360, vy: 1.8 }, // 1
-  { ratio: 55/360, vy: 2.2 }, // 2
-  { ratio: 73/360, vy: 2.7 }, // 3
-  { ratio: 96/360, vy: 3.2 }, // 4
-  { ratio:126/360, vy: 3.8 }, // 5
-  { ratio:166/360, vy: 4.5 }, // 6 — en büyük
+  { ratio: 36/360, vy: 1.4 }, // 0 — en küçük
+  { ratio: 47/360, vy: 1.8 }, // 1
+  { ratio: 61/360, vy: 2.2 }, // 2
+  { ratio: 79/360, vy: 2.7 }, // 3
+  { ratio:103/360, vy: 3.2 }, // 4
+  { ratio:134/360, vy: 3.8 }, // 5
+  { ratio:175/360, vy: 4.5 }, // 6 — en büyük
 ];
 
 // ── Shape yapısal katsayıları (renderer + physics paylaşır) ─────────

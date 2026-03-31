@@ -1183,11 +1183,9 @@ export class Renderer {
     const ctx = state.ctx, { W, SCORE_AREA, isMuted, levelSuccess } = state;
     if (levelSuccess) { state._soundBtn = null; return; }
     const ICON_PX = 44, iconPad = 10;
-    // Pause butonu: merkez W - iconPad - ICON_PX/2 = W-32, hit alanı W-76..W+12
-    // Ses butonu: pause merkezinden ICON_PX*2 + 12 sol
-    const pauseCx = W - iconPad - ICON_PX / 2;
-    const pcx = pauseCx - ICON_PX - 16;
-    const pcy = SCORE_AREA / 2;
+    // Pause ile aynı X, onun altında
+    const pcx = W - iconPad - ICON_PX / 2;
+    const pcy = SCORE_AREA / 2 + ICON_PX + 4;
     ctx.save();
     ctx.globalAlpha = 0.75;
     ctx.shadowColor = 'rgba(0,0,0,0.6)';

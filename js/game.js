@@ -724,23 +724,32 @@ export class Game {
     if (!state.gameOver) {
       this._checkAbsorption();
 
-      // Game over: Spawn bölgesi tıkandı — yeni top düşürülecek yer yok
-      // Kontrol: CX hizasında U üst kenarına yakın bir bant tamamen dolu mu?
+      // Game over: Arena dolup spawn noktasında yer kalmadı
       const now2 = Date.now();
-      const spawnBandTop = CY - MAIN_R;
-      const spawnBandBot = CY - MAIN_R * 0.55; // üstten %45 band
-      // Bu bantta 3+ top varsa ve hepsi 3s+ hareketsizse tıkandı say
-      const bandBalls = state.circles.filter(c =>
+      // Üst bölgede hareketsiz duran topları bul (spawnTime > 4s, hız < 0.5)
+      const highBalls = state.circles.filter(c =>
         !c.isBeingDragged &&
-        c.y - c.r < spawnBandBot &&
-        c.y + c.r > spawnBandTop
+        c.y - c.r < CY - MAIN_R * 0.4 &&
+        (now2 - (c.spawnTime || 0)) > 4000 &&
+        Math.abs(c.vy || 0) < 0.5 &&
+        Math.abs(c.vx || 0) < 0.5
       );
-      const allStuck = bandBalls.length >= 3 && bandBalls.every(c =>
-        (now2 - (c.spawnTime || 0)) > 3000 &&
-        Math.abs(c.vy || 0) < 0.3 &&
-        Math.abs(c.vx || 0) < 0.3
+      // Spawn noktasını bu toplardan biri bloke ediyor mu?
+      const spawnR = state.LEVELS[0]?.r || 20;
+      const spawnX = CX, spawnY = CY - MAIN_R + spawnR * 2;
+      const spawnBlocked = highBalls.some(c =>
+        Math.hypot(c.x - spawnX, c.y - spawnY) < c.r + spawnR * 3
       );
-      if (allStuck) { state.gameOver = true; this.audio.gameOver(); }
+      if (spawnBlocked) {
+        if (!this._gameOverTimer) this._gameOverTimer = now2;
+        if (now2 - this._gameOverTimer > 1500) {
+          state.gameOver = true;
+          this.audio.gameOver();
+          this._gameOverTimer = 0;
+        }
+      } else {
+        this._gameOverTimer = 0;
+      }
     }
 
     // Her frame: tüm toplar U içinde garantili
