@@ -8,17 +8,17 @@ export const TOTAL_CHECKPOINTS = 20;
 export const WORLD_CONFIG = [
 
   // CP 00: Klasik
-  { id: 0, name: 'Klasik', subtitle: 'Hoş geldin',
+  { id: 0, name: 'Klasik', shape: 'sphere', subtitle: 'Hoş geldin',
     bgColor: '#0d1a2e',
     palette: ['#fe4c4c', '#ffad32', '#d4ff28', '#0aff33', '#28b7ff', '#7732ff', '#ff3dde'] },
 
   // CP 01: Gökkuşağı
-  { id: 1, name: 'Gökkuşağı', subtitle: 'Tüm renkler',
+  { id: 1, name: 'Gökkuşağı', shape: 'bear', subtitle: 'Tüm renkler',
     bgColor: '#1a0d2e',
     palette: ['#ff6532', '#ffed28', '#5bff0a', '#0affc1', '#2870ff', '#b219ff', '#ff3276'] },
 
   // CP 02: Şeker Dükkanı
-  { id: 2, name: 'Şeker Dükkanı', subtitle: 'Tatlı dünya',
+  { id: 2, name: 'Şeker Dükkanı', shape: 'matrushka', subtitle: 'Tatlı dünya',
     bgColor: '#2e0d1a',
     palette: ['#fb73b7', '#ad63f6', '#38d9f9', '#24f369', '#ccfa42', '#fac250', '#fa6042'] },
 

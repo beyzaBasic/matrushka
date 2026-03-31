@@ -72,10 +72,18 @@ export class Game {
 
   _onDown(e) {
     e.preventDefault();
-    if (state.levelSuccess) return;
     const { x, y } = this._getPos(e);
     state.mousePos = { x, y };
     this.audio.unlock();
+
+    // levelSuccess: sadece next level butonuna izin ver
+    if (state.levelSuccess) {
+      const nlb = state._nextLevelBtn;
+      if (nlb && nlb.a > 0.5 && x >= nlb.x && x <= nlb.x + nlb.w && y >= nlb.y && y <= nlb.y + nlb.h) {
+        this._nextLevel();
+      }
+      return;
+    }
 
     if (state.gameOver) {
       const gb = state._gameOverBtn;
@@ -96,11 +104,6 @@ export class Game {
 
     state.mainBorderFlash = 30;
 
-    const nlb = state._nextLevelBtn;
-    if (nlb && nlb.a > 0.5 && x >= nlb.x && x <= nlb.x + nlb.w && y >= nlb.y && y <= nlb.y + nlb.h) {
-      this._nextLevel(); return;
-    }
-
     // Blast butonu
     const bRect = this.blast.getBtnRect();
     if (bRect && x >= bRect.x && x <= bRect.x + bRect.w && y >= bRect.y && y <= bRect.y + bRect.h * 1.2) {
@@ -112,26 +115,36 @@ export class Game {
 
     // heldBall sürükleniyorsa bırak
     if (state.heldBall) {
-      this._dropBall(x, y);
+      this._dropBall(state.heldBall.x, state.heldBall.y);
       return;
     }
 
     // nextBall'a dokunuldu mu? → sürüklemeye başla
     if (this._pickUpBall(x, y)) return;
 
-    // Önce mevcut toplara dokunuluyor mu kontrol et
-    const found = state.circles.slice().reverse().find(c => Math.hypot(x - c.x, y - c.y) < Math.max(c.r * 1.5, 44 * S));
-    if (found) {
-      // Mevcut topa dokunuldu — sürükle, top düşürme
-      state.draggedCircle = found;
-      state.draggedCircle.isBeingDragged = true;
-      this.audio.pick();
-      return;
+    // Mevcut toplara dokunma — drag devre dışı
+
+    // U içine tap → nextBall'ı al, sürüklemeye başla
+    if (state.nextBall && !state.heldBall) {
+      const _dy = y - CY;
+      const _inU = _dy >= 0
+        ? Math.hypot(x - CX, _dy) <= MAIN_R
+        : (x >= CX - MAIN_R && x <= CX + MAIN_R && y >= CY - MAIN_R);
+      if (_inU) {
+        // heldBall: tap noktasında başlat
+        const nb = state.nextBall;
+        state.nextBall = null;
+        state.heldBall = { ...nb, x, y };
+        this.audio.pick();
+        setTimeout(() => {
+          if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+        }, 300);
+        return;
+      }
     }
 
-    // Boşluğa tıklandı → top tam o noktada belirsin
-    if (state.nextBall) {
-      // U içi kontrolü — tam U geometrisi
+    // (eski boşluk tap kodu — artık kullanılmıyor)
+    if (false && state.nextBall) {
       const _dy = y - CY;
       const _inU = _dy >= 0
         ? Math.hypot(x - CX, _dy) <= MAIN_R
@@ -191,15 +204,14 @@ export class Game {
       }
       state.mousePos = { x: mx, y: my };
     }
+
+
     // heldBall parmakla takip etsin — U sınırları içinde
     if (state.heldBall) {
       const { CX, CY, MAIN_R } = state;
       const hb = state.heldBall;
-      // X: duvarlar arası
       let hx = Math.max(CX - MAIN_R + hb.r, Math.min(CX + MAIN_R - hb.r, x));
-      // Y: U üst kenarından aşağı
       let hy = Math.max(CY - MAIN_R + hb.r, y);
-      // Alt yarım daire sınırı
       const ddx = hx - CX, ddy = hy - CY;
       if (ddy >= 0 && Math.hypot(ddx, ddy) > MAIN_R - hb.r) {
         const ang = Math.atan2(ddy, ddx);
@@ -235,6 +247,7 @@ export class Game {
       this._dropBall(state.heldBall.x, state.heldBall.y);
       return;
     }
+
     if (state.draggedCircle) {
       const dc = state.draggedCircle;
       dc.isBeingDragged = false;
@@ -440,7 +453,8 @@ export class Game {
       color: LEVELS[lv].color,
       vx: 0, vy: LEVELS[lv].vy,
       contains: [], absorbAnim: 0,
-      isBeingDragged: false, boing: 0, absorbGlow: 0
+      isBeingDragged: false, boing: 0, absorbGlow: 0,
+      spawnTime: Date.now()
     };
   }
 
@@ -584,6 +598,29 @@ export class Game {
     }
   }
 
+
+  // Yeni top sıkışmış mı? Etrafındaki toplarla merge/absorb olamıyorsa ve tam iç içe girmiş
+  _checkNewBallStuck(ball) {
+    const { circles, CX, CY, MAIN_R } = state;
+    let overlapCount = 0;
+    for (const c of circles) {
+      if (c === ball) continue;
+      const dist = Math.hypot(ball.x - c.x, ball.y - c.y);
+      const minD = ball.r + c.r;
+      if (dist < minD * 0.85) { // %85'ten fazla iç içe
+        // Merge veya absorb olabiliyorsa sorun değil
+        if (this.physics.canAbsorb(c, ball) || this.physics.canAbsorb(ball, c)) continue;
+        if (ball.level === c.level && ball.contains.length === 0 && c.contains.length === 0) continue;
+        overlapCount++;
+      }
+    }
+    // 2+ farklı topla sıkışmışsa game over
+    if (overlapCount >= 2) {
+      state.gameOver = true;
+      this.audio.gameOver();
+    }
+  }
+
   // ── Update loop ───────────────────────────────────────────────────
   _update() {
     if (state.isPaused) {
@@ -633,6 +670,8 @@ export class Game {
       this.physics.applyWorldRotation();
     }
 
+
+
     // heldBall mevcut topa değince bırak
     if (state.heldBall) {
       const hb = state.heldBall;
@@ -669,8 +708,15 @@ export class Game {
 
     if (!state.gameOver) {
       this._checkAbsorption();
-      const totalArea = state.circles.reduce((s, c) => s + Math.PI * c.r * c.r, 0);
-      if (totalArea > Math.PI * MAIN_R * MAIN_R * 0.88) { state.gameOver = true; this.audio.gameOver(); }
+      // Game over: 1.5s+ eskimiş top U üst kenarına ulaştıysa
+      const gameOverLine = CY - MAIN_R + 4;
+      const now2 = Date.now();
+      const overflow = state.circles.some(c =>
+        !c.isBeingDragged &&
+        (now2 - (c.spawnTime || 0)) > 2000 &&
+        c.y - c.r < gameOverLine
+      );
+      if (overflow) { state.gameOver = true; this.audio.gameOver(); }
 
     }
 
@@ -690,13 +736,16 @@ export class Game {
     ctx.fillStyle = th?.bgTop || '#0d0a1a';
     ctx.fillRect(0, 0, W, H);
 
-    // Arena rengi — sahnedeki en yüksek level
+    // Arena rengi — sahnedeki en yüksek level, yoksa nextBall/heldBall rengi
     let topLevel = 0;
     for (const cc of circles) { if (cc.level > topLevel) topLevel = cc.level; for (const lv of cc.contains) if (lv > topLevel) topLevel = lv; }
     const def = this.goals.getLevelDef();
+    const _nb = state.nextBall, _hb = state.heldBall;
     const arenaColor = circles.length > 0
       ? LEVELS[topLevel].color
-      : (th?.arenaBase || LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
+      : (_nb ? (LEVELS[_nb.level]?.color || LEVELS[0].color)
+        : (_hb ? (LEVELS[_hb.level]?.color || LEVELS[0].color)
+          : (LEVELS[0].color)));
 
     // Arena — U şekli (üst açık)
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
@@ -758,6 +807,8 @@ export class Game {
       R.drawSphere({ ...nb, color: state.LEVELS[nb.level]?.color || '#fff', boing:0, absorbAnim:0, squish:null, absorbGlow:0, isBeingDragged:false, contains:[] });
       ctx.restore();
     }
+
+
 
     // heldBall — parmakla taşınan top
     if (state.heldBall) {

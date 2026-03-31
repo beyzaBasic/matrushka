@@ -54,6 +54,10 @@ export class Renderer {
   // ════════════════════════════════════════════════════════════════
 
   drawSphere(c) {
+    const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
+    if (shape === 'bear') { this._drawBear(c); return; }
+    if (shape === 'matrushka') { this._drawMatrushka(c); return; }
+
     const ctx = state.ctx;
     const { S, gameTime, LEVELS } = state;
     const scale = c.boing > 0 ? 1 + Math.sin(c.boing * Math.PI) * 0.25 : 1;
@@ -77,6 +81,280 @@ export class Renderer {
     this._drawBottomGleam(c, dr);
 
     ctx.restore();
+  }
+
+
+
+  // ── Matrushka çizimi ──────────────────────────────────────────────
+  _drawMatrushka(c) {
+    const ctx = state.ctx;
+    const { LEVELS } = state;
+    const scale = c.boing > 0 ? 1 + Math.sin(c.boing * Math.PI) * 0.22 : 1;
+    const R = Math.max(0.1, c.r * scale); // toplam yarıçap
+    const x = c.x, y = c.y;
+    const col = c.color;
+
+    ctx.save();
+
+    // Squish dönüşümü
+    if (c.squish && c.squish.t > 0) {
+      const s = Math.sin(c.squish.t * Math.PI) * c.squish.amt;
+      ctx.translate(x, y);
+      ctx.scale(1 - s * 0.25, 1 + s * 0.25);
+      ctx.translate(-x, -y);
+    }
+
+    // Glow
+    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * (c.absorbAnim / 35); }
+    else { ctx.shadowColor = col; ctx.shadowBlur = R * 0.3; }
+
+    // ── Ölçüler ───────────────────────────────────────────────────
+    const bodyW  = R * 0.72;   // gövde yatay yarıçap
+    const bodyH  = R * 0.78;   // gövde dikey yarıçap
+    const bodyY  = y + R * 0.18; // gövde merkezi (biraz aşağı)
+    const headR  = R * 0.38;   // kafa yarıçapı
+    const headY  = bodyY - bodyH * 0.72; // kafa merkezi
+
+    // ── Yardımcı: radyal gradient ─────────────────────────────────
+    const radGrad = (cx2, cy2, rw, rh, c1, c2, c3) => {
+      const g = ctx.createRadialGradient(cx2 - rw*0.3, cy2 - rh*0.35, rh*0.05, cx2, cy2, Math.max(rw,rh));
+      g.addColorStop(0,   c1);
+      g.addColorStop(0.5, c2);
+      g.addColorStop(1,   c3);
+      return g;
+    };
+
+    // ── Gövde ─────────────────────────────────────────────────────
+    ctx.beginPath();
+    ctx.ellipse(x, bodyY, bodyW, bodyH, 0, 0, Math.PI * 2);
+    ctx.fillStyle = radGrad(x, bodyY, bodyW, bodyH,
+      this._lighten(col, 70), col, this._darken(col, 70));
+    ctx.fill();
+
+    // ── İçteki halka topları (contains) ──────────────────────────
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < c.contains.length; k++) {
+      const lvIdx = c.contains[k];
+      if (lvIdx >= LEVELS.length) continue;
+      const lc    = LEVELS[lvIdx].color;
+      const ratio = 1 - (k + 1) * (0.62 / (c.contains.length + 1));
+      const lw    = Math.max(0.1, bodyW * Math.max(ratio, 0.2));
+      const lh    = Math.max(0.1, bodyH * Math.max(ratio, 0.2));
+      ctx.beginPath();
+      ctx.ellipse(x, bodyY, lw, lh, 0, 0, Math.PI * 2);
+      ctx.fillStyle = radGrad(x, bodyY, lw, lh,
+        this._lighten(lc, 65), lc, this._darken(lc, 65));
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+
+    // ── Eşarp (kafa-gövde birleşim bandı) ────────────────────────
+    // Eşarp rengi: beyazımsı veya col'un açık tonu
+    const scarfY1 = headY + headR * 0.55;
+    const scarfY2 = scarfY1 + R * 0.13;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.ellipse(x, scarfY1, bodyW * 0.78, R * 0.10, 0, 0, Math.PI * 2);
+    ctx.fillStyle = this._lighten(col, 50);
+    ctx.fill();
+    // Eşarp deseni — ince çizgiler
+    ctx.strokeStyle = this._darken(col, 20);
+    ctx.lineWidth = R * 0.025;
+    for (let d = -2; d <= 2; d++) {
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.moveTo(x + d * bodyW * 0.25, scarfY1 - R * 0.08);
+      ctx.lineTo(x + d * bodyW * 0.25, scarfY1 + R * 0.08);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // ── Önlük (gövde ön yüzü) ─────────────────────────────────────
+    // Oval açık renk panel
+    ctx.beginPath();
+    ctx.ellipse(x, bodyY + bodyH*0.05, bodyW * 0.44, bodyH * 0.52, 0, 0, Math.PI * 2);
+    ctx.fillStyle = this._lighten(col, 38);
+    ctx.globalAlpha = 0.55;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // ── Kafa ──────────────────────────────────────────────────────
+    ctx.shadowColor = col; ctx.shadowBlur = R * 0.2;
+    ctx.beginPath();
+    ctx.arc(x, headY, headR, 0, Math.PI * 2);
+    ctx.fillStyle = radGrad(x, headY, headR, headR,
+      this._lighten(col, 70), col, this._darken(col, 70));
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // ── Yüz ───────────────────────────────────────────────────────
+    const eyeR = headR * 0.12;
+    // Gözler
+    ctx.fillStyle = 'rgba(20,10,5,0.85)';
+    ctx.beginPath(); ctx.arc(x - headR*0.27, headY - headR*0.05, eyeR, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + headR*0.27, headY - headR*0.05, eyeR, 0, Math.PI*2); ctx.fill();
+    // Parıltı
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(x - headR*0.22, headY - headR*0.10, eyeR*0.4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + headR*0.32, headY - headR*0.10, eyeR*0.4, 0, Math.PI*2); ctx.fill();
+    // Yanaklar
+    ctx.fillStyle = 'rgba(255,120,100,0.30)';
+    ctx.beginPath(); ctx.ellipse(x - headR*0.44, headY + headR*0.14, headR*0.20, headR*0.13, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + headR*0.44, headY + headR*0.14, headR*0.20, headR*0.13, 0, 0, Math.PI*2); ctx.fill();
+    // Gülümseme
+    ctx.strokeStyle = 'rgba(20,10,5,0.55)';
+    ctx.lineWidth = headR * 0.07; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, headY + headR*0.12, headR*0.20, 0.25, Math.PI - 0.25);
+    ctx.stroke();
+
+    // ── Saç/başlık bandı ──────────────────────────────────────────
+    ctx.beginPath();
+    ctx.ellipse(x, headY - headR*0.42, headR*0.82, headR*0.28, 0, Math.PI, Math.PI*2);
+    ctx.fillStyle = this._darken(col, 25);
+    ctx.globalAlpha = 0.7;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // ── Specular ──────────────────────────────────────────────────
+    const spg = ctx.createRadialGradient(x - bodyW*0.26, bodyY - bodyH*0.30, 0,
+                                          x - bodyW*0.26, bodyY - bodyH*0.30, bodyW*0.40);
+    spg.addColorStop(0, 'rgba(255,255,255,0.65)');
+    spg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath();
+    ctx.ellipse(x - bodyW*0.26, bodyY - bodyH*0.30, bodyW*0.30, bodyH*0.22, 0, 0, Math.PI*2);
+    ctx.fillStyle = spg; ctx.fill();
+
+    ctx.restore();
+  }
+
+  // ── Gummy Bear çizimi ─────────────────────────────────────────────
+  _drawBear(c) {
+    const ctx = state.ctx;
+    const { S, gameTime, LEVELS } = state;
+    const scale = c.boing > 0 ? 1 + Math.sin(c.boing * Math.PI) * 0.25 : 1;
+    const r = Math.max(0.1, c.r * scale);
+    const x = c.x, y = c.y;
+    const col = c.color;
+
+    ctx.save();
+
+    // Squish
+    if (c.squish && c.squish.t > 0) {
+      const s = Math.sin(c.squish.t * Math.PI) * c.squish.amt;
+      ctx.translate(x, y);
+      ctx.scale(1 - s * 0.3, 1 + s * 0.3);
+      ctx.translate(-x, -y);
+    }
+
+    // Glow / absorb anim
+    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * (c.absorbAnim / 35); }
+    else { ctx.shadowColor = col; ctx.shadowBlur = r * 0.4; }
+
+    const grad = (cx2, cy2, r2) => {
+      const g = ctx.createRadialGradient(cx2 - r2*0.3, cy2 - r2*0.35, r2*0.05, cx2, cy2, r2);
+      g.addColorStop(0, this._lighten(col, 70));
+      g.addColorStop(0.5, col);
+      g.addColorStop(1, this._darken(col, 60));
+      return g;
+    };
+
+    const drawPart = (px, py, pr) => {
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fillStyle = grad(px, py, pr);
+      ctx.fill();
+      // iç halka (contains)
+    };
+
+    // ── Gövde ─────────────────────────────────────────────────────
+    const bx = x, by = y + r * 0.12;
+    const br = r * 0.72;
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fillStyle = grad(bx, by - br*0.2, br);
+    ctx.fill();
+
+    // ── Kafa ──────────────────────────────────────────────────────
+    const hx = x, hy = y - r * 0.38;
+    const hr = r * 0.48;
+    ctx.beginPath();
+    ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+    ctx.fillStyle = grad(hx, hy - hr*0.2, hr);
+    ctx.fill();
+
+    // ── Kulaklar ──────────────────────────────────────────────────
+    const er = r * 0.20;
+    drawPart(x - r * 0.36, y - r * 0.72, er);
+    drawPart(x + r * 0.36, y - r * 0.72, er);
+
+    // ── Eller ─────────────────────────────────────────────────────
+    const ar = r * 0.20;
+    drawPart(x - r * 0.72, y + r * 0.08, ar);
+    drawPart(x + r * 0.72, y + r * 0.08, ar);
+
+    // ── Ayaklar ───────────────────────────────────────────────────
+    const fr = r * 0.22;
+    drawPart(x - r * 0.36, y + r * 0.70, fr);
+    drawPart(x + r * 0.36, y + r * 0.70, fr);
+
+    // ── İçteki halka topları (contains) ──────────────────────────
+    for (let k = 0; k < c.contains.length; k++) {
+      const lvIdx = c.contains[k];
+      if (lvIdx >= LEVELS.length) continue;
+      const lColor = LEVELS[lvIdx].color;
+      const ratio = 1 - (k + 1) * (0.7 / (c.contains.length + 1));
+      const lr = Math.max(0.1, br * Math.max(ratio, 0.15));
+      ctx.beginPath();
+      ctx.arc(bx, by, lr, 0, Math.PI * 2);
+      const ig = ctx.createRadialGradient(bx - lr*0.3, by - lr*0.3, lr*0.05, bx, by, lr);
+      ig.addColorStop(0, this._lighten(lColor, 70));
+      ig.addColorStop(0.5, lColor);
+      ig.addColorStop(1, this._darken(lColor, 60));
+      ctx.fillStyle = ig;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    // ── Gözler ────────────────────────────────────────────────────
+    ctx.shadowBlur = 0;
+    const ehr = r * 0.072;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.beginPath(); ctx.arc(hx - hr*0.32, hy - hr*0.05, ehr, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + hr*0.32, hy - hr*0.05, ehr, 0, Math.PI*2); ctx.fill();
+    // Göz parıltısı
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(hx - hr*0.28, hy - hr*0.10, ehr*0.4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + hr*0.36, hy - hr*0.10, ehr*0.4, 0, Math.PI*2); ctx.fill();
+
+    // ── Burun ─────────────────────────────────────────────────────
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath(); ctx.ellipse(hx, hy + hr*0.15, ehr*0.7, ehr*0.45, 0, 0, Math.PI*2); ctx.fill();
+
+    // ── Specular ──────────────────────────────────────────────────
+    const sg = ctx.createRadialGradient(hx - hr*0.25, hy - hr*0.28, 0, hx - hr*0.25, hy - hr*0.28, hr*0.4);
+    sg.addColorStop(0, 'rgba(255,255,255,0.75)');
+    sg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(hx - hr*0.25, hy - hr*0.28, hr*0.28, 0, Math.PI*2);
+    ctx.fillStyle = sg; ctx.fill();
+
+    ctx.restore();
+  }
+
+  _lighten(hex, amt) {
+    const n = parseInt(hex.replace('#',''), 16);
+    const r = Math.min(255, (n>>16) + amt);
+    const g = Math.min(255, ((n>>8)&0xff) + amt);
+    const b = Math.min(255, (n&0xff) + amt);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  _darken(hex, amt) {
+    const n = parseInt(hex.replace('#',''), 16);
+    const r = Math.max(0, (n>>16) - amt);
+    const g = Math.max(0, ((n>>8)&0xff) - amt);
+    const b = Math.max(0, (n&0xff) - amt);
+    return `rgb(${r},${g},${b})`;
   }
 
   _drawAbsorbHalo(c, dr, S, gameTime, LEVELS) {
@@ -159,8 +437,10 @@ export class Renderer {
 
   drawGoalMatrushka(x, y, r, level, contains, alpha, done) {
     const ctx = state.ctx, { LEVELS } = state;
+    const shape = LEVELS[level]?.shape || 'sphere';
     const fakeC = { x, y, r, level, color: LEVELS[level]?.color || '#fff', contains,
-      boing: 0, absorbAnim: done ? 20 : 0, squish: null, absorbGlow: 0, isBeingDragged: false };
+      boing: 0, absorbAnim: done ? 20 : 0, squish: null, absorbGlow: 0,
+      isBeingDragged: false, shape };
     ctx.save(); ctx.globalAlpha = alpha; this.drawSphere(fakeC);
     if (done) {
       ctx.globalAlpha  = alpha;
@@ -189,7 +469,7 @@ export class Renderer {
     }
     const titleColor = circles.length > 0
       ? LEVELS[aTop].color
-      : (state.theme?.arenaBase || LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
+      : (LEVELS[def.goals.reduce((mx, g) => Math.max(mx, g.level), 0)]?.color || LEVELS[0].color);
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font      = `bold ${Math.round(28 * S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
@@ -700,105 +980,88 @@ export class Renderer {
     ctx.fillText('All moves learned.',CX,demoY+42); ctx.fillText('Good luck! 🎉',CX,demoY+42+fs+8);
     ctx.restore();
   }
-  // ── Palet rehberi — Level title top → slot bottom arası, dikey chain ──
+  // ── Palet rehberi — U'nun sol border hizasında, score'dan top seviyeye ──
   drawPaletteGuide() {
-    const { ctx, LEVELS, S, CX, CY, MAIN_R, MIN_DIM } = state;
+    const { ctx, LEVELS, S, CX, CY, MAIN_R } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    const n = LEVELS.length;
-    const t = Date.now() * 0.001;
+    const n      = LEVELS.length;
+    const t      = Date.now() * 0.001;
+    const arrowH = 8 * S;
+    const gap    = 3 * S;
 
-    // ── Koordinat referansları (goalSlotPos ile aynı formül) ──────────
-    // Title: y=22, font=28*S → top = 22 - fontSize/2
-    const titleFontH = Math.round(28 * S);
-    const titleTop   = 22 - titleFontH / 2 - 2 * S;
+    // Kullanılabilir dikey alan: ekran üstü → U üst hizası
+    const chainTop    = 4 * S;           // ekran üstünden küçük pad
+    const chainBottom = CY - MAIN_R;     // U üst hizası
+    const availH      = chainBottom - chainTop;
 
-    // Slot bottom: goalSlotPos(0) hesabı (goals.js ile senkron)
-    const nGoals  = state.goalSlots ? state.goalSlots.length : 1;
-    const GEM_R   = nGoals <= 1 ? 64 : nGoals === 2 ? 54 : 44;
-    const TOP = 10, TTL = Math.round(28 * MIN_DIM / 800) + 8, MID = 4;
-    const gemTop  = TOP + TTL + MID;
-    const slotBot = gemTop + GEM_R * 2 + 6 * S;   // slot alt kenarı + küçük pad
-
-    // ── Chain: title top → slot bottom arasına tam sığsın ─────────
-    const availH = slotBot - Math.max(0, titleTop);
-    const arrowH = Math.max(3, Math.round(5 * S));
-    const gap    = Math.max(1, Math.round(2 * S));
+    // Scale: bu alana tam sığacak sc hesapla
     const arrowSpace = (n - 1) * (arrowH + gap * 2);
+    const sumR2      = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
+    const sc         = (availH - arrowSpace) / sumR2;
 
-    // scale: availH'e tam sığacak şekilde hesapla
-    const sumR2  = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
-    const scale  = (availH - arrowSpace) / sumR2;
+    // X: sol üst köşe
+    const maxR   = LEVELS[n - 1].r * sc;
+    const guideX = maxR + 6 * S;
 
-    const radii  = LEVELS.map(lv => Math.max(3, Math.round(lv.r * scale)));
-    const totalH = radii.reduce((s, r) => s + r * 2, 0) + arrowSpace;
-
-    // X: sol kenara yasla — en büyük top + padding
-    const guideX = radii[n - 1] + Math.round(8 * S);
-
-    // startY: title top'tan başla
-    const startY = Math.max(2, titleTop);
+    const startY = chainTop;
 
     ctx.save();
-
     let curY = startY;
 
     for (let i = 0; i < n; i++) {
-      const lv    = LEVELS[i];
-      const r     = radii[i];
-      const cx    = guideX;
-      const cy    = curY + r;
-      const pulse = 0.78 + 0.22 * Math.sin(t * 2.2 + i * 0.85);
+      const lv = LEVELS[i];
+      const r  = lv.r * sc;
+      const cx = guideX;
+      const cy = curY + r;
 
-      ctx.globalAlpha = pulse * 0.92;
+      const pulse = 0.8 + 0.2 * Math.sin(t * 2.2 + i * 0.9);
+      ctx.globalAlpha = pulse * 0.9;
 
-      // Top — candy gradient
-      const g = ctx.createRadialGradient(cx - r*0.25, cy - r*0.3, r*0.05, cx, cy, r);
-      g.addColorStop(0,    this.shadeColor(lv.color, 80));
-      g.addColorStop(0.35, lv.color);
-      g.addColorStop(1,    this.shadeColor(lv.color, -60));
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle   = g;
-      ctx.shadowColor = lv.color;
-      ctx.shadowBlur  = 4 * S;
-      ctx.fill();
+      // Shape'e göre mini top çiz
+      const shape = lv.shape || 'sphere';
+      const fakeC = { x: cx, y: cy, r, level: i, color: lv.color,
+        contains: [], boing: 0, absorbAnim: 0, squish: null, absorbGlow: 0,
+        isBeingDragged: false, shape };
+      this.drawSphere(fakeC);
 
-      // Specular
-      ctx.shadowBlur = 0;
-      const sg = ctx.createRadialGradient(cx-r*0.28, cy-r*0.28, 0, cx-r*0.28, cy-r*0.28, r*0.22);
-      sg.addColorStop(0, 'rgba(255,255,255,0.82)');
-      sg.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.beginPath();
-      ctx.arc(cx - r*0.28, cy - r*0.28, r*0.22, 0, Math.PI * 2);
-      ctx.fillStyle = sg;
-      ctx.fill();
-
-      // Ok: gri, hint chain boyutunda küçük dolu daire
+      // Ok + bağlantı çizgisi
       if (i < n - 1) {
-        const lineY1 = cy + r + gap;
-        const lineY2 = lineY1 + arrowH;
-        const aw     = Math.max(2, Math.round(2.5 * S));
+        const lineTop    = cy + r + gap;
+        const lineBottom = curY + r*2 + gap*2 + arrowH;
+        const arrowY     = lineTop + (lineBottom - lineTop) * 0.5; // ok ortada
+        const aw         = Math.max(3, 3.5 * S); // ok genişliği
 
-        ctx.globalAlpha = 0.45;
-
-        // Çizgi
+        // Noktalı çizgi (ok üstü)
+        ctx.globalAlpha = 0.3;
+        ctx.setLineDash([2*S, 2*S]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth   = S;
         ctx.beginPath();
-        ctx.moveTo(cx, lineY1);
-        ctx.lineTo(cx, lineY2 - aw);
-        ctx.strokeStyle = 'rgba(200,200,200,0.6)';
-        ctx.lineWidth   = 1.2 * S;
+        ctx.moveTo(cx, lineTop);
+        ctx.lineTo(cx, arrowY - aw * 1.2);
         ctx.stroke();
+        ctx.setLineDash([]);
 
-        // Ok ucu — gri dolu üçgen
+        // Aşağı ok (üçgen)
+        ctx.globalAlpha = 0.65;
+        ctx.fillStyle   = 'rgba(200,200,200,0.65)';
+        ctx.shadowBlur  = 0;
         ctx.beginPath();
-        ctx.moveTo(cx - aw * 1.4, lineY2 - aw * 1.2);
-        ctx.lineTo(cx + aw * 1.4, lineY2 - aw * 1.2);
-        ctx.lineTo(cx,             lineY2 + aw * 0.4);
+        ctx.moveTo(cx - aw * 1.4, arrowY - aw * 1.2);
+        ctx.lineTo(cx + aw * 1.4, arrowY - aw * 1.2);
+        ctx.lineTo(cx,             arrowY + aw * 0.4);
         ctx.closePath();
-        ctx.fillStyle  = 'rgba(200,200,200,0.65)';
-        ctx.shadowBlur = 0;
         ctx.fill();
+
+        // Noktalı çizgi (ok altı)
+        ctx.globalAlpha = 0.3;
+        ctx.setLineDash([2*S, 2*S]);
+        ctx.beginPath();
+        ctx.moveTo(cx, arrowY + aw * 0.4);
+        ctx.lineTo(cx, lineBottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       curY += r * 2 + arrowH + gap * 2;

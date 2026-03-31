@@ -16,7 +16,7 @@ export class ThemeManager {
     const palette = cfg.palette;
 
     // LEVELS'ı palette renkleriyle yeniden oluştur
-    state.LEVELS = buildLevels(state.MAIN_R, palette);
+    state.LEVELS = buildLevels(state.MAIN_R, palette, cfg.shape || 'sphere');
 
     // state.theme: tüm çizim kodlarının okuyacağı tek kaynak
     state.theme = {
@@ -28,6 +28,7 @@ export class ThemeManager {
       accentMid: palette[3],
       accentLo:  palette[1],
       // Arka plan gradient — world-config'den gelir, palette hue'larından türetilmiş
+      shape:  cfg.shape || 'sphere',
       bgTop: cfg.bgTop || cfg.bgColor,
       bgMid: cfg.bgMid || _blend(cfg.bgColor, palette[5], 0.08),
       bgBot: cfg.bgBot || _blend(cfg.bgColor, palette[6], 0.05),
@@ -48,7 +49,7 @@ export class ThemeManager {
     const cpIdx = cpIdxFromLevel(internalLevel, TUTORIAL_LEVELS);
     if (state.theme && state.theme.cpIdx === cpIdx) {
       // Aynı CP — LEVELS'ı yenile ve blast renklerini de güncelle
-      state.LEVELS = buildLevels(state.MAIN_R, state.theme.palette);
+      state.LEVELS = buildLevels(state.MAIN_R, state.theme.palette, state.theme.shape || 'sphere');
       for (const btn of state.BLAST_BTNS) {
         const lv = btn.levels[0];
         if (lv < state.LEVELS.length) btn.color = state.LEVELS[lv].color;
@@ -61,7 +62,7 @@ export class ThemeManager {
   // Resize sonrası LEVELS'ı ve renkleri yenile (CP değişmez)
   reapplyAfterResize() {
     if (!state.theme) return;
-    state.LEVELS = buildLevels(state.MAIN_R, state.theme.palette);
+    state.LEVELS = buildLevels(state.MAIN_R, state.theme.palette, state.theme.shape || 'sphere');
     for (const c of state.circles) {
       c.color = state.LEVELS[c.level].color;
     }
