@@ -712,13 +712,9 @@ export class Game {
     const R = this.renderer;
     const { ctx, W, H, CX, CY, MAIN_R, S, circles, LEVELS } = state;
 
-    // Arka plan — gradient
+    // Arka plan — düz renk, her CP'ye özel
     const th = state.theme;
-    const _bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    _bgGrad.addColorStop(0,   th?.bgTop  || '#0d0a1a');
-    _bgGrad.addColorStop(0.5, th?.bgMid  || '#0d0a1a');
-    _bgGrad.addColorStop(1,   th?.bgBot  || '#0d0a1a');
-    ctx.fillStyle = _bgGrad;
+    ctx.fillStyle = th?.bgColor || '#0d0a1a';
     ctx.fillRect(0, 0, W, H);
 
     // Arena rengi — 3 framede bir güncelle (görsel fark yok)

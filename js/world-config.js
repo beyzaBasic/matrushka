@@ -43,13 +43,13 @@ export const WORLD_CONFIG = [
 
   // CP 03 · sphere · hue başlangıç: 210°
   { id: 3, name: 'Şeker Göğü', subtitle: 'Sonsuz mavi',
-    shape: 'sphere',
+    shape: 'duck',
     bgColor: '#c8e4ff',
     palette: ['#0099ff', '#8800ff', '#ff00aa', '#ff6600', '#ffee00', '#44ff00', '#00ffdd'] },
 
   // CP 04 · bear · hue başlangıç: 272°
   { id: 4, name: 'Lavanta', subtitle: 'Kadife çiçekler',
-    shape: 'bear',
+    shape: 'fish',
     bgColor: '#e4d0ff',
     palette: ['#aa00ff', '#ff0077', '#ff7700', '#ffe500', '#55ff00', '#00ffcc', '#00aaff'] },
 
@@ -57,31 +57,31 @@ export const WORLD_CONFIG = [
 
   // CP 05 · matrushka · hue başlangıç: 18°
   { id: 5, name: 'Mercan Ateşi', subtitle: 'Sıcak sular',
-    shape: 'matrushka',
+    shape: 'sphere',
     bgColor: '#1a0500',
     palette: ['#ff5200', '#ff0088', '#aa00ff', '#0055ff', '#00ccff', '#00ff88', '#aaff00'] },
 
   // CP 06 · sphere · hue başlangıç: 168°
   { id: 6, name: 'Tropikal', subtitle: 'Cennet adası',
-    shape: 'sphere',
+    shape: 'bear',
     bgColor: '#001510',
     palette: ['#00e87a', '#00b8ff', '#0033ff', '#aa00ff', '#ff0066', '#ff6600', '#ffee00'] },
 
   // CP 07 · bear · hue başlangıç: 46°
   { id: 7, name: 'Altın Çağ', subtitle: 'Zafer ve ihtişam',
-    shape: 'bear',
+    shape: 'matrushka',
     bgColor: '#140c00',
     palette: ['#ffcc00', '#aaff00', '#00ff99', '#00bbff', '#4400ff', '#cc00ff', '#ff0066'] },
 
   // CP 08 · matrushka · hue başlangıç: 320°
   { id: 8, name: 'Şafak', subtitle: 'Yeni bir gün',
-    shape: 'matrushka',
+    shape: 'duck',
     bgColor: '#140008',
     palette: ['#ff00bb', '#dd00ff', '#3300ff', '#0099ff', '#00ffcc', '#88ff00', '#ffaa00'] },
 
   // CP 09 · sphere · hue başlangıç: 118°
   { id: 9, name: 'Zümrüt Orman', subtitle: 'Derinlerin sırrı',
-    shape: 'sphere',
+    shape: 'fish',
     bgColor: '#001505',
     palette: ['#44ff00', '#00ffaa', '#00aaff', '#3300ff', '#cc00ff', '#ff0055', '#ff8800'] },
 
@@ -89,13 +89,13 @@ export const WORLD_CONFIG = [
 
   // CP 10 · bear · hue başlangıç: 28°
   { id: 10, name: 'Gün Batımı', subtitle: 'Son ışıklar',
-    shape: 'bear',
+    shape: 'sphere',
     bgColor: '#0f0400',
     palette: ['#ff6600', '#ff0077', '#aa00ff', '#0044ff', '#00bbff', '#00ff88', '#99ff00'] },
 
   // CP 11 · sphere · hue başlangıç: 198°
   { id: 11, name: 'Okyanus Gecesi', subtitle: 'Derin sular',
-    shape: 'sphere',
+    shape: 'bear',
     bgColor: '#000810',
     palette: ['#00aaff', '#0022ff', '#9900ff', '#ff0077', '#ff5500', '#ffdd00', '#66ff00'] },
 
@@ -107,13 +107,13 @@ export const WORLD_CONFIG = [
 
   // CP 13 · bear · hue başlangıç: 288°
   { id: 13, name: 'Mor Nebula', subtitle: 'Galaksinin kalbinde',
-    shape: 'bear',
+    shape: 'duck',
     bgColor: '#080012',
     palette: ['#cc00ff', '#ff0055', '#ff7700', '#ffee00', '#66ff00', '#00ffcc', '#00aaff'] },
 
   // CP 14 · sphere · hue başlangıç: 188° · S=85 (hafif daha soft)
   { id: 14, name: 'Buz Sarayı', subtitle: 'Kristal soğuk',
-    shape: 'sphere',
+    shape: 'fish',
     bgColor: '#000810',
     palette: ['#00d4f0', '#0044ee', '#7700dd', '#ee0088', '#ee6600', '#dddd00', '#44ee00'] },
 
@@ -121,13 +121,13 @@ export const WORLD_CONFIG = [
 
   // CP 15 · bear · hue başlangıç: 12°
   { id: 15, name: 'Volkan', subtitle: 'Patlama anı',
-    shape: 'bear',
+    shape: 'sphere',
     bgColor: '#0a0000',
     palette: ['#ff4400', '#ff0088', '#bb00ff', '#3300ff', '#00aaff', '#00ff88', '#aaff00'] },
 
   // CP 16 · sphere · hue başlangıç: 194°
   { id: 16, name: 'Kripto', subtitle: 'Dijital dünya',
-    shape: 'sphere',
+    shape: 'bear',
     bgColor: '#00030e',
     palette: ['#00aaff', '#0011ff', '#9900ff', '#ff0066', '#ff6600', '#ffdd00', '#77ff00'] },
 
@@ -139,13 +139,13 @@ export const WORLD_CONFIG = [
 
   // CP 18 · bear · hue başlangıç: 304°
   { id: 18, name: 'Karanlık Ejder', subtitle: 'Son sınav',
-    shape: 'bear',
+    shape: 'duck',
     bgColor: '#04000c',
     palette: ['#ee00cc', '#aa00ff', '#1100ff', '#0099ff', '#00ffee', '#99ff00', '#ffbb00'] },
 
   // CP 19 · sphere · hue başlangıç: 0°
   { id: 19, name: 'Kaos', subtitle: 'Her şeyin sonu',
-    shape: 'sphere',
+    shape: 'fish',
     bgColor: '#000000',
     palette: ['#ff2200', '#ff00cc', '#9900ff', '#0055ff', '#00ddff', '#00ff66', '#ddff00'] },
 
