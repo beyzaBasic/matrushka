@@ -61,10 +61,14 @@ export class PhysicsManager {
 
   solveCollisions() {
     const { circles, CX, CY, MAIN_R } = state;
+    const n = circles.length;
+    if (n === 0) return;
     const RESTITUTION = 0.75, WALL_BOUNCE = 0.45;
-    for (let iter = 0; iter < 8; iter++) {
-      for (let i = 0; i < circles.length; i++) {
-        for (let j = i + 1; j < circles.length; j++) {
+    // Mobilde 5 iterasyon yeterli — 8 gereksiz yük
+    const ITERS = n <= 6 ? 5 : n <= 10 ? 4 : 3;
+    for (let iter = 0; iter < ITERS; iter++) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
           const c1 = circles[i], c2 = circles[j];
           if (c1.isBeingDragged || c2.isBeingDragged) {
             const dragged = c1.isBeingDragged ? c1 : c2, other = c1.isBeingDragged ? c2 : c1;
@@ -75,9 +79,12 @@ export class PhysicsManager {
           }
           if (c1.level !== c2.level && (this.canAbsorb(c1, c2) || this.canAbsorb(c2, c1))) continue;
           const dx = c2.x - c1.x, dy = c2.y - c1.y;
-          const d = Math.hypot(dx, dy) || 0.01, min = c1.r + c2.r;
-          if (d < min) {
-            const nx = dx / d, ny = dy / d, ov = (min - d) * 0.5;
+          const minD = c1.r + c2.r;
+          // Erken mesafe kontrolü (sqrt'tan önce)
+          if (Math.abs(dx) > minD || Math.abs(dy) > minD) continue;
+          const d = Math.hypot(dx, dy) || 0.01;
+          if (d < minD) {
+            const nx = dx / d, ny = dy / d, ov = (minD - d) * 0.5;
             c1.x -= nx * ov; c1.y -= ny * ov; c2.x += nx * ov; c2.y += ny * ov;
             const m1 = c1.r * c1.r, m2 = c2.r * c2.r;
             const dvn = (c1.vx - c2.vx) * nx + (c1.vy - c2.vy) * ny;
@@ -92,15 +99,10 @@ export class PhysicsManager {
           }
         }
       }
-      // U şekli fizik sınırları:
-      // - Alt yarım daire (y >= CY): tam daire sınırı
-      // - Üst kısım (y < CY): sadece sol (x < CX-MAIN_R) ve sağ (x > CX+MAIN_R) duvarlar
       for (const c of circles) {
         if (c.isBeingDragged) continue;
         const dx = c.x - CX, dy = c.y - CY;
-
-        if (dy >= 0) { // CY'nin altı: daire sınırı
-          // Alt yarım daire sınırı
+        if (dy >= 0) {
           const d = Math.hypot(dx, dy) || 0.01;
           if (d + c.r > MAIN_R) {
             const nx = dx / d, ny = dy / d;
@@ -114,20 +116,16 @@ export class PhysicsManager {
             }
           }
         } else {
-          // Üst kısım — sadece sol ve sağ duvar (x sınırı = MAIN_R)
-          // Sol duvar
           if (c.x - c.r < CX - MAIN_R) {
             c.x = CX - MAIN_R + c.r;
             if (c.vx < 0) { c.vx = -c.vx * WALL_BOUNCE; }
             c.squish = { t: 1.0, amt: 0.2, ax: -1, ay: 0 };
           }
-          // Sağ duvar
           if (c.x + c.r > CX + MAIN_R) {
             c.x = CX + MAIN_R - c.r;
             if (c.vx > 0) { c.vx = -c.vx * WALL_BOUNCE; }
             c.squish = { t: 1.0, amt: 0.2, ax: 1, ay: 0 };
           }
-          // Üstten kaçmasın — U'nun üst kenarı sınırı
           const topLimit = state.CY - state.MAIN_R;
           if (c.y - c.r < topLimit) {
             c.y = topLimit + c.r;
@@ -136,7 +134,7 @@ export class PhysicsManager {
         }
       }
     }
-    // Son clamp — tüm toplar U içinde
+    // Son clamp
     for (const c of state.circles) this._clampToU(c);
   }
 
@@ -161,16 +159,21 @@ export class PhysicsManager {
 
   updateAbsorbGlow() {
     const { circles } = state;
-    for (let i = 0; i < circles.length; i++) {
-      for (let j = i + 1; j < circles.length; j++) {
+    const n = circles.length;
+    // Önce sıfırla
+    for (let i = 0; i < n; i++) circles[i].absorbGlow = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
         const a = circles[i], b = circles[j];
         const big = a.level > b.level ? a : b, small = a.level > b.level ? b : a;
         if (!this.canAbsorb(big, small)) continue;
-        const d = Math.hypot(big.x - small.x, big.y - small.y);
         const triggerDist = (big.r + small.r) * 2.2;
+        const dx = big.x - small.x, dy = big.y - small.y;
+        // Erken AABB kontrolü — Math.hypot'tan önce
+        if (Math.abs(dx) > triggerDist || Math.abs(dy) > triggerDist) continue;
+        const d = Math.hypot(dx, dy);
         if (d < triggerDist) {
-          const intensity = 1 - (d / triggerDist);
-          small.absorbGlow = Math.max(small.absorbGlow || 0, intensity);
+          small.absorbGlow = Math.max(small.absorbGlow, 1 - d / triggerDist);
         }
       }
     }

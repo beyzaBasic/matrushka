@@ -20,12 +20,21 @@ export class Renderer {
     ctx.closePath();
   }
 
+  // ── Renk önbellekleri (hex parse pahalı, her frame tekrarlanmasın) ──
+  _shadeCache = new Map();
+
   shadeColor(hex, amt) {
+    const k = hex + amt;
+    let v = this._shadeCache.get(k);
+    if (v) return v;
     const n = parseInt(hex.slice(1), 16);
     const r = Math.min(255, Math.max(0, (n >> 16) + amt));
     const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + amt));
     const b = Math.min(255, Math.max(0, (n & 0xff) + amt));
-    return `rgb(${r},${g},${b})`;
+    v = `rgb(${r},${g},${b})`;
+    if (this._shadeCache.size > 512) this._shadeCache.clear();
+    this._shadeCache.set(k, v);
+    return v;
   }
 
   _ellipsePath(cx, cy, rx, ry, ax, ay) {
@@ -73,9 +82,8 @@ export class Renderer {
     }
 
     if (!this._shapeCache.has(key)) {
-      const DPR  = window.devicePixelRatio || 1;
-      // Yeterince büyük offscreen canvas — DPR dahil
-      const pad  = Math.ceil(c.r * 0.35); // gölge/glow için pay
+      const DPR  = Math.min(window.devicePixelRatio || 1, 2);
+      const pad  = Math.ceil(c.r * 0.25); // gölge için pay — 0.35→0.25 küçüldü
       const size = Math.ceil((c.r * 2 + pad * 2) * DPR);
       const cx0  = size / 2, cy0 = size / 2;
       const oc   = new OffscreenCanvas(size, size);
@@ -106,7 +114,7 @@ export class Renderer {
   }
 
   // Cache'i temizle (tema değişince)
-  clearShapeCache() { this._shapeCache.clear(); }
+  clearShapeCache() { this._shapeCache.clear(); this._invalidatePaletteGuide(); }
 
   drawSphere(c) {
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
@@ -127,6 +135,7 @@ export class Renderer {
 
     ctx.save();
     if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 14; }
+    else { ctx.shadowBlur = 0; }
 
     path(); ctx.fillStyle = this._candyGrad(c.x, c.y, dr, c.color); ctx.fill();
     this._drawInnerRings(c, dr, ax, ay, hasSquish);
@@ -395,37 +404,47 @@ export class Renderer {
     ctx.restore();
   }
 
+  _lightenCache = new Map();
+  _darkenCache  = new Map();
+
   _lighten(hex, amt) {
+    const k = hex + amt;
+    let v = this._lightenCache.get(k);
+    if (v) return v;
     const n = parseInt(hex.replace('#',''), 16);
-    const r = Math.min(255, (n>>16) + amt);
-    const g = Math.min(255, ((n>>8)&0xff) + amt);
-    const b = Math.min(255, (n&0xff) + amt);
-    return `rgb(${r},${g},${b})`;
+    v = `rgb(${Math.min(255,(n>>16)+amt)},${Math.min(255,((n>>8)&0xff)+amt)},${Math.min(255,(n&0xff)+amt)})`;
+    if (this._lightenCache.size > 512) this._lightenCache.clear();
+    this._lightenCache.set(k, v);
+    return v;
   }
 
   _darken(hex, amt) {
+    const k = hex + amt;
+    let v = this._darkenCache.get(k);
+    if (v) return v;
     const n = parseInt(hex.replace('#',''), 16);
-    const r = Math.max(0, (n>>16) - amt);
-    const g = Math.max(0, ((n>>8)&0xff) - amt);
-    const b = Math.max(0, (n&0xff) - amt);
-    return `rgb(${r},${g},${b})`;
+    v = `rgb(${Math.max(0,(n>>16)-amt)},${Math.max(0,((n>>8)&0xff)-amt)},${Math.max(0,(n&0xff)-amt)})`;
+    if (this._darkenCache.size > 512) this._darkenCache.clear();
+    this._darkenCache.set(k, v);
+    return v;
   }
 
   _drawAbsorbHalo(c, dr, S, gameTime, LEVELS) {
     const glow = c.absorbGlow || 0;
-    if (glow <= 0.01) return;
+    if (glow <= 0.15) return; // düşük intensitede hiç çizme
     const ctx      = state.ctx;
     const bigColor = LEVELS[c.level + 1] ? LEVELS[c.level + 1].color : '#fff';
     const hareR    = dr + 5*S + glow*7*S;
     const offset   = (gameTime * 0.003) % (Math.PI * 2);
+    const segs     = glow > 0.5 ? 6 : 4; // intensiteye göre segment sayısı
     ctx.save();
     ctx.lineWidth   = 3*S + glow*3*S; ctx.lineCap = 'round';
-    ctx.shadowColor = bigColor; ctx.shadowBlur = 6 + glow*10;
-    ctx.strokeStyle = bigColor; ctx.globalAlpha = 0.4 + glow*0.6;
-    for (let s = 0; s < 8; s++) {
-      const seg   = (Math.PI * 2) / 8;
+    ctx.shadowColor = bigColor; ctx.shadowBlur = 4 + glow*8;
+    ctx.strokeStyle = bigColor; ctx.globalAlpha = 0.4 + glow*0.5;
+    for (let s = 0; s < segs; s++) {
+      const seg   = (Math.PI * 2) / segs;
       const start = offset + s * seg;
-      ctx.beginPath(); ctx.arc(c.x, c.y, hareR, start, start + seg * 0.65); ctx.stroke();
+      ctx.beginPath(); ctx.arc(c.x, c.y, hareR, start, start + seg * 0.6); ctx.stroke();
     }
     ctx.restore();
   }
@@ -697,25 +716,33 @@ export class Renderer {
 
   drawParticles() {
     const ctx = state.ctx, { particles } = state;
+    ctx.shadowBlur = 0;
+    let lastColor = null;
     for (let i = particles.length-1; i >= 0; i--) {
       const p = particles[i];
       p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--; p.r *= 0.96;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
       ctx.globalAlpha = p.life / p.maxLife;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill();
-      if (p.life <= 0) particles.splice(i, 1);
+      if (p.color !== lastColor) { ctx.fillStyle = p.color; lastColor = p.color; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.5, p.r), 0, Math.PI*2); ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
 
   drawChainWaves() {
     const ctx = state.ctx, { chainWaves, S } = state;
-    chainWaves.forEach(w => {
+    for (let i = 0; i < chainWaves.length; i++) {
+      const w = chainWaves[i];
       const p = w.t / w.maxT;
-      ctx.save(); ctx.globalAlpha = (1-p)*0.7;
+      const alpha = (1-p)*0.7;
+      if (alpha < 0.02) continue;
+      ctx.save(); ctx.globalAlpha = alpha;
       ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, Math.PI*2);
-      ctx.strokeStyle=w.color; ctx.lineWidth=(4-p*3)*S; ctx.shadowColor=w.color; ctx.shadowBlur=12*(1-p); ctx.stroke();
+      ctx.strokeStyle = w.color; ctx.lineWidth = (4-p*3)*S;
+      ctx.shadowColor = w.color; ctx.shadowBlur = 8*(1-p);
+      ctx.stroke();
       ctx.restore();
-    });
+    }
   }
 
   drawAbsorbAnims() {
@@ -1035,99 +1062,98 @@ export class Renderer {
     ctx.restore();
   }
   // ── Palet rehberi — U'nun sol border hizasında, score'dan top seviyeye ──
+  _paletteGuideCache = null;
+
+  _invalidatePaletteGuide() { this._paletteGuideCache = null; }
+
   drawPaletteGuide() {
     const { ctx, LEVELS, S, CX, CY, MAIN_R } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    const n      = LEVELS.length;
-    const t      = Date.now() * 0.001;
-    const arrowH = 8 * S;
-    const gap    = 3 * S;
-
-    // Kullanılabilir dikey alan: ekran üstü → U üst hizası
-    const chainTop    = 4 * S;           // ekran üstünden küçük pad
-    const chainBottom = CY - MAIN_R;     // U üst hizası
+    const n       = LEVELS.length;
+    const arrowH  = 8 * S;
+    const gap     = 3 * S;
+    const chainTop    = 4 * S;
+    const chainBottom = CY - MAIN_R;
     const availH      = chainBottom - chainTop;
+    if (availH <= 0) return;
 
-    // Scale: bu alana tam sığacak sc hesapla
     const arrowSpace = (n - 1) * (arrowH + gap * 2);
     const sumR2      = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
     const sc         = (availH - arrowSpace) / sumR2;
 
-    // X: sol üst köşe
-    const maxR   = LEVELS[n - 1].r * sc;
-    const guideX = maxR + 6 * S;
+    // En büyük topun gerçek çizim yarıçapı (bear/matrushka kolları için 1.15x)
+    const bigShape = LEVELS[n - 1].shape || 'sphere';
+    const maxRDraw = LEVELS[n - 1].r * sc * (bigShape === 'sphere' ? 1.0 : 1.15);
 
-    const startY = chainTop;
+    // Sol kenar boşluğu: topun solu ekran kenarına değmesin
+    const padLeft  = 4 * S;
+    // OffscreenCanvas içinde merkez X
+    const guideX   = padLeft + maxRDraw;
+    // Canvas logical genişliği: sol pad + merkez sol yarı + merkez sağ yarı + sağ pay
+    const logW     = Math.ceil(padLeft + maxRDraw * 2 + 4 * S);
+    const logH     = Math.ceil(availH);
 
-    ctx.save();
-    let curY = startY;
+    const themeKey = (state.theme?.cpIdx ?? 0) + '|' + Math.round(sc * 1000) + '|' + logW;
 
-    for (let i = 0; i < n; i++) {
-      const lv = LEVELS[i];
-      const shape = lv.shape || 'sphere';
-      // Bear/matrushka daha fazla yer kaplıyor — biraz büyüt
-      const rScale = (shape === 'sphere') ? sc : sc * 1.15;
-      const r  = Math.max(5, lv.r * rScale);
-      const cx = guideX;
-      const cy = curY + r;
+    if (!this._paletteGuideCache || this._paletteGuideCache.themeKey !== themeKey) {
+      const DPR  = Math.min(window.devicePixelRatio || 1, 2);
+      const cw   = Math.ceil(logW * DPR);
+      const ch   = Math.ceil(logH * DPR);
+      const oc   = new OffscreenCanvas(cw, ch);
+      const octx = oc.getContext('2d');
+      octx.scale(DPR, DPR);
 
-      // Her top tam canlılıkta
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur  = 0;
-      // Gameplay ile birebir aynı şekil — fakeC ile direkt çiz
-      const fakeC = {
-        x: cx, y: cy, r,
-        level: i, color: lv.color, shape,
-        contains: [], boing: 0, absorbAnim: 0,
-        squish: null, absorbGlow: 0, isBeingDragged: false
-      };
-      this.drawSphere(fakeC);
+      let curY = 0;
+      for (let i = 0; i < n; i++) {
+        const lv    = LEVELS[i];
+        const shape = lv.shape || 'sphere';
+        const rScale = shape === 'sphere' ? sc : sc * 1.15;
+        const r     = Math.max(5, lv.r * rScale);
+        const cx    = guideX, cy = curY + r;
 
-      // Ok + bağlantı çizgisi
-      if (i < n - 1) {
-        const lineTop    = cy + r + gap;
-        const lineBottom = curY + r*2 + gap*2 + arrowH;
-        const arrowY     = lineTop + (lineBottom - lineTop) * 0.5; // ok ortada
-        const aw         = Math.max(3, 3.5 * S); // ok genişliği
+        const fakeC = { x: cx, y: cy, r, level: i, color: lv.color, shape,
+          contains: [], boing: 0, absorbAnim: 0, squish: null, absorbGlow: 0, isBeingDragged: false };
+        const savedCtx = state.ctx;
+        state.ctx = octx;
+        octx.shadowBlur = 0;
+        this.drawSphere(fakeC);
+        state.ctx = savedCtx;
 
-        // Noktalı çizgi (ok üstü)
-        ctx.globalAlpha = 0.3;
-        ctx.setLineDash([2*S, 2*S]);
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        ctx.lineWidth   = S;
-        ctx.beginPath();
-        ctx.moveTo(cx, lineTop);
-        ctx.lineTo(cx, arrowY - aw * 1.2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Aşağı ok (üçgen)
-        ctx.globalAlpha = 0.65;
-        ctx.fillStyle   = 'rgba(200,200,200,0.65)';
-        ctx.shadowBlur  = 0;
-        ctx.beginPath();
-        ctx.moveTo(cx - aw * 1.4, arrowY - aw * 1.2);
-        ctx.lineTo(cx + aw * 1.4, arrowY - aw * 1.2);
-        ctx.lineTo(cx,             arrowY + aw * 0.4);
-        ctx.closePath();
-        ctx.fill();
-
-        // Noktalı çizgi (ok altı)
-        ctx.globalAlpha = 0.3;
-        ctx.setLineDash([2*S, 2*S]);
-        ctx.beginPath();
-        ctx.moveTo(cx, arrowY + aw * 0.4);
-        ctx.lineTo(cx, lineBottom);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        if (i < n - 1) {
+          const lineTop = cy + r + gap;
+          const arrowY  = lineTop + arrowH * 0.5;
+          const aw      = Math.max(3, 3.5 * S);
+          octx.globalAlpha = 0.3;
+          octx.setLineDash([2*S, 2*S]);
+          octx.strokeStyle = 'rgba(255,255,255,0.5)';
+          octx.lineWidth   = S;
+          octx.beginPath(); octx.moveTo(cx, lineTop); octx.lineTo(cx, arrowY - aw * 1.2); octx.stroke();
+          octx.setLineDash([]);
+          octx.globalAlpha = 0.65;
+          octx.fillStyle   = 'rgba(200,200,200,0.65)';
+          octx.beginPath();
+          octx.moveTo(cx - aw*1.4, arrowY - aw*1.2);
+          octx.lineTo(cx + aw*1.4, arrowY - aw*1.2);
+          octx.lineTo(cx,           arrowY + aw*0.4);
+          octx.closePath(); octx.fill();
+          octx.globalAlpha = 0.3;
+          octx.setLineDash([2*S, 2*S]);
+          octx.beginPath(); octx.moveTo(cx, arrowY + aw*0.4); octx.lineTo(cx, lineTop + arrowH); octx.stroke();
+          octx.setLineDash([]);
+          octx.globalAlpha = 1;
+        }
+        curY += r * 2 + arrowH + gap * 2;
       }
 
-      curY += r * 2 + arrowH + gap * 2;
+      this._paletteGuideCache = { oc, themeKey, startY: chainTop, logW, logH };
     }
 
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur  = 0;
+    const c = this._paletteGuideCache;
+    ctx.save();
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // dw/dh ile logical piksel boyutuna ölçekle (DPR canvas'ını doğru boyuta indir)
+    ctx.drawImage(c.oc, 0, c.startY, c.logW, c.logH);
     ctx.restore();
   }
 

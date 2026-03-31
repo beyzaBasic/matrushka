@@ -2,7 +2,7 @@
 export const TUTORIAL_LEVELS = 2;
 
 export function buildLayout() {
-  const DPR = window.devicePixelRatio || 1;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2); // 3x retina gereksiz yük
   const CSS_W = window.innerWidth, CSS_H = window.innerHeight;
   const W = CSS_W, H = CSS_H, MIN_DIM = Math.min(W, H), CX = W / 2;
   const SCORE_AREA = 230, BTN_PAD = 12, BTN_BOTTOM_PAD = 12;

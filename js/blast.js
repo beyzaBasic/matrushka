@@ -72,7 +72,7 @@ export class BlastManager {
 
   _celebrate(x, y, color) {
     const { S } = state;
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 16; i++) {  // eski: 28
       const angle = Math.random() * Math.PI * 2, speed = (3 + Math.random() * 7) * S;
       state.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 5 * S, r: (5 + Math.random() * 9) * S, color, life: 55 + Math.random() * 30, maxLife: 85 });
     }

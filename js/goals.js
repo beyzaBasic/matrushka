@@ -81,8 +81,8 @@ export class GoalManager {
         goalSlots[fg.slotIdx] = 'done';
         flyingGoals.splice(i, 1);
         const sc = LEVELS[fg.level].color;
-        for (let p = 0; p < 34; p++) {
-          const a = p / 34 * Math.PI * 2, sp = (3 + Math.random() * 7) * S;
+        for (let p = 0; p < 20; p++) {  // eski: 34
+          const a = p / 20 * Math.PI * 2, sp = (3 + Math.random() * 7) * S;
           particles.push({ x: fg.tx, y: fg.ty, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3 * S, r: (4 + Math.random() * 6) * S, color: sc, life: 55, maxLife: 55 });
         }
         this._celebrate(fg.tx, fg.ty, '#fff');
@@ -97,7 +97,7 @@ export class GoalManager {
           const cpIdx = cpIdxFromLevel(state.currentLevel, TUTORIAL_LEVELS);
           const palette = getWorldConfig(cpIdx).palette;
           const cols = [...palette, '#fff', '#FFD700'];
-          for (let p = 0; p < 50; p++) {
+          for (let p = 0; p < 30; p++) {  // eski: 50
             const a = Math.random() * Math.PI * 2, sp = (3 + Math.random() * 8) * S;
             particles.push({ x: CX + (Math.random() - 0.5) * MAIN_R, y: CY + (Math.random() - 0.5) * MAIN_R, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3 * S, r: (4 + Math.random() * 7) * S, color: cols[Math.floor(Math.random() * cols.length)], life: 100, maxLife: 100 });
           }
@@ -109,7 +109,7 @@ export class GoalManager {
 
   _celebrate(x, y, color) {
     const { S } = state;
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 16; i++) {  // eski: 28
       const angle = Math.random() * Math.PI * 2, speed = (3 + Math.random() * 7) * S;
       state.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 5 * S, r: (5 + Math.random() * 9) * S, color, life: 55 + Math.random() * 30, maxLife: 85 });
     }

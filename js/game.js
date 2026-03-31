@@ -113,47 +113,25 @@ export class Game {
 
     const { CX, CY, MAIN_R, S } = state;
 
-    // heldBall sürükleniyorsa bırak
-    if (state.heldBall) {
-      this._dropBall(state.heldBall.x, state.heldBall.y);
-      return;
-    }
-
-    // nextBall'a dokunuldu mu? → sürüklemeye başla
-    if (this._pickUpBall(x, y)) return;
-
     // Mevcut topa dokunuldu → sürükle
-    const found = state.circles.slice().reverse().find(c =>
+    const touched = state.circles.slice().reverse().find(c =>
       Math.hypot(x - c.x, y - c.y) < Math.max(c.r * 1.5, 44 * S)
     );
-    if (found) {
-      state.draggedCircle = found;
-      state.draggedCircle.isBeingDragged = true;
+    if (touched) {
+      state.draggedCircle = touched;
+      touched.isBeingDragged = true;
       this.audio.pick();
       return;
     }
 
-    // U içine tap → nextBall'ı al, sürüklemeye başla
-    if (state.nextBall && !state.heldBall) {
-      const _dy = y - CY;
-      const _inU = _dy >= 0
-        ? Math.hypot(x - CX, _dy) <= MAIN_R
-        : (x >= CX - MAIN_R && x <= CX + MAIN_R && y >= CY - MAIN_R);
-      if (_inU) {
-        // heldBall: tap noktasında başlat
-        const nb = state.nextBall;
-        state.nextBall = null;
-        state.heldBall = { ...nb, x, y };
-        this.audio.pick();
-        setTimeout(() => {
-          if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-        }, 300);
-        return;
-      }
+    // heldBall varsa: tıklanan X hizasından tepeden düşür
+    if (state.heldBall) {
+      this._dropBallFromTop(x);
+      return;
     }
 
-    // (eski boşluk tap kodu — artık kullanılmıyor)
-    if (false && state.nextBall) {
+    // Boş alana tap + nextBall → heldBall oluştur, sürüklenebilir
+    if (state.nextBall) {
       const _dy = y - CY;
       const _inU = _dy >= 0
         ? Math.hypot(x - CX, _dy) <= MAIN_R
@@ -161,23 +139,10 @@ export class Game {
       if (_inU) {
         const nb = state.nextBall;
         state.nextBall = null;
-        // Tıklanan noktayı U içine clamp et
-        let dropX = Math.max(CX - MAIN_R + nb.r + 2, Math.min(CX + MAIN_R - nb.r - 2, x));
-        let dropY = Math.max(CY - MAIN_R + nb.r + 2, y);
-        // Alt daire sınırı
-        const ddx = dropX - CX, ddy = dropY - CY;
-        if (ddy >= 0) {
-          const d = Math.hypot(ddx, ddy);
-          if (d + nb.r > MAIN_R - 2) {
-            const a = Math.atan2(ddy, ddx);
-            dropX = CX + Math.cos(a) * (MAIN_R - nb.r - 2);
-            dropY = CY + Math.sin(a) * (MAIN_R - nb.r - 2);
-          }
-        }
-        const ball = this._makeBallObj(nb.level, dropX, dropY);
-        ball.vy = 2;
-        state.circles.push(ball);
-        this.audio.spawn();
+        // X: tıklanan hiza, Y: spawn noktası (üst)
+        const hx = Math.max(CX - MAIN_R + nb.r + 2, Math.min(CX + MAIN_R - nb.r - 2, x));
+        state.heldBall = { ...nb, x: hx, y: nb.y };
+        this.audio.pick();
         setTimeout(() => {
           if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
         }, 300);
@@ -227,8 +192,7 @@ export class Game {
         hx = CX + Math.cos(ang) * (MAIN_R - hb.r);
         hy = CY + Math.sin(ang) * (MAIN_R - hb.r);
       }
-      hb.x = hx;
-      hb.y = hy;
+      hb.x = hx; hb.y = hy;
     }
 
     if (state.isDraggingWorld) {
@@ -251,9 +215,9 @@ export class Game {
   }
 
   _onUp(e) {
-    // heldBall bırakıldı — mevcut pozisyondan düşsün
     if (state.heldBall) {
-      this._dropBall(state.heldBall.x, state.heldBall.y);
+      // Oyuncu sürükleyip bıraktı → bırakılan yerden serbest düşüş
+      this._dropBallAtPos(state.heldBall.x, state.heldBall.y);
       return;
     }
 
@@ -495,38 +459,43 @@ export class Game {
     return true;
   }
 
-  // Oyuncu bıraktı — arena'ya ekle, 0.5s sonra yeni top üret
-  _dropBall(x, y) {
+  // Boş alana tıklama: tıklanan X hizasından U'nun tepesinden düşür
+  _dropBallFromTop(clickX) {
     if (!state.heldBall) return;
     const { CX, CY, MAIN_R } = state;
     const hb = state.heldBall;
-    // Arena sınırları içine kısıtla
-    const dx = x - CX, dy = y - CY;
-    const dist = Math.hypot(dx, dy);
-    const maxD = MAIN_R - hb.r - 2;
-    let dropX = x, dropY = y;
-    if (dist > maxD) {
-      const a = Math.atan2(dy, dx);
-      dropX = CX + Math.cos(a) * maxD;
-      dropY = CY + Math.sin(a) * maxD;
-    }
-    // Sol/sağ duvar sınırı
-    dropX = Math.max(CX - MAIN_R + hb.r + 2, Math.min(CX + MAIN_R - hb.r - 2, dropX));
-    // Üst sınır — U kenarının içinde
-    dropY = Math.max(CY - MAIN_R + hb.r + 4, dropY);
-    // Yalnızca arena içindeyse bırak
-    if (Math.hypot(dropX - CX, dropY - CY) < MAIN_R + hb.r) {
-      const ball = this._makeBallObj(hb.level, dropX, dropY);
-      state.circles.push(ball);
-      this.audio.spawn();
-    }
+    const dropX = Math.max(CX - MAIN_R + hb.r + 2, Math.min(CX + MAIN_R - hb.r - 2, clickX));
+    const dropY = CY - MAIN_R + hb.r + 2;
+    const ball = this._makeBallObj(hb.level, dropX, dropY);
+    ball.vy = 2;
+    state.circles.push(ball);
+    this.audio.spawn();
     state.heldBall = null;
-    // 0.5s sonra yeni top üret
     setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver) {
-        this._generateNextBall(); // _generateNextBall içinde timer başlar
-      }
-    }, 500);
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    }, 300);
+  }
+
+  // Pick + bırak: sürüklenip bırakılan pozisyondan serbest düşüş
+  _dropBallAtPos(x, y) {
+    if (!state.heldBall) return;
+    const { CX, CY, MAIN_R } = state;
+    const hb = state.heldBall;
+    const dropX = Math.max(CX - MAIN_R + hb.r + 2, Math.min(CX + MAIN_R - hb.r - 2, x));
+    const dropY = Math.max(CY - MAIN_R + hb.r + 2, y);
+    const ball = this._makeBallObj(hb.level, dropX, dropY);
+    ball.vy = 2;
+    state.circles.push(ball);
+    this.audio.spawn();
+    state.heldBall = null;
+    setTimeout(() => {
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    }, 300);
+  }
+
+  // (Eski _dropBall — artık kullanılmıyor, geriye dönük uyumluluk için bırakıldı)
+  _dropBall(x, y) {
+    this._dropBallAtPos(x, y);
   }
 
   // ── Absorb / Merge ────────────────────────────────────────────────
@@ -546,7 +515,8 @@ export class Game {
 
   _celebrate(x, y, color) {
     const { S } = state;
-    for (let i = 0; i < 28; i++) {
+    const count = 18; // mobil için azaltıldı (eski: 28)
+    for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2, speed = (3 + Math.random() * 7) * S;
       state.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 5 * S, r: (5 + Math.random() * 9) * S, color, life: 55 + Math.random() * 30, maxLife: 85 });
     }
@@ -683,17 +653,6 @@ export class Game {
 
 
 
-    // heldBall mevcut topa değince bırak
-    if (state.heldBall) {
-      const hb = state.heldBall;
-      for (const c of state.circles) {
-        if (Math.hypot(hb.x - c.x, hb.y - c.y) < hb.r + c.r) {
-          this._dropBall(hb.x, hb.y);
-          break;
-        }
-      }
-    }
-
     // Fizik
     this.physics.updateCirclePhysics();
     this.physics.updateAbsorbGlow();
@@ -707,11 +666,14 @@ export class Game {
     for (let i = state.chainWaves.length - 1; i >= 0; i--) { const w = state.chainWaves[i]; w.t++; w.r += (w.maxR - w.r) * 0.18; if (w.t >= w.maxT) state.chainWaves.splice(i, 1); }
     for (let i = state.absorbingInto.length - 1; i >= 0; i--) { const a = state.absorbingInto[i]; a.t++; if (a.t >= a.maxT) state.absorbingInto.splice(i, 1); }
 
-    // Tutorial
+    // Tutorial + Hints (2 framede bir yeterli — görsel fark yok)
     this.tutorial.update();
-    if (state.currentLevel < TUTORIAL_LEVELS) this.hints.update(this.physics.canAbsorb.bind(this.physics));
+    if (state.currentLevel < TUTORIAL_LEVELS && state.frameCount % 2 === 0) {
+      this.hints.update(this.physics.canAbsorb.bind(this.physics));
+    }
 
-    // Hints
+    // Particle sayısı sınırı — mobilde 150 üzeri ciddi yavaşlama
+    if (state.particles.length > 150) state.particles.length = 150;
 
     // Çarpışmalar + blast + absorb/merge
     this.physics.solveCollisions();
@@ -742,45 +704,47 @@ export class Game {
     const R = this.renderer;
     const { ctx, W, H, CX, CY, MAIN_R, S, circles, LEVELS } = state;
 
-    // Arka plan — tek düz renk (CP'ye göre)
+    // Arka plan
     const th = state.theme;
     ctx.fillStyle = th?.bgTop || '#0d0a1a';
     ctx.fillRect(0, 0, W, H);
 
-    // Arena rengi — sahnedeki en yüksek level, yoksa nextBall/heldBall rengi
-    let topLevel = 0;
-    for (const cc of circles) { if (cc.level > topLevel) topLevel = cc.level; for (const lv of cc.contains) if (lv > topLevel) topLevel = lv; }
-    const def = this.goals.getLevelDef();
-    const _nb = state.nextBall, _hb = state.heldBall;
-    const arenaColor = circles.length > 0
-      ? LEVELS[topLevel].color
-      : (_nb ? (LEVELS[_nb.level]?.color || LEVELS[0].color)
-        : (_hb ? (LEVELS[_hb.level]?.color || LEVELS[0].color)
-          : (LEVELS[0].color)));
+    // Arena rengi — 3 framede bir güncelle (görsel fark yok)
+    if (state.frameCount % 3 === 0 || !this._cachedArenaColor) {
+      let topLevel = 0;
+      for (const cc of circles) {
+        if (cc.level > topLevel) topLevel = cc.level;
+        for (const lv of cc.contains) if (lv > topLevel) topLevel = lv;
+      }
+      const _nb = state.nextBall, _hb = state.heldBall;
+      this._cachedArenaColor = circles.length > 0
+        ? LEVELS[topLevel].color
+        : (_nb ? (LEVELS[_nb.level]?.color || LEVELS[0].color)
+          : (_hb ? (LEVELS[_hb.level]?.color || LEVELS[0].color)
+            : LEVELS[0].color));
+    }
+    const arenaColor = this._cachedArenaColor;
 
-    // Arena — U şekli (üst açık)
+    // Arena — U şekli
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
-    const mBlur = 7 + mFlash * 22;
-    const openAngle = Math.PI * 0.50; // her yanda 90° — tam U harfi
-    const arcStart = -Math.PI / 2 + openAngle; // sağ duvar başlangıcı
-    const arcEnd   = -Math.PI / 2 - openAngle; // sol duvar bitişi
+    const mBlur = mFlash > 0 ? 7 + mFlash * 22 : 6;
+    const openAngle = Math.PI * 0.50;
+    const arcStart = -Math.PI / 2 + openAngle;
+    const arcEnd   = -Math.PI / 2 - openAngle;
+    const lx1 = CX + Math.cos(arcStart) * MAIN_R, ly1 = CY + Math.sin(arcStart) * MAIN_R;
+    const lx2 = CX + Math.cos(arcEnd) * MAIN_R,   ly2 = CY + Math.sin(arcEnd) * MAIN_R;
     ctx.save();
-    ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur; ctx.strokeStyle = arenaColor;
-    ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
+    ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
+    ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
+    // Arc
     ctx.beginPath(); ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2); ctx.stroke();
+    // Duvarlar
+    ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx1, CY - MAIN_R); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(lx2, CY - MAIN_R); ctx.stroke();
+    // Flash: sadece mainBorderFlash varsa ikinci geçiş
     if (mFlash > 0) {
       ctx.shadowBlur = mBlur * 1.5;
       ctx.beginPath(); ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2); ctx.stroke();
-    }
-    // U duvarları — dik çizgiler (gerçek U harfi görünümü)
-    const lx1 = CX + Math.cos(arcStart) * MAIN_R, ly1 = CY + Math.sin(arcStart) * MAIN_R;
-    const lx2 = CX + Math.cos(arcEnd) * MAIN_R,   ly2 = CY + Math.sin(arcEnd) * MAIN_R;
-    ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S);
-    ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
-    ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx1, CY - MAIN_R); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(lx2, CY - MAIN_R); ctx.stroke();
-    if (mFlash > 0) {
-      ctx.shadowBlur = mBlur * 1.5;
       ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx1, CY - MAIN_R); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(lx2, CY - MAIN_R); ctx.stroke();
     }
@@ -821,13 +785,14 @@ export class Game {
 
 
 
-    // heldBall — parmakla taşınan top
+    // heldBall — sürüklenen top
     if (state.heldBall) {
       const hb = state.heldBall;
       ctx.save();
-      ctx.globalAlpha = 0.88;
-      ctx.shadowColor = hb.color; ctx.shadowBlur = 18;
-      R.drawSphere({ ...hb, color: state.LEVELS[hb.level]?.color || '#fff', boing:0, absorbAnim:0, squish:null, absorbGlow:0, isBeingDragged:true, contains:[] });
+      ctx.globalAlpha = 0.92;
+      R.drawSphere({ ...hb, color: state.LEVELS[hb.level]?.color || '#fff',
+        boing:0, absorbAnim:0, squish:null, absorbGlow:0,
+        isBeingDragged:true, contains:[], shape: state.LEVELS[hb.level]?.shape || 'sphere' });
       ctx.restore();
     }
 
