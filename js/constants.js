@@ -40,14 +40,43 @@ export function buildLayout() {
 
 // Boyut oranları — renkten bağımsız
 const LEVEL_RATIOS = [
-  { ratio: 28/360, vy: 1.4 }, // 0 — en küçük
-  { ratio: 38/360, vy: 1.8 }, // 1
-  { ratio: 51/360, vy: 2.2 }, // 2
-  { ratio: 68/360, vy: 2.7 }, // 3
-  { ratio: 90/360, vy: 3.2 }, // 4
-  { ratio:120/360, vy: 3.8 }, // 5
-  { ratio:160/360, vy: 4.5 }, // 6 — en büyük
+  { ratio: 32/360, vy: 1.4 }, // 0 — en küçük
+  { ratio: 42/360, vy: 1.8 }, // 1
+  { ratio: 55/360, vy: 2.2 }, // 2
+  { ratio: 73/360, vy: 2.7 }, // 3
+  { ratio: 96/360, vy: 3.2 }, // 4
+  { ratio:126/360, vy: 3.8 }, // 5
+  { ratio:166/360, vy: 4.5 }, // 6 — en büyük
 ];
+
+// ── Shape yapısal katsayıları (renderer + physics paylaşır) ─────────
+// Her değer c.r çarpanı. Renderer çizimde, physics _circles()'da kullanır.
+export const SHAPE_DEFS = {
+  bear: {
+    body:  { oy:  0.12, r: 0.72 },
+    head:  { oy: -0.38, r: 0.48 },
+    earL:  { ox: -0.36, oy: -0.72, r: 0.20 },
+    earR:  { ox:  0.36, oy: -0.72, r: 0.20 },
+    armL:  { ox: -0.72, oy:  0.08, r: 0.20 },
+    armR:  { ox:  0.72, oy:  0.08, r: 0.20 },
+    footL: { ox: -0.36, oy:  0.70, r: 0.22 },
+    footR: { ox:  0.36, oy:  0.70, r: 0.22 },
+  },
+  matrushka: {
+    body: { oy:  0.18, rw: 0.72, rh: 0.78 },
+    head: { oy: -0.38, r:  0.38 },
+  },
+  duck: {
+    body:  { oy:  0.08, rw: 0.82, rh: 0.72 },
+    head:  { ox:  0.42, oy: -0.52, r: 0.32 },
+    beak:  { ox:  0.76, oy: -0.60, r: 0.38 }, // physics collision
+    beakTipX: 2.10, // gaga ucu (head.ox + head.r * beakTipX) — renderer
+  },
+  fish: {
+    body:  { ox:  0.05, rw: 0.90, rh: 0.78 },
+    tail:  { ox: -0.80, r:  0.30 },
+  },
+};
 
 const FALLBACK_PALETTE = ['#FF5EBC','#FFD700','#FF9500','#00C853','#00B0FF','#AA00FF','#FF1744'];
 

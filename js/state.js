@@ -36,5 +36,7 @@ export const state = {
   // Audio (game.js init eder)
   audio: null,
   // UI hit areas
-  _pauseBtn: null, _resumeBtn: null, _nextLevelBtn: null, _gameOverBtn: null,
+  _pauseBtn: null, _resumeBtn: null, _nextLevelBtn: null, _gameOverBtn: null, _soundBtn: null,
+  // Ses
+  isMuted: false,
 };

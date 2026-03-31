@@ -29,6 +29,20 @@ export class Game {
     this._applyLayout();
     this._setupInput();
     window.addEventListener('resize', () => { this._applyLayout(); });
+
+    // Arka plana geçince pause, öne gelince devam
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this._wasPlayingBeforeHide = !state.isPaused;
+        if (!state.isPaused) state.isPaused = true;
+        // Howler ses akışını durdur
+        if (typeof Howler !== 'undefined') Howler.mute(true);
+      } else {
+        if (this._wasPlayingBeforeHide) state.isPaused = false;
+        // isMuted durumunu koru
+        if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
+      }
+    });
   }
 
   // ── Dünya paleti ─────────────────────────────────────────────────
@@ -91,6 +105,12 @@ export class Game {
       return;
     }
 
+    const sb = state._soundBtn;
+    if (sb && x >= sb.x && x <= sb.x + sb.w && y >= sb.y && y <= sb.y + sb.h) {
+      state.isMuted = !state.isMuted;
+      if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
+      return;
+    }
     const pb = state._pauseBtn;
     if (pb && x >= pb.x && x <= pb.x + pb.w && y >= pb.y && y <= pb.y + pb.h) {
       state.isPaused = !state.isPaused;
@@ -130,8 +150,22 @@ export class Game {
       return;
     }
 
-    // Boş alana tap + nextBall → heldBall oluştur, sürüklenebilir
-    if (state.nextBall) {
+    // nextBall'a dokunuldu → sürüklenebilir heldBall oluştur
+    if (state.nextBall && !state.heldBall) {
+      const nb = state.nextBall;
+      if (Math.hypot(x - nb.x, y - nb.y) < Math.max(nb.r * 1.8, 44 * S)) {
+        state.heldBall = { ...nb, x, y };
+        state.nextBall = null;
+        this.audio.pick();
+        setTimeout(() => {
+          if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+        }, 300);
+        return;
+      }
+    }
+
+    // Boş alana tap + nextBall → tıklanan X hizasından direkt düşür
+    if (state.nextBall && !state.heldBall) {
       const _dy = y - CY;
       const _inU = _dy >= 0
         ? Math.hypot(x - CX, _dy) <= MAIN_R
@@ -139,10 +173,12 @@ export class Game {
       if (_inU) {
         const nb = state.nextBall;
         state.nextBall = null;
-        // X: tıklanan hiza, Y: spawn noktası (üst)
-        const hx = Math.max(CX - MAIN_R + nb.r + 2, Math.min(CX + MAIN_R - nb.r - 2, x));
-        state.heldBall = { ...nb, x: hx, y: nb.y };
-        this.audio.pick();
+        const dropX = Math.max(CX - MAIN_R + nb.r + 2, Math.min(CX + MAIN_R - nb.r - 2, x));
+        const dropY = CY - MAIN_R + nb.r + 2;
+        const ball = this._makeBallObj(nb.level, dropX, dropY);
+        ball.vy = 2;
+        state.circles.push(ball);
+        this.audio.spawn();
         setTimeout(() => {
           if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
         }, 300);
@@ -688,17 +724,23 @@ export class Game {
     if (!state.gameOver) {
       this._checkAbsorption();
 
-      // Game over: Top U üst kenarına yakın, 2s+ beklemiş ve hareketsiz
+      // Game over: Spawn bölgesi tıkandı — yeni top düşürülecek yer yok
+      // Kontrol: CX hizasında U üst kenarına yakın bir bant tamamen dolu mu?
       const now2 = Date.now();
-      const stuckLine = CY - MAIN_R + 8;
-      const hasStuckBall = state.circles.some(c =>
+      const spawnBandTop = CY - MAIN_R;
+      const spawnBandBot = CY - MAIN_R * 0.55; // üstten %45 band
+      // Bu bantta 3+ top varsa ve hepsi 3s+ hareketsizse tıkandı say
+      const bandBalls = state.circles.filter(c =>
         !c.isBeingDragged &&
-        (now2 - (c.spawnTime || 0)) > 2000 &&
-        c.y - c.r < stuckLine &&
-        Math.abs(c.vy || 0) < 0.5 &&
-        Math.abs(c.vx || 0) < 0.5
+        c.y - c.r < spawnBandBot &&
+        c.y + c.r > spawnBandTop
       );
-      if (hasStuckBall) { state.gameOver = true; this.audio.gameOver(); }
+      const allStuck = bandBalls.length >= 3 && bandBalls.every(c =>
+        (now2 - (c.spawnTime || 0)) > 3000 &&
+        Math.abs(c.vy || 0) < 0.3 &&
+        Math.abs(c.vx || 0) < 0.3
+      );
+      if (allStuck) { state.gameOver = true; this.audio.gameOver(); }
     }
 
     // Her frame: tüm toplar U içinde garantili
@@ -769,21 +811,26 @@ export class Game {
         const remaining = Math.max(0, state.autoDropDeadline - Date.now());
         const progress = remaining / 1000; // 1→0
         const arcR = nb.r + 8 * S;
-        // Arka arc (soluk)
+        // bgColor parlaklığı: koyu bg → beyaz arc, açık bg → koyu arc
+        const bgHex = state.theme?.bgColor || '#111111';
+        const bgN = parseInt(bgHex.replace('#',''), 16);
+        const bgL = ((bgN>>16)&255)*0.299 + ((bgN>>8)&255)*0.587 + (bgN&255)*0.114;
+        const isDarkBg = bgL < 128;
+        const trackColor = isDarkBg ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+        const baseColor  = isDarkBg ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)';
+        // Arka arc (track)
         ctx.beginPath();
         ctx.arc(nb.x, nb.y, arcR, -Math.PI/2, -Math.PI/2 + Math.PI*2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-        ctx.lineWidth = 3 * S; ctx.stroke();
+        ctx.strokeStyle = trackColor;
+        ctx.lineWidth = 2.5 * S; ctx.stroke();
         // Kalan süre arc
-        const urgency = progress < 0.3; // son saniyede kırmızı
+        const urgency = progress < 0.3;
+        const arcColor = urgency ? 'rgba(255,68,68,0.75)' : baseColor;
         ctx.beginPath();
         ctx.arc(nb.x, nb.y, arcR, -Math.PI/2, -Math.PI/2 + Math.PI*2*progress);
-        ctx.strokeStyle = urgency ? '#FF4444' : nb.color;
-        ctx.lineWidth = 3 * S;
-        ctx.shadowColor = urgency ? '#FF4444' : nb.color;
-        ctx.shadowBlur = 8;
+        ctx.strokeStyle = arcColor;
+        ctx.lineWidth = 2.5 * S;
         ctx.stroke();
-        ctx.shadowBlur = 0;
       }
 
       ctx.globalAlpha = 1;
@@ -828,33 +875,30 @@ export class Game {
     // Hint zincirleri — her levelda göster
     this.hints.drawAllChains(this.goals);
 
-    // Success overlay
-    R.drawSuccessOverlay(this.goals);
-
-    // Blast
-    const bRect = this.blast.getBtnRect();
-    if (bRect) R.drawBlastBtn(bRect, !state.levelSuccess && this.blast.isEnabled(bRect));
-    R.drawBlastProjectiles();
-
-    // Tutorial ipucu
-
-    // Hint zincirleri
-
     // Action + combo metinleri
     R.drawActionTexts();
     R.drawComboDisplays();
 
-    // Pause butonu
-    if (!state.gameOver) R.drawPaletteGuide();
+    // Blast (overlay'den önce — arkada kalır)
+    const bRect = this.blast.getBtnRect();
+    if (bRect) R.drawBlastBtn(bRect, !state.levelSuccess && !state.gameOver && this.blast.isEnabled(bRect));
+    R.drawBlastProjectiles();
+
+    // Palette guide (overlay'den önce — arkada kalır)
+    if (!state.gameOver && !state.levelSuccess) R.drawPaletteGuide();
+
+    // Success / Game over overlay'leri
+    R.drawSuccessOverlay(this.goals);
+    if (state.gameOver) R.drawGameOver(this.goals);
+
+    // Pause butonu + sound (her zaman en üstte)
+    R.drawSoundBtn();
     R.drawPauseBtn();
     if (state.isPaused) {
       R.drawPauseOverlay();
     } else {
       state._resumeBtn = null;
     }
-
-    // Game over
-    if (state.gameOver) R.drawGameOver(this.goals);
   }
 
   // ── Ana döngü ─────────────────────────────────────────────────────

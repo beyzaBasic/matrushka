@@ -1,6 +1,6 @@
 // ── renderer.js ───────────────────────────────────────────────────
 import { state } from './state.js';
-import { TUTORIAL_LEVELS } from './constants.js';
+import { TUTORIAL_LEVELS, SHAPE_DEFS } from './constants.js';
 
 export class Renderer {
 
@@ -118,17 +118,17 @@ export class Renderer {
 
   drawSphere(c) {
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
-    if (shape === 'bear')      { this._drawCached(c, (fc) => this._drawBear(fc));      return; }
-    if (shape === 'matrushka') { this._drawCached(c, (fc) => this._drawMatrushka(fc)); return; }
-    if (shape === 'duck')      { this._drawCached(c, (fc) => this._drawDuck(fc));      return; }
-    if (shape === 'fish')      { this._drawCached(c, (fc) => this._drawFish(fc));      return; }
+    if (shape === 'bear')      { this._drawCached(c, (fc) => this._drawBear(fc));      this.drawAbsorbHalo(c); return; }
+    if (shape === 'matrushka') { this._drawCached(c, (fc) => this._drawMatrushka(fc)); this.drawAbsorbHalo(c); return; }
+    if (shape === 'duck')      { this._drawCached(c, (fc) => this._drawDuck(fc));      this.drawAbsorbHalo(c); return; }
+    if (shape === 'fish')      { this._drawCached(c, (fc) => this._drawFish(fc));      this.drawAbsorbHalo(c); return; }
 
     const ctx = state.ctx;
     const { S, gameTime, LEVELS } = state;
     const scale = c.boing > 0 ? 1 + Math.sin(c.boing * Math.PI) * 0.25 : 1;
     const dr    = Math.max(0.1, c.r * scale);
 
-    this._drawAbsorbHalo(c, dr, S, gameTime, LEVELS);
+    this.drawAbsorbHalo(c);
 
     const { rx, ry, ax, ay, hasSquish } = this._squishParams(c, dr);
     const path = () => hasSquish
@@ -145,7 +145,6 @@ export class Renderer {
     path(); ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = dr * 0.07; ctx.stroke();
     this._drawSpecular(c, dr, path);
     this._drawBottomGleam(c, dr);
-    this._drawFace(ctx, c.x, c.y, dr, c.level);
 
     ctx.restore();
   }
@@ -250,11 +249,12 @@ export class Renderer {
     // shadowBlur yok — cache'de gereksiz
 
     // ── Ölçüler ───────────────────────────────────────────────────
-    const bodyW  = R * 0.72;   // gövde yatay yarıçap
-    const bodyH  = R * 0.78;   // gövde dikey yarıçap
-    const bodyY  = y + R * 0.18; // gövde merkezi (biraz aşağı)
-    const headR  = R * 0.38;   // kafa yarıçapı
-    const headY  = bodyY - bodyH * 0.72; // kafa merkezi
+    const _md   = SHAPE_DEFS.matrushka;
+    const bodyW  = R * _md.body.rw;
+    const bodyH  = R * _md.body.rh;
+    const bodyY  = y + R * _md.body.oy;
+    const headR  = R * _md.head.r;
+    const headY  = y + R * _md.head.oy;
 
     // ── Yardımcı: radyal gradient ─────────────────────────────────
     const radGrad = (cx2, cy2, rw, rh, c1, c2, c3) => {
@@ -388,13 +388,14 @@ export class Renderer {
       return g;
     };
     // Gövde — kanat çizgisi YOK
-    ctx.beginPath(); ctx.ellipse(x,y+r*0.08,r*0.82,r*0.72,0,0,Math.PI*2);
-    ctx.fillStyle=grad(x,y,r*0.82); ctx.fill();
+    const _dd = SHAPE_DEFS.duck;
+    ctx.beginPath(); ctx.ellipse(x,y+r*_dd.body.oy,r*_dd.body.rw,r*_dd.body.rh,0,0,Math.PI*2);
+    ctx.fillStyle=grad(x,y,r*_dd.body.rw); ctx.fill();
     ctx.beginPath(); ctx.ellipse(x-r*0.12,y-r*0.08,r*0.4,r*0.3,-0.3,0,Math.PI*2);
     ctx.fillStyle=this._lighten(col,45); ctx.globalAlpha=0.6; ctx.fill(); ctx.globalAlpha=1;
     // İçteki halka topları
     ctx.shadowBlur=0;
-    const bW=r*0.82, bH=r*0.72, by2=y+r*0.08;
+    const bW=r*_dd.body.rw, bH=r*_dd.body.rh, by2=y+r*_dd.body.oy;
     for (let k=0; k<c.contains.length; k++) {
       const lvIdx=c.contains[k]; if (lvIdx>=LEVELS.length) continue;
       const lc=LEVELS[lvIdx].color;
@@ -406,7 +407,7 @@ export class Renderer {
       ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.2; ctx.stroke();
     }
     // Baş
-    const hx=x+r*0.42, hy=y-r*0.52, hr=r*0.32;
+    const hx=x+r*_dd.head.ox, hy=y+r*_dd.head.oy, hr=r*_dd.head.r;
     ctx.beginPath(); ctx.arc(hx,hy,hr,0,Math.PI*2); ctx.fillStyle=grad(hx,hy,hr); ctx.fill();
     ctx.beginPath(); ctx.ellipse(hx-hr*0.3,hy-hr*0.35,hr*0.38,hr*0.28,-0.3,0,Math.PI*2);
     ctx.fillStyle=this._lighten(col,50); ctx.globalAlpha=0.5; ctx.fill(); ctx.globalAlpha=1;
@@ -419,22 +420,22 @@ export class Renderer {
     const er=hr*0.13;
     ctx.beginPath(); ctx.arc(hx+hr*0.28,hy-hr*0.12,er,0,Math.PI*2); ctx.fillStyle='rgba(10,5,0,0.88)'; ctx.fill();
     ctx.beginPath(); ctx.arc(hx+hr*0.23,hy-hr*0.18,er*0.38,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fill();
-    // Donald gagası
+    // Donald gagası — büyütülmüş
     ctx.beginPath();
-    ctx.moveTo(hx+hr*0.82,hy-hr*0.08);
-    ctx.bezierCurveTo(hx+hr*1.05,hy-hr*0.03,hx+hr*1.55,hy-hr*0.06,hx+hr*1.62,hy-hr*0.18);
-    ctx.bezierCurveTo(hx+hr*1.66,hy-hr*0.26,hx+hr*1.5,hy-hr*0.35,hx+hr*0.82,hy-hr*0.3);
+    ctx.moveTo(hx+hr*0.75,hy-hr*0.06);
+    ctx.bezierCurveTo(hx+hr*1.10,hy+hr*0.04,hx+hr*1.90,hy-hr*0.02,hx+hr*2.10,hy-hr*0.20);
+    ctx.bezierCurveTo(hx+hr*2.18,hy-hr*0.36,hx+hr*1.95,hy-hr*0.52,hx+hr*0.75,hy-hr*0.44);
     ctx.closePath(); ctx.fillStyle='#e65100'; ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(hx+hr*0.82,hy-hr*0.32);
-    ctx.bezierCurveTo(hx+hr*1.05,hy-hr*0.36,hx+hr*1.48,hy-hr*0.4,hx+hr*1.6,hy-hr*0.32);
-    ctx.bezierCurveTo(hx+hr*1.66,hy-hr*0.26,hx+hr*1.5,hy-hr*0.16,hx+hr*0.82,hy-hr*0.18);
+    ctx.moveTo(hx+hr*0.75,hy-hr*0.46);
+    ctx.bezierCurveTo(hx+hr*1.10,hy-hr*0.54,hx+hr*1.88,hy-hr*0.58,hx+hr*2.08,hy-hr*0.46);
+    ctx.bezierCurveTo(hx+hr*2.18,hy-hr*0.36,hx+hr*1.95,hy-hr*0.20,hx+hr*0.75,hy-hr*0.26);
     ctx.closePath(); ctx.fillStyle='#ff8f00'; ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(hx+hr*0.82,hy-hr*0.25);
-    ctx.bezierCurveTo(hx+hr*1.1,hy-hr*0.24,hx+hr*1.38,hy-hr*0.24,hx+hr*1.58,hy-hr*0.25);
-    ctx.strokeStyle='#bf360c'; ctx.lineWidth=r*0.045; ctx.lineCap='round'; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(hx+hr*1.2,hy-hr*0.35,hr*0.18,hr*0.06,0,0,Math.PI*2);
+    ctx.moveTo(hx+hr*0.75,hy-hr*0.35);
+    ctx.bezierCurveTo(hx+hr*1.15,hy-hr*0.34,hx+hr*1.72,hy-hr*0.34,hx+hr*2.05,hy-hr*0.36);
+    ctx.strokeStyle='#bf360c'; ctx.lineWidth=r*0.055; ctx.lineCap='round'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(hx+hr*1.55,hy-hr*0.52,hr*0.26,hr*0.09,0,0,Math.PI*2);
     ctx.fillStyle='rgba(255,255,255,0.28)'; ctx.fill();
     // Ayaklar
     ctx.fillStyle='#ff8c00';
@@ -476,13 +477,14 @@ export class Renderer {
     ctx.bezierCurveTo(x-r*1.18,y+r*0.1,x-r*0.98,y+r*0.2,x-r*0.65,y);
     ctx.fillStyle=this._lighten(col,30); ctx.fill();
     // Tombul gövde
-    ctx.beginPath(); ctx.ellipse(x+r*0.05,y,r*0.9,r*0.78,0,0,Math.PI*2);
+    const _fd = SHAPE_DEFS.fish;
+    ctx.beginPath(); ctx.ellipse(x+r*_fd.body.ox,y,r*_fd.body.rw,r*_fd.body.rh,0,0,Math.PI*2);
     const g=ctx.createRadialGradient(x-r*0.18,y-r*0.28,r*0.05,x+r*0.05,y,r*0.9);
     g.addColorStop(0,this._lighten(col,72)); g.addColorStop(0.45,col); g.addColorStop(1,this._darken(col,55));
     ctx.fillStyle=g; ctx.fill();
     // İçteki halka topları
     ctx.shadowBlur=0;
-    const bW=r*0.9, bH=r*0.78;
+    const bW=r*_fd.body.rw, bH=r*_fd.body.rh;
     for (let k=0; k<c.contains.length; k++) {
       const lvIdx=c.contains[k]; if (lvIdx>=LEVELS.length) continue;
       const lc=LEVELS[lvIdx].color;
@@ -577,35 +579,36 @@ export class Renderer {
     };
 
     // ── Gövde ─────────────────────────────────────────────────────
-    const bx = x, by = y + r * 0.12;
-    const br = r * 0.72;
+    const _bd = SHAPE_DEFS.bear;
+    const bx = x, by = y + r * _bd.body.oy;
+    const br = r * _bd.body.r;
     ctx.beginPath();
     ctx.arc(bx, by, br, 0, Math.PI * 2);
     ctx.fillStyle = grad(bx, by - br*0.2, br);
     ctx.fill();
 
     // ── Kafa ──────────────────────────────────────────────────────
-    const hx = x, hy = y - r * 0.38;
-    const hr = r * 0.48;
+    const hx = x, hy = y + r * _bd.head.oy;
+    const hr = r * _bd.head.r;
     ctx.beginPath();
     ctx.arc(hx, hy, hr, 0, Math.PI * 2);
     ctx.fillStyle = grad(hx, hy - hr*0.2, hr);
     ctx.fill();
 
     // ── Kulaklar ──────────────────────────────────────────────────
-    const er = r * 0.20;
-    drawPart(x - r * 0.36, y - r * 0.72, er);
-    drawPart(x + r * 0.36, y - r * 0.72, er);
+    const er = r * _bd.earL.r;
+    drawPart(x + r * _bd.earL.ox, y + r * _bd.earL.oy, er);
+    drawPart(x + r * _bd.earR.ox, y + r * _bd.earR.oy, er);
 
     // ── Eller ─────────────────────────────────────────────────────
-    const ar = r * 0.20;
-    drawPart(x - r * 0.72, y + r * 0.08, ar);
-    drawPart(x + r * 0.72, y + r * 0.08, ar);
+    const ar = r * _bd.armL.r;
+    drawPart(x + r * _bd.armL.ox, y + r * _bd.armL.oy, ar);
+    drawPart(x + r * _bd.armR.ox, y + r * _bd.armR.oy, ar);
 
     // ── Ayaklar ───────────────────────────────────────────────────
-    const fr = r * 0.22;
-    drawPart(x - r * 0.36, y + r * 0.70, fr);
-    drawPart(x + r * 0.36, y + r * 0.70, fr);
+    const fr = r * _bd.footL.r;
+    drawPart(x + r * _bd.footL.ox, y + r * _bd.footL.oy, fr);
+    drawPart(x + r * _bd.footR.ox, y + r * _bd.footR.oy, fr);
 
     // ── İçteki halka topları (contains) ──────────────────────────
     for (let k = 0; k < c.contains.length; k++) {
@@ -675,22 +678,29 @@ export class Renderer {
     return v;
   }
 
-  _drawAbsorbHalo(c, dr, S, gameTime, LEVELS) {
+  drawAbsorbHalo(c) {
     const glow = c.absorbGlow || 0;
-    if (glow <= 0.15) return; // düşük intensitede hiç çizme
-    const ctx      = state.ctx;
+    if (glow <= 0.15) return;
+    const { ctx, S, LEVELS } = state;
     const bigColor = LEVELS[c.level + 1] ? LEVELS[c.level + 1].color : '#fff';
-    const hareR    = dr + 5*S + glow*7*S;
-    const offset   = (gameTime * 0.003) % (Math.PI * 2);
-    const segs     = glow > 0.5 ? 6 : 4; // intensiteye göre segment sayısı
+    const haloR    = c.r + 6*S + glow*5*S;
+    const speed    = (Date.now() * 0.0002);
+    const dashLen  = Math.PI * 0.28;
+    const gapLen   = Math.PI * 0.22;
+    const segs     = 4;
+    const total    = dashLen + gapLen;
+
     ctx.save();
-    ctx.lineWidth   = 3*S + glow*3*S; ctx.lineCap = 'round';
-    ctx.shadowColor = bigColor; ctx.shadowBlur = 4 + glow*8;
-    ctx.strokeStyle = bigColor; ctx.globalAlpha = 0.4 + glow*0.5;
+    ctx.lineWidth   = (2.5 + glow*2) * S;
+    ctx.lineCap     = 'round';
+    ctx.strokeStyle = bigColor;
+    ctx.globalAlpha = 0.55 + glow*0.40;
+
     for (let s = 0; s < segs; s++) {
-      const seg   = (Math.PI * 2) / segs;
-      const start = offset + s * seg;
-      ctx.beginPath(); ctx.arc(c.x, c.y, hareR, start, start + seg * 0.6); ctx.stroke();
+      const start = speed + s * total;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, haloR, start, start + dashLen);
+      ctx.stroke();
     }
     ctx.restore();
   }
@@ -1167,6 +1177,52 @@ export class Renderer {
     }
     ctx.restore();
     state._pauseBtn = { x:pcx-ICON_PX, y:pcy-ICON_PX, w:ICON_PX*2, h:ICON_PX*2 };
+  }
+
+  drawSoundBtn() {
+    const ctx = state.ctx, { W, SCORE_AREA, isMuted, levelSuccess } = state;
+    if (levelSuccess) { state._soundBtn = null; return; }
+    const ICON_PX = 44, iconPad = 10;
+    // Pause butonu: merkez W - iconPad - ICON_PX/2 = W-32, hit alanı W-76..W+12
+    // Ses butonu: pause merkezinden ICON_PX*2 + 12 sol
+    const pauseCx = W - iconPad - ICON_PX / 2;
+    const pcx = pauseCx - ICON_PX - 16;
+    const pcy = SCORE_AREA / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = ICON_PX * 0.12;
+    ctx.lineCap = 'round';
+    const s = ICON_PX * 0.38;
+    // Hoparlör gövdesi
+    ctx.beginPath();
+    ctx.moveTo(pcx - s * 0.55, pcy - s * 0.38);
+    ctx.lineTo(pcx - s * 0.18, pcy - s * 0.38);
+    ctx.lineTo(pcx + s * 0.18, pcy - s * 0.72);
+    ctx.lineTo(pcx + s * 0.18, pcy + s * 0.72);
+    ctx.lineTo(pcx - s * 0.18, pcy + s * 0.38);
+    ctx.lineTo(pcx - s * 0.55, pcy + s * 0.38);
+    ctx.closePath();
+    ctx.fill();
+    if (!isMuted) {
+      // Ses dalgaları
+      ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(pcx + s * 0.18, pcy, s * 0.55, -Math.PI * 0.38, Math.PI * 0.38); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pcx + s * 0.18, pcy, s * 0.90, -Math.PI * 0.30, Math.PI * 0.30); ctx.stroke();
+    } else {
+      // X işareti
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = ICON_PX * 0.13;
+      const x1 = pcx + s * 0.28, y1 = pcy - s * 0.52;
+      const x2 = pcx + s * 0.80, y2 = pcy + s * 0.52;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2, y1); ctx.lineTo(x1, y2); ctx.stroke();
+    }
+    ctx.restore();
+    state._soundBtn = { x: pcx - ICON_PX, y: pcy - ICON_PX, w: ICON_PX * 2, h: ICON_PX * 2 };
   }
 
   drawPauseOverlay() {

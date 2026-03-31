@@ -1,7 +1,69 @@
 // ── physics.js ────────────────────────────────────────────────────
 import { state } from './state.js';
+import { SHAPE_DEFS } from './constants.js';
 
 export class PhysicsManager {
+
+  // Her şekil için renderer koordinatlarından alınan compound circles
+  // [{ox, oy, or}] — c.x/c.y'ye göre offset, hepsi c.r çarpanı
+  _circles(c) {
+    const r = c.r;
+    const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
+    switch (shape) {
+      case 'bear': {
+        const d = SHAPE_DEFS.bear;
+        return [
+          { x: c.x, y: c.y + r * d.body.oy, r: r * d.body.r },
+          { x: c.x, y: c.y + r * d.head.oy, r: r * d.head.r },
+        ];
+      }
+      case 'matrushka': {
+        const d = SHAPE_DEFS.matrushka;
+        return [
+          { x: c.x, y: c.y + r * d.body.oy, r: r * d.body.rw },
+          { x: c.x, y: c.y + r * d.head.oy, r: r * d.head.r  },
+        ];
+      }
+      case 'duck': {
+        const d = SHAPE_DEFS.duck;
+        return [
+          { x: c.x,                 y: c.y + r * d.body.oy, r: r * d.body.rw },
+          { x: c.x + r * d.head.ox, y: c.y + r * d.head.oy, r: r * d.head.r  },
+          { x: c.x + r * d.beak.ox, y: c.y + r * d.beak.oy, r: r * d.beak.r  },
+        ];
+      }
+      case 'fish': {
+        const d = SHAPE_DEFS.fish;
+        return [
+          { x: c.x + r * d.body.ox, y: c.y, r: r * d.body.rw },
+          { x: c.x + r * d.tail.ox, y: c.y, r: r * d.tail.r  },
+        ];
+      }
+      default:
+        return [{ x: c.x, y: c.y, r }];
+    }
+  }
+
+  // İki nesne arasındaki en derin compound çakışma
+  // Döner: { ov (>0 = çakışma), nx, ny } — itme yönü c1→c2
+  _overlap(c1, c2) {
+    const circles1 = this._circles(c1);
+    const circles2 = this._circles(c2);
+    let bestOv = -Infinity, bestNx = 0, bestNy = 1;
+    for (const a of circles1) {
+      for (const b of circles2) {
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d  = Math.hypot(dx, dy) || 0.001;
+        const ov = (a.r + b.r) - d;
+        if (ov > bestOv) {
+          bestOv = ov;
+          bestNx = dx / d;
+          bestNy = dy / d;
+        }
+      }
+    }
+    return { ov: bestOv, nx: bestNx, ny: bestNy };
+  }
 
   // U sınırı — kesin clamp, her yerden çağrılır
   _clampToU(c) {
@@ -72,20 +134,19 @@ export class PhysicsManager {
           const c1 = circles[i], c2 = circles[j];
           if (c1.isBeingDragged || c2.isBeingDragged) {
             const dragged = c1.isBeingDragged ? c1 : c2, other = c1.isBeingDragged ? c2 : c1;
-            const ddx = other.x - dragged.x, ddy = other.y - dragged.y;
-            const dd = Math.hypot(ddx, ddy) || 0.01, mn = dragged.r + other.r;
-            if (dd < mn) { const ov = mn - dd; other.x += (ddx / dd) * ov; other.y += (ddy / dd) * ov; }
+            const { ov, nx, ny } = this._overlap(dragged, other);
+            if (ov > 0) { other.x += nx * ov; other.y += ny * ov; }
             continue;
           }
           if (c1.level !== c2.level && (this.canAbsorb(c1, c2) || this.canAbsorb(c2, c1))) continue;
-          const dx = c2.x - c1.x, dy = c2.y - c1.y;
-          const minD = c1.r + c2.r;
-          // Erken mesafe kontrolü (sqrt'tan önce)
-          if (Math.abs(dx) > minD || Math.abs(dy) > minD) continue;
-          const d = Math.hypot(dx, dy) || 0.01;
-          if (d < minD) {
-            const nx = dx / d, ny = dy / d, ov = (minD - d) * 0.5;
-            c1.x -= nx * ov; c1.y -= ny * ov; c2.x += nx * ov; c2.y += ny * ov;
+          // broad-phase
+          const bdx = c2.x - c1.x, bdy = c2.y - c1.y;
+          if (Math.abs(bdx) > c1.r + c2.r || Math.abs(bdy) > c1.r + c2.r) continue;
+          const { ov, nx, ny } = this._overlap(c1, c2);
+          if (ov > 0) {
+            const half = ov * 0.5;
+            c1.x -= nx * half; c1.y -= ny * half;
+            c2.x += nx * half; c2.y += ny * half;
             const m1 = c1.r * c1.r, m2 = c2.r * c2.r;
             const dvn = (c1.vx - c2.vx) * nx + (c1.vy - c2.vy) * ny;
             if (dvn > 0) {
@@ -172,12 +233,13 @@ export class PhysicsManager {
         const big = a.level > b.level ? a : b, small = a.level > b.level ? b : a;
         if (big.contains.length > 0) continue;
         if (small.level !== big.level - 1) continue;
-        const triggerDist = (big.r + small.r) * 2.2;
-        const dx = big.x - small.x, dy = big.y - small.y;
-        if (Math.abs(dx) > triggerDist || Math.abs(dy) > triggerDist) continue;
-        const d = Math.hypot(dx, dy);
-        if (d < triggerDist) {
-          small.absorbGlow = Math.max(small.absorbGlow, 1 - d / triggerDist);
+        const triggerDist = (big.r + small.r) * 2.0;
+        const adx = big.x - small.x, ady = big.y - small.y;
+        if (Math.abs(adx) > triggerDist || Math.abs(ady) > triggerDist) continue;
+        const { ov: agOv } = this._overlap(big, small);
+        const proximity = agOv > 0 ? 1.0 : Math.max(0, 1 - Math.hypot(adx, ady) / triggerDist);
+        if (proximity > 0) {
+          small.absorbGlow = Math.max(small.absorbGlow, proximity);
         }
       }
     }
