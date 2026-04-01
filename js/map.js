@@ -178,7 +178,7 @@ export class MapScreen {
     for (let i = 0; i < TOTAL_CHECKPOINTS; i++) {
       const pos     = this._cpPos(i);
       const world   = getWorldConfig(i);
-      const locked  = TEST_MODE ? false : (i > activeCPs && i > 0);
+      const locked  = (i === 0) ? true : (TEST_MODE ? false : i > activeCPs);
       const done    = i < doneCPs;
       const active  = i === activeCPs;
 
@@ -354,9 +354,23 @@ export class MapScreen {
 
     // Efektler
     if (sp.locked) {
+      // Soluk daire
       g.lineStyle(1.5, 0xffffff, 0.18);
       g.drawCircle(0, 0, R + 4);
       g.lineStyle(0);
+      // Asma kilit gövdesi
+      const lw = R * 0.32, lh = R * 0.28, lx = -lw/2, ly = -R * 0.12;
+      g.beginFill(0xffffff, 0.55);
+      g.drawRoundedRect(lx, ly, lw, lh, lw * 0.22);
+      g.endFill();
+      // Kilit halkası
+      g.lineStyle(R * 0.09, 0xffffff, 0.55);
+      g.arc(0, ly, lw * 0.28, Math.PI, 0, false);
+      g.lineStyle(0);
+      // Kilit deliği
+      g.beginFill(0x000000, 0.35);
+      g.drawCircle(0, ly + lh * 0.42, lw * 0.12);
+      g.endFill();
     }
     if (sp.active && !open) {
       g.lineStyle(2, hexToInt(colors[4]), 0.35 + 0.3 * pulse);

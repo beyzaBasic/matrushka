@@ -683,25 +683,17 @@ export class Renderer {
     if (glow <= 0.15) return;
     const { ctx, S, LEVELS } = state;
     const bigColor = LEVELS[c.level + 1] ? LEVELS[c.level + 1].color : '#fff';
-    const haloR    = c.r + 6*S + glow*5*S;
-    const speed    = (Date.now() * 0.0002);
-    const dashLen  = Math.PI * 0.28;
-    const gapLen   = Math.PI * 0.22;
-    const segs     = 4;
-    const total    = dashLen + gapLen;
+    const ringR = c.r + 8 * S;
 
     ctx.save();
-    ctx.lineWidth   = (2.5 + glow*2) * S;
-    ctx.lineCap     = 'round';
+    ctx.globalAlpha = 0.4 + glow * 0.45;
     ctx.strokeStyle = bigColor;
-    ctx.globalAlpha = 0.55 + glow*0.40;
-
-    for (let s = 0; s < segs; s++) {
-      const start = speed + s * total;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, haloR, start, start + dashLen);
-      ctx.stroke();
-    }
+    ctx.lineWidth   = 4 * S;
+    ctx.shadowColor = bigColor;
+    ctx.shadowBlur  = 10 * S;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
