@@ -474,9 +474,9 @@ export class Game {
     const lv = this._randomBallLevel();
     const { CX, CY, MAIN_R, LEVELS, S } = state;
     const r = LEVELS[lv].r;
-    const nx = CX;
     const arcR = r + 8 * S;         // timer arc yarıçapı (game.js _draw ile aynı)
-    const ny = CY - MAIN_R + arcR;  // arc'ın üst noktası U üst kenarında
+    const nx = CX + MAIN_R * 0.72;  // U'nun sağ tarafı
+    const ny = CY - MAIN_R + arcR;  // U üst kenarı
     state.nextBall = { level: lv, r, x: nx, y: ny };
     state.autoDropDeadline = Date.now() + 1000; // 1s otomatik düşme
   }
