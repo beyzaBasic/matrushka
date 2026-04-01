@@ -683,10 +683,11 @@ export class Renderer {
   }
 
   _drawDragGlow(c) {
-    if (!c.absorbNear) return;
+    const active = c.absorbNear || c.mergeNear || c.isBeingDragged;
+    if (!active) return;
     const { ctx, S } = state;
     const ringR  = c.r + 7 * S;
-    const outerR = c.r + 20 * S;
+    const outerR = c.r + 18 * S;
     ctx.save();
     const grad = ctx.createRadialGradient(c.x, c.y, ringR, c.x, c.y, outerR);
     grad.addColorStop(0,   c.color + 'aa');
@@ -700,7 +701,7 @@ export class Renderer {
     ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
     ctx.strokeStyle = c.color;
     ctx.lineWidth   = 2.5 * S;
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 0.85;
     ctx.stroke();
     ctx.restore();
   }

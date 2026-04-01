@@ -134,40 +134,43 @@ export class PhysicsManager {
           const c1 = circles[i], c2 = circles[j];
           if (c1.isBeingDragged || c2.isBeingDragged) {
             const dragged = c1.isBeingDragged ? c1 : c2, other = c1.isBeingDragged ? c2 : c1;
-            const canAbs  = this.canAbsorb(dragged, other) || this.canAbsorb(other, dragged);
+            const canAbs = this.canAbsorb(dragged, other) || this.canAbsorb(other, dragged);
             if (canAbs) {
-              // Zaten başka bir çift kilitliyse bu çifti işleme
-              if (dragged._absorbTarget && dragged._absorbTarget !== other.id) {
-                continue;
-              }
-              const dx   = other.x - dragged.x, dy = other.y - dragged.y;
+              const dx = other.x - dragged.x, dy = other.y - dragged.y;
               const dist = Math.hypot(dx, dy) || 0.01;
-              const attractDist = (dragged.r + other.r) * 1.8;
-              if (dist < attractDist) {
-                // İlk çifti kilitle
-                dragged._absorbTarget = other.id;
+              const touchDist = (dragged.r + other.r) * 1.4;
+              if (dist < touchDist) {
+                // Hale flag
                 dragged.absorbNear = true;
                 other.absorbNear   = true;
-                // Çekme kuvveti
-                const strength = (1 - dist / attractDist) * 1.2;
-                const nx2 = dx / dist, ny2 = dy / dist;
-                other.vx -= nx2 * strength;
-                other.vy -= ny2 * strength;
-                // Yeterince overlap olduysa — absorb flag set et
-                const { ov: absOv } = this._overlap(dragged, other);
-                if (absOv > dragged.r * 0.3) {
-                  dragged._shouldAbsorb = other.id;
-                }
+                // İtmeyi azalt — yavaşça overlap olsun
+                const { ov, nx, ny } = this._overlap(dragged, other);
+                if (ov > 0) { other.x += nx * ov * 0.1; other.y += ny * ov * 0.1; }
               } else {
-                if (dragged._absorbTarget === other.id) dragged._absorbTarget = null;
                 dragged.absorbNear = false;
                 other.absorbNear   = false;
+                const { ov, nx, ny } = this._overlap(dragged, other);
+                if (ov > 0) { other.x += nx * ov; other.y += ny * ov; }
               }
-              continue;
+            } else {
+              // Merge çifti mi kontrol et
+              const canMerge = dragged.level === other.level && dragged.contains.length === 0 && other.contains.length === 0;
+              const { ov, nx, ny } = this._overlap(dragged, other);
+              if (ov > 0) {
+                const dx2 = other.x - dragged.x, dy2 = other.y - dragged.y;
+                const dist2 = Math.hypot(dx2, dy2) || 0.01;
+                const touchDist2 = (dragged.r + other.r) * 1.4;
+                if (canMerge && dist2 < touchDist2) {
+                  dragged.mergeNear = true;
+                  other.mergeNear   = true;
+                  other.x += nx * ov * 0.1;
+                  other.y += ny * ov * 0.1;
+                } else {
+                  other.x += nx * ov;
+                  other.y += ny * ov;
+                }
+              }
             }
-            // Normal çift — tam it
-            const { ov, nx, ny } = this._overlap(dragged, other);
-            if (ov > 0) { other.x += nx * ov; other.y += ny * ov; }
             continue;
           }
           // absorb çiftleri artık normal collision'a tabi — yanyana dururlar, drag ile absorb
@@ -255,7 +258,7 @@ export class PhysicsManager {
     const n = circles.length;
     // Her 3 framede bir güncelle — görsel fark yok, %66 tasarruf
     if ((state.frameCount || 0) % 3 !== 0) return;
-    for (let i = 0; i < n; i++) { circles[i].absorbGlow = 0; circles[i].absorbNear = false; }
+    for (let i = 0; i < n; i++) { circles[i].absorbGlow = 0; circles[i].absorbNear = false; circles[i].mergeNear = false; }
     for (let i = 0; i < n; i++) {
       const a = circles[i];
       for (let j = i + 1; j < n; j++) {

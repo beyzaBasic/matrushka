@@ -261,11 +261,9 @@ export class Game {
       const dc = state.draggedCircle;
       dc.isBeingDragged = false;
       dc.vx = 0; dc.vy = 0;
-      dc._absorbTarget = null;
-      dc._shouldAbsorb = null;
       dc.absorbNear = false;
       this.physics._clampToU(dc);
-      this._tryAbsorb(dc);
+      this._tryInteract(dc);
       state.draggedCircle = null;
     }
     state.mouseVel = { x: 0, y: 0 };
@@ -563,6 +561,38 @@ export class Game {
     }
   }
 
+  // Bırakılan top için en yakın hedefi bul: absorb veya merge, hangisi daha yakınsa
+  _tryInteract(draggedCircle) {
+    const { circles } = state;
+    let bestAbsorbTarget = null, bestAbsorbDist = Infinity;
+    let bestMergeTarget  = null, bestMergeDist  = Infinity;
+
+    for (const other of circles) {
+      if (other === draggedCircle) continue;
+      const d = Math.hypot(draggedCircle.x - other.x, draggedCircle.y - other.y);
+      const threshold = (draggedCircle.r + other.r) * 1.1;
+      if (d > threshold) continue;
+
+      // Absorb adayı
+      if (this.physics.canAbsorb(draggedCircle, other) || this.physics.canAbsorb(other, draggedCircle)) {
+        if (d < bestAbsorbDist) { bestAbsorbDist = d; bestAbsorbTarget = other; }
+      }
+      // Merge adayı
+      else if (other.level === draggedCircle.level && other.contains.length === 0 && draggedCircle.contains.length === 0) {
+        if (d < bestMergeDist) { bestMergeDist = d; bestMergeTarget = other; }
+      }
+    }
+
+    // İkisi de varsa en yakını seç
+    if (bestAbsorbTarget && bestMergeTarget) {
+      if (bestAbsorbDist <= bestMergeDist) return this._tryAbsorb(draggedCircle);
+      else return this._tryMerge(draggedCircle);
+    }
+    if (bestAbsorbTarget) return this._tryAbsorb(draggedCircle);
+    if (bestMergeTarget)  return this._tryMerge(draggedCircle);
+    return false;
+  }
+
   // Sürüklenen top bırakılınca absorb kontrolü
   _tryAbsorb(draggedCircle) {
     const { circles, LEVELS, S, currentLevel } = state;
@@ -592,40 +622,44 @@ export class Game {
   }
 
   _checkAbsorption() {
-    const { circles, LEVELS, S, currentLevel, frameCount } = state;
+    // Otomatik merge/absorb kaldırıldı — sadece drag bırakınca tetiklenir
+  }
 
-    // Merge — her 2 framede bir yeterli
-    if (frameCount % 2 !== 0) return;
-    for (let lv = 0; lv < LEVELS.length - 1; lv++) {
-      const same = circles.filter(c => c.level === lv && c.contains.length === 0 && !c.isBeingDragged);
-      if (same.length < 2) continue;
-      for (let a = 0; a < same.length; a++) {
-        for (let b = a + 1; b < same.length; b++) {
-          const A = same[a], B = same[b];
-          const dx = A.x - B.x, dy = A.y - B.y;
-          const mergeThreshold = (A.r + B.r) * 1.15;
-          if (Math.abs(dx) > mergeThreshold || Math.abs(dy) > mergeThreshold) continue;
-          if (Math.hypot(dx, dy) < mergeThreshold) {
-            const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, nL = lv + 1;
-            const newC = { id: Math.random(), x: mx, y: my, r: LEVELS[nL].r, level: nL, color: LEVELS[nL].color, vx: 0, vy: -2 * S, isBeingDragged: false, contains: [], absorbAnim: 30, boing: 1.0, absorbGlow: 0 };
-            state.circles = circles.filter(c => c.id !== A.id && c.id !== B.id);
-            state.circles.push(newC);
-            this.audio.merge(nL);
-            if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
-            this._triggerCombo(mx, my);
-            state.mainBorderFlash = 40;
-            state.chainWaves.push({ x: mx, y: my, r: LEVELS[nL].r * 0.5, maxR: LEVELS[nL].r * 2.8, color: LEVELS[nL].color, t: 0, maxT: 22 });
-            const neighbors = state.circles.filter(c => c.id !== newC.id && c.level === nL && c.contains.length === 0 && Math.hypot(c.x - mx, c.y - my) < (newC.r + c.r) * 1.4);
-            if (neighbors.length > 0 && nL < LEVELS.length - 1) {
-              state.chainWaves.push({ x: mx, y: my, r: LEVELS[nL].r, maxR: LEVELS[nL].r * 4.5, color: '#fff', t: 0, maxT: 28 });
-              this._celebrate(mx, my, LEVELS[nL].color);
-            }
-            if (this.goals.checkGoal(newC)) { const _id = newC.id; setTimeout(() => { state.circles = state.circles.filter(c => c.id !== _id); }, 80); }
-            return;
-          }
-        }
-      }
+  // Drag bırakılınca merge kontrolü — aynı level, dokunma mesafesinde
+  _tryMerge(draggedCircle) {
+    const { circles, LEVELS, S, currentLevel } = state;
+    const lv = draggedCircle.level;
+    if (draggedCircle.contains.length > 0) return false;
+    const same = circles.filter(c => c !== draggedCircle && c.level === lv && c.contains.length === 0);
+    // En yakın aynı level topu bul
+    let closest = null, closestDist = Infinity;
+    for (const other of same) {
+      const d = Math.hypot(draggedCircle.x - other.x, draggedCircle.y - other.y);
+      if (d < closestDist) { closestDist = d; closest = other; }
     }
+    if (!closest) return false;
+    // Dokunma mesafesi: iki topun yarıçapları toplamının 1.1x'i
+    const touchDist = (draggedCircle.r + closest.r) * 1.1;
+    if (closestDist > touchDist) return false;
+    const nL = lv + 1;
+    if (nL >= LEVELS.length) return false;
+    const mx = (draggedCircle.x + closest.x) / 2, my = (draggedCircle.y + closest.y) / 2;
+    const newC = { id: Math.random(), x: mx, y: my, r: LEVELS[nL].r, level: nL, color: LEVELS[nL].color, vx: 0, vy: -2 * S, isBeingDragged: false, contains: [], absorbAnim: 30, boing: 1.0, absorbGlow: 0, spawnTime: Date.now() };
+    state.circles = state.circles.filter(c => c !== draggedCircle && c !== closest);
+    state.circles.push(newC);
+    this.audio.merge(nL);
+    if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: mx, y: my - LEVELS[nL].r - 10 * S, text: 'Merged', color: LEVELS[nL].color });
+    this._triggerCombo(mx, my);
+    state.mainBorderFlash = 40;
+    state.chainWaves.push({ x: mx, y: my, r: LEVELS[nL].r * 0.5, maxR: LEVELS[nL].r * 2.8, color: LEVELS[nL].color, t: 0, maxT: 22 });
+    // Komşu chain kontrolü
+    const neighbors = state.circles.filter(c => c.id !== newC.id && c.level === nL && c.contains.length === 0 && Math.hypot(c.x - mx, c.y - my) < (newC.r + c.r) * 1.4);
+    if (neighbors.length > 0 && nL < LEVELS.length - 1) {
+      state.chainWaves.push({ x: mx, y: my, r: LEVELS[nL].r, maxR: LEVELS[nL].r * 4.5, color: '#fff', t: 0, maxT: 28 });
+      this._celebrate(mx, my, LEVELS[nL].color);
+    }
+    if (this.goals.checkGoal(newC)) { const _id = newC.id; setTimeout(() => { state.circles = state.circles.filter(c => c.id !== _id); }, 80); }
+    return true;
   }
 
 
@@ -728,35 +762,20 @@ export class Game {
     this.blast.update();
 
     if (!state.gameOver) {
-      // Drag sırasında overlap yeterliyse otomatik absorb
-      const dc = state.draggedCircle;
-      if (dc && dc._shouldAbsorb) {
-        const target = state.circles.find(c => c.id === dc._shouldAbsorb);
-        if (target) {
-          dc._shouldAbsorb = null;
-          dc._absorbTarget = null;
-          this._tryAbsorb(dc);
-        } else {
-          dc._shouldAbsorb = null;
-        }
-      }
       this._checkAbsorption();
 
-      // Game over: Arena dolup spawn noktasında yer kalmadı
+      // Game over: Yeni top spawn noktasında üst üste biniyorsa
       const now2 = Date.now();
-      // Üst bölgede hareketsiz duran topları bul (spawnTime > 4s, hız < 0.5)
-      const highBalls = state.circles.filter(c =>
-        !c.isBeingDragged &&
-        c.y - c.r < CY - MAIN_R * 0.4 &&
-        (now2 - (c.spawnTime || 0)) > 4000 &&
-        Math.abs(c.vy || 0) < 0.5 &&
-        Math.abs(c.vx || 0) < 0.5
-      );
-      // Spawn noktasını bu toplardan biri bloke ediyor mu?
       const spawnR = state.LEVELS[0]?.r || 20;
-      const spawnX = CX, spawnY = CY - MAIN_R + spawnR * 2;
-      const spawnBlocked = highBalls.some(c =>
-        Math.hypot(c.x - spawnX, c.y - spawnY) < c.r + spawnR * 3
+      const spawnX = CX + MAIN_R * 0.72; // spawn noktası (sağ taraf)
+      const spawnY = CY - MAIN_R + spawnR + 8;
+      // Spawn noktasında 2s+ hareketsiz top var mı?
+      const spawnBlocked = state.circles.some(c =>
+        !c.isBeingDragged &&
+        Math.hypot(c.x - spawnX, c.y - spawnY) < c.r + spawnR &&
+        (now2 - (c.spawnTime || 0)) > 2000 &&
+        Math.abs(c.vy || 0) < 0.8 &&
+        Math.abs(c.vx || 0) < 0.8
       );
       if (spawnBlocked) {
         if (!this._gameOverTimer) this._gameOverTimer = now2;
