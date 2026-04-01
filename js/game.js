@@ -261,7 +261,11 @@ export class Game {
       const dc = state.draggedCircle;
       dc.isBeingDragged = false;
       dc.vx = 0; dc.vy = 0;
+      dc._absorbTarget = null;
+      dc._shouldAbsorb = null;
+      dc.absorbNear = false;
       this.physics._clampToU(dc);
+      this._tryAbsorb(dc);
       state.draggedCircle = null;
     }
     state.mouseVel = { x: 0, y: 0 };
@@ -559,34 +563,36 @@ export class Game {
     }
   }
 
-  _checkAbsorption() {
-    const { circles, LEVELS, S, currentLevel, frameCount } = state;
-
-    // Absorb — her frame
+  // Sürüklenen top bırakılınca absorb kontrolü
+  _tryAbsorb(draggedCircle) {
+    const { circles, LEVELS, S, currentLevel } = state;
     for (let i = 0; i < circles.length; i++) {
-      for (let j = 0; j < circles.length; j++) {
-        if (i === j) continue;
-        const big = circles[i], small = circles[j];
-        if (!this.physics.canAbsorb(big, small)) continue;
-        const dx = big.x - small.x, dy = big.y - small.y;
-        const threshold = big.r * 0.75;
-        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) continue;
-        if (Math.hypot(dx, dy) < threshold) {
-          const allLevels = new Set([...big.contains, small.level, ...small.contains]);
-          big.contains = [...allLevels].sort((a, b) => b - a);
-          big.absorbAnim = 35; big.boing = 1.2; state.mainBorderFlash = 40;
-          this.audio.absorb(big.level);
-          if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: big.x, y: big.y - big.r - 10 * S, text: 'Absorbed', color: LEVELS[small.level].color });
-          state.chainWaves.push({ x: small.x, y: small.y, r: small.r * 0.4, maxR: small.r * 2.2, color: LEVELS[small.level].color, t: 0, maxT: 18 });
-          state.chainWaves.push({ x: big.x, y: big.y, r: big.r * 0.3, maxR: big.r * 2.5, color: LEVELS[big.level].color, t: 0, maxT: 22 });
-          this._celebrate(big.x, big.y, LEVELS[small.level].color);
-          state.absorbingInto.push({ x: small.x, y: small.y, tx: big.x, ty: big.y, r: small.r, color: small.color, bigColor: big.color, t: 0, maxT: 22 });
-          state.circles = circles.filter(cc => cc !== small);
-          if (this.goals.checkGoal(big)) { const _id = big.id; setTimeout(() => { state.circles = state.circles.filter(c => c.id !== _id); }, 80); }
-          return;
-        }
+      const other = circles[i];
+      if (other === draggedCircle) continue;
+      const big   = this.physics.canAbsorb(draggedCircle, other) ? draggedCircle : (this.physics.canAbsorb(other, draggedCircle) ? other : null);
+      const small = big === draggedCircle ? other : (big === other ? draggedCircle : null);
+      if (!big || !small) continue;
+      const { ov } = this.physics._overlap(big, small);
+      if (ov > 0) {
+        const allLevels = new Set([...big.contains, small.level, ...small.contains]);
+        big.contains = [...allLevels].sort((a, b) => b - a);
+        big.absorbAnim = 35; big.boing = 1.2; state.mainBorderFlash = 40;
+        this.audio.absorb(big.level);
+        if (currentLevel < TUTORIAL_LEVELS) state.actionTexts.push({ alpha: 1.0, x: big.x, y: big.y - big.r - 10 * S, text: 'Absorbed', color: LEVELS[small.level].color });
+        state.chainWaves.push({ x: small.x, y: small.y, r: small.r * 0.4, maxR: small.r * 2.2, color: LEVELS[small.level].color, t: 0, maxT: 18 });
+        state.chainWaves.push({ x: big.x, y: big.y, r: big.r * 0.3, maxR: big.r * 2.5, color: LEVELS[big.level].color, t: 0, maxT: 22 });
+        this._celebrate(big.x, big.y, LEVELS[small.level].color);
+        state.absorbingInto.push({ x: small.x, y: small.y, tx: big.x, ty: big.y, r: small.r, color: small.color, bigColor: big.color, t: 0, maxT: 22 });
+        state.circles = state.circles.filter(cc => cc !== small);
+        if (this.goals.checkGoal(big)) { const _id = big.id; setTimeout(() => { state.circles = state.circles.filter(c => c.id !== _id); }, 80); }
+        return true;
       }
     }
+    return false;
+  }
+
+  _checkAbsorption() {
+    const { circles, LEVELS, S, currentLevel, frameCount } = state;
 
     // Merge — her 2 framede bir yeterli
     if (frameCount % 2 !== 0) return;
@@ -722,6 +728,18 @@ export class Game {
     this.blast.update();
 
     if (!state.gameOver) {
+      // Drag sırasında overlap yeterliyse otomatik absorb
+      const dc = state.draggedCircle;
+      if (dc && dc._shouldAbsorb) {
+        const target = state.circles.find(c => c.id === dc._shouldAbsorb);
+        if (target) {
+          dc._shouldAbsorb = null;
+          dc._absorbTarget = null;
+          this._tryAbsorb(dc);
+        } else {
+          dc._shouldAbsorb = null;
+        }
+      }
       this._checkAbsorption();
 
       // Game over: Arena dolup spawn noktasında yer kalmadı

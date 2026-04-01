@@ -118,17 +118,17 @@ export class Renderer {
 
   drawSphere(c) {
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
-    if (shape === 'bear')      { this._drawCached(c, (fc) => this._drawBear(fc));      this.drawAbsorbHalo(c); return; }
-    if (shape === 'matrushka') { this._drawCached(c, (fc) => this._drawMatrushka(fc)); this.drawAbsorbHalo(c); return; }
-    if (shape === 'duck')      { this._drawCached(c, (fc) => this._drawDuck(fc));      this.drawAbsorbHalo(c); return; }
-    if (shape === 'fish')      { this._drawCached(c, (fc) => this._drawFish(fc));      this.drawAbsorbHalo(c); return; }
+    if (shape === 'bear')      { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawBear(fc));      return; }
+    if (shape === 'matrushka') { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawMatrushka(fc)); return; }
+    if (shape === 'duck')      { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawDuck(fc));      return; }
+    if (shape === 'fish')      { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawFish(fc));      return; }
 
     const ctx = state.ctx;
     const { S, gameTime, LEVELS } = state;
     const scale = c.boing > 0 ? 1 + Math.sin(c.boing * Math.PI) * 0.25 : 1;
     const dr    = Math.max(0.1, c.r * scale);
 
-    this.drawAbsorbHalo(c);
+    this._drawDragGlow(c);
 
     const { rx, ry, ax, ay, hasSquish } = this._squishParams(c, dr);
     const path = () => hasSquish
@@ -679,18 +679,28 @@ export class Renderer {
   }
 
   drawAbsorbHalo(c) {
-    const glow = c.absorbGlow || 0;
-    if (glow <= 0.15) return;
-    const { ctx, S, LEVELS } = state;
-    const bigColor = LEVELS[c.level + 1] ? LEVELS[c.level + 1].color : '#fff';
-    const ringR = c.r + 8 * S;
+    // kaldırıldı
+  }
 
+  _drawDragGlow(c) {
+    if (!c.absorbNear) return;
+    const { ctx, S } = state;
+    const ringR  = c.r + 7 * S;
+    const outerR = c.r + 20 * S;
     ctx.save();
-    ctx.globalAlpha = 0.4 + glow * 0.45;
-    ctx.strokeStyle = bigColor;
-    ctx.lineWidth   = 4 * S;
+    const grad = ctx.createRadialGradient(c.x, c.y, ringR, c.x, c.y, outerR);
+    grad.addColorStop(0,   c.color + 'aa');
+    grad.addColorStop(0.6, c.color + '44');
+    grad.addColorStop(1,   c.color + '00');
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, outerR, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
     ctx.beginPath();
     ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = c.color;
+    ctx.lineWidth   = 2.5 * S;
+    ctx.globalAlpha = 0.8;
     ctx.stroke();
     ctx.restore();
   }
