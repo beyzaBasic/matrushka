@@ -689,8 +689,6 @@ export class Renderer {
     ctx.globalAlpha = 0.4 + glow * 0.45;
     ctx.strokeStyle = bigColor;
     ctx.lineWidth   = 4 * S;
-    ctx.shadowColor = bigColor;
-    ctx.shadowBlur  = 10 * S;
     ctx.beginPath();
     ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
     ctx.stroke();
