@@ -133,8 +133,9 @@ export class PhysicsManager {
     const n = circles.length;
     if (n === 0) return;
     const RESTITUTION = 0.20, WALL_BOUNCE = 0.25;
-    const ITERS = 3;
+    const ITERS = 2;
 
+    state._dragNearestPartner = null; state._dragNearestDist = Infinity;
     for (let iter = 0; iter < ITERS; iter++) {
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
@@ -143,38 +144,51 @@ export class PhysicsManager {
           if (c1.isBeingDragged || c2.isBeingDragged) {
             const dragged = c1.isBeingDragged ? c1 : c2, other = c1.isBeingDragged ? c2 : c1;
             const canAbs = this.canAbsorb(dragged, other) || this.canAbsorb(other, dragged);
-            if (canAbs) {
-              const dx = other.x - dragged.x, dy = other.y - dragged.y;
-              const dist = Math.hypot(dx, dy) || 0.01;
-              const touchDist = (dragged.r + other.r) * 1.4;
-              if (dist < touchDist) {
-                dragged.absorbNear = true;
-                other.absorbNear   = true;
-                const { ov, nx, ny } = this._overlap(dragged, other);
-                if (ov > 0) { other.x += nx * ov * 0.1; other.y += ny * ov * 0.1; }
-              } else {
-                dragged.absorbNear = false;
-                other.absorbNear   = false;
-                const { ov, nx, ny } = this._overlap(dragged, other);
-                if (ov > 0) { other.x += nx * ov; other.y += ny * ov; }
+            const canMerge = dragged.level === other.level && dragged.contains.length === 0 && other.contains.length === 0;
+            const isPartner = canAbs || canMerge;
+            const { ov, nx, ny } = this._overlap(dragged, other);
+
+              // En yakın partneri bul ve state'e kaydet
+            const dx = other.x - dragged.x, dy = other.y - dragged.y;
+            const dist = Math.hypot(dx, dy) || 0.01;
+
+            if (isPartner) {
+              // En yakın partner takibi
+              if (!state._dragNearestPartner || dist < state._dragNearestDist) {
+                state._dragNearestPartner = other.id;
+                state._dragNearestDist = dist;
               }
-            } else {
-              const canMerge = dragged.level === other.level && dragged.contains.length === 0 && other.contains.length === 0;
-              const { ov, nx, ny } = this._overlap(dragged, other);
+            }
+
+            if (isPartner && state._dragNearestPartner === other.id) {
+              // En yakın partner — üstüne kayabilir, geri çıkınca bloke
+              if (canAbs) { dragged.absorbNear = true; other.absorbNear = true; }
+              if (canMerge) { dragged.mergeNear = true; other.mergeNear = true; }
+
               if (ov > 0) {
-                const dx2 = other.x - dragged.x, dy2 = other.y - dragged.y;
-                const dist2 = Math.hypot(dx2, dy2) || 0.01;
-                const touchDist2 = (dragged.r + other.r) * 1.4;
-                if (canMerge && dist2 < touchDist2) {
-                  dragged.mergeNear = true;
-                  other.mergeNear   = true;
-                  other.x += nx * ov * 0.1;
-                  other.y += ny * ov * 0.1;
+                // Merkez tam üste geldiyse trigger için bırak (game.js halleder)
+                // Tam geçişi engelle — dragged geri it
+                const minDist = (this._er(dragged) + this._er(other)) * 0.10;
+                if (dist < minDist) {
+                  const push = minDist - dist;
+                  dragged.x -= (dx / dist) * push;
+                  dragged.y -= (dy / dist) * push;
                 } else {
-                  other.x += nx * ov;
-                  other.y += ny * ov;
+                  // Overlay yönünde ilerlemeyi bloke et — o yönde git, geri dön zorunda
+                  const dot = (state.mousePos.x - dragged.x) * (dx / dist) +
+                              (state.mousePos.y - dragged.y) * (dy / dist);
+                  if (dot > 0) {
+                    dragged.x -= (dx / dist) * ov * 0.9;
+                    dragged.y -= (dy / dist) * ov * 0.9;
+                  }
                 }
               }
+            } else if (isPartner) {
+              // Yakın ama en yakın değil — normal it
+              if (ov > 0) { other.x += nx * ov; other.y += ny * ov; }
+            } else {
+              // Partner değil — other'ı tamamen it
+              if (ov > 0) { other.x += nx * ov; other.y += ny * ov; }
             }
             continue;
           }

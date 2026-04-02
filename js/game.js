@@ -136,12 +136,14 @@ export class Game {
     const { CX, CY, MAIN_R, S } = state;
 
     // Mevcut topa dokunuldu → sürükle
-    const touched = state.circles.slice().reverse().find(c =>
-      Math.hypot(x - c.x, y - c.y) < Math.max(c.r * 1.5, 44 * S)
-    );
+    // En küçük r öncelikli — büyük obje küçüğün önüne geçmesin
+    const touched = state.circles
+      .filter(c => Math.hypot(x - c.x, y - c.y) < Math.max(c.r * 1.1, 36 * S))
+      .sort((a, b) => a.r - b.r)[0] || null;
     if (touched) {
       state.draggedCircle = touched;
       touched.isBeingDragged = true;
+      state._dragLockedTarget = null;
       this.audio.pick();
       return;
     }
@@ -183,6 +185,7 @@ export class Game {
           state.gameOver = true; this.audio.gameOver(); return;
         }
         state.circles.push(ball);
+        state._lastDropX = dropX;
         this.audio.spawn();
         setTimeout(() => {
           if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
@@ -267,6 +270,7 @@ export class Game {
       dc.isBeingDragged = false;
       dc.vx = 0; dc.vy = 0;
       dc.absorbNear = false;
+      state._dragLockedTarget = null;
       this.physics._clampToU(dc);
       this._tryInteract(dc);
       state.draggedCircle = null;
@@ -449,10 +453,19 @@ export class Game {
   }
 
   _randomBallLevel() {
-    const roll = Math.random();
-    if (this._countLevel0() >= 10) return roll < 0.70 ? 1 : 2;
-    const { lo, mid, hi } = this.goals.getSpawnLevels();
-    return roll < 0.50 ? lo : roll < 0.85 ? mid : hi;
+    // Slotta olan max level'ı bul
+    const { LEVELS, goalSlots } = state;
+    const def = this.goals.getLevelDef();
+    const maxGoalLevel = def.goals.reduce((mx, g) => Math.max(mx, g.level), 0);
+    // 0..maxGoalLevel arası pool
+    const pool = [];
+    for (let i = 0; i <= maxGoalLevel; i++) pool.push(i);
+    // Üst üste aynı level gelmesin
+    const last = state._lastSpawnLevel ?? -1;
+    const candidates = pool.length > 1 ? pool.filter(l => l !== last) : pool;
+    const lv = candidates[Math.floor(Math.random() * candidates.length)];
+    state._lastSpawnLevel = lv;
+    return lv;
   }
 
   _makeBallObj(lv, x, y) {
@@ -474,7 +487,18 @@ export class Game {
     const { CX, CY, MAIN_R, LEVELS, S } = state;
     const r = LEVELS[lv].r;
     const arcR = r + 8 * S;
-    const nx = CX + (Math.random() * 2 - 1) * MAIN_R * 0.75;
+    // Son düşürülen toptan en az r*2 uzakta spawn et
+    const lastX = state._lastDropX ?? null;
+    const range = MAIN_R * 0.75;
+    let nx;
+    if (lastX !== null) {
+      let candidate;
+      do { candidate = CX + (Math.random() * 2 - 1) * range; }
+      while (Math.abs(candidate - lastX) < r * 2);
+      nx = candidate;
+    } else {
+      nx = CX + (Math.random() * 2 - 1) * range;
+    }
     const ny = CY - MAIN_R + arcR;
     state.nextBall = { level: lv, r, x: nx, y: ny };
     state.autoDropDeadline = Date.now() + 1000;
@@ -517,6 +541,7 @@ export class Game {
       state.gameOver = true; this.audio.gameOver(); return;
     }
     state.circles.push(ball);
+    state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
     setTimeout(() => {
@@ -537,6 +562,7 @@ export class Game {
       state.gameOver = true; this.audio.gameOver(); return;
     }
     state.circles.push(ball);
+    state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
     setTimeout(() => {
@@ -768,6 +794,29 @@ export class Game {
 
     // Particle sayısı sınırı — mobilde 150 üzeri ciddi yavaşlama
     if (state.particles.length > 80) state.particles.length = 80;
+
+    // Drag tam overlay — otomatik tetikle
+    if (state.draggedCircle) {
+      const dc = state.draggedCircle;
+      for (const other of state.circles) {
+        if (other === dc) continue;
+        const d = Math.hypot(dc.x - other.x, dc.y - other.y);
+        const triggerDist = (dc.r + other.r) * 0.25;
+        if (d < triggerDist) {
+          const canAbs = this.physics.canAbsorb(dc, other) || this.physics.canAbsorb(other, dc);
+          const canMerge = dc.level === other.level && dc.contains.length === 0 && other.contains.length === 0;
+          if (canAbs || canMerge) {
+            dc.isBeingDragged = false;
+            dc.vx = 0; dc.vy = 0;
+            dc.absorbNear = false;
+            state._dragLockedTarget = null;
+            state.draggedCircle = null;
+            this._tryInteract(dc);
+            break;
+          }
+        }
+      }
+    }
 
     // Çarpışmalar + blast + absorb/merge
     this.physics.solveCollisions();

@@ -107,7 +107,6 @@ export class Renderer {
     const { oc, logicalSize } = this._shapeCache.get(key);
     const ctx = state.ctx;
     ctx.save();
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28*(c.absorbAnim/35); }
     ctx.drawImage(oc, c.x - logicalSize/2, c.y - logicalSize/2, logicalSize, logicalSize);
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -137,8 +136,7 @@ export class Renderer {
       : (ctx.beginPath(), ctx.arc(c.x, c.y, dr, 0, Math.PI * 2));
 
     ctx.save();
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 14; }
-    else { ctx.shadowBlur = 0; }
+    
 
     path(); ctx.fillStyle = this._candyGrad(c.x, c.y, dr, c.color); ctx.fill();
     this._drawInnerRings(c, dr, ax, ay, hasSquish);
@@ -241,8 +239,6 @@ export class Renderer {
       const s = Math.sin(c.squish.t * Math.PI) * c.squish.amt;
       ctx.translate(x, y); ctx.scale(1 - s * 0.3, 1 + s * 0.3); ctx.translate(-x, -y);
     }
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; }
-
     // Jelibon: yarı saydam, parlak, yuvarlak blob stili
     const jelly = (cx2, cy2, r2, alpha = 1) => {
       ctx.save();
@@ -349,7 +345,6 @@ export class Renderer {
     }
 
     // Glow
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 28 * (c.absorbAnim / 35); }
     // shadowBlur yok — cache'de gereksiz
 
     // ── Ölçüler ───────────────────────────────────────────────────
@@ -485,7 +480,6 @@ export class Renderer {
       const s = Math.sin(c.squish.t * Math.PI) * c.squish.amt;
       ctx.translate(x,y); ctx.scale(1-s*0.25,1+s*0.25); ctx.translate(-x,-y);
     }
-    if (c.absorbAnim > 0) { ctx.shadowColor='#fff'; ctx.shadowBlur=28*(c.absorbAnim/35); }
     const grad = (cx2,cy2,rr) => {
       const g=ctx.createRadialGradient(cx2-rr*0.3,cy2-rr*0.35,rr*0.05,cx2,cy2,rr);
       g.addColorStop(0,this._lighten(col,70)); g.addColorStop(0.5,col); g.addColorStop(1,this._darken(col,60));
@@ -568,7 +562,6 @@ export class Renderer {
       const s = Math.sin(c.squish.t * Math.PI) * c.squish.amt;
       ctx.translate(x,y); ctx.scale(1-s*0.25,1+s*0.25); ctx.translate(-x,-y);
     }
-    if (c.absorbAnim > 0) { ctx.shadowColor='#fff'; ctx.shadowBlur=28*(c.absorbAnim/35); }
     // Kuyruk
     ctx.beginPath();
     ctx.moveTo(x-r*0.62,y);
@@ -664,8 +657,6 @@ export class Renderer {
     }
 
     // Glow / absorb anim
-    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; }
-
     const grad = (cx2, cy2, r2) => {
       const g = ctx.createRadialGradient(cx2 - r2*0.3, cy2 - r2*0.35, r2*0.05, cx2, cy2, r2);
       g.addColorStop(0, this._lighten(col, 70));
@@ -787,27 +778,71 @@ export class Renderer {
   }
 
   _drawDragGlow(c) {
-    const active = c.absorbNear || c.mergeNear || c.isBeingDragged;
-    if (!active) return;
     const { ctx, S } = state;
-    const ringR  = c.r + 7 * S;
-    const outerR = c.r + 18 * S;
-    ctx.save();
-    const grad = ctx.createRadialGradient(c.x, c.y, ringR, c.x, c.y, outerR);
-    grad.addColorStop(0,   c.color + 'aa');
-    grad.addColorStop(0.6, c.color + '44');
-    grad.addColorStop(1,   c.color + '00');
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, outerR, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = c.color;
-    ctx.lineWidth   = 2.5 * S;
-    ctx.globalAlpha = 0.85;
-    ctx.stroke();
-    ctx.restore();
+
+    // Tutulan top — her koşulda kendi rengiyle halo
+    if (c.isBeingDragged) {
+      const ringR  = c.r + 4 * S;
+      const outerR = c.r + 12 * S;
+      ctx.save();
+      const grad = ctx.createRadialGradient(c.x, c.y, ringR, c.x, c.y, outerR);
+      grad.addColorStop(0,   c.color + 'aa');
+      grad.addColorStop(0.6, c.color + '44');
+      grad.addColorStop(1,   c.color + '00');
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, outerR, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth   = 2.5 * S;
+      ctx.globalAlpha = 0.85;
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    // Absorb partneri — sadece en yakın, çizgi halo
+    if (c.absorbNear && state._dragNearestPartner === c.id) {
+      const { LEVELS } = state;
+      ctx.save();
+      const rings = c.contains && c.contains.length > 0 ? [c.level, ...c.contains] : [c.level];
+      for (let k = 0; k < rings.length; k++) {
+        const col = LEVELS[rings[k]]?.color || c.color;
+        const ringR = c.r + (4 + k * 7) * S;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = col;
+        ctx.lineWidth   = 2 * S;
+        ctx.globalAlpha = 0.85 - k * 0.18;
+        ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
+
+    // Merge partneri — sadece en yakın
+    if (c.mergeNear && state._dragNearestPartner === c.id) {
+      const ringR  = c.r + 4 * S;
+      const outerR = c.r + 12 * S;
+      ctx.save();
+      const grad = ctx.createRadialGradient(c.x, c.y, ringR, c.x, c.y, outerR);
+      grad.addColorStop(0,   c.color + 'aa');
+      grad.addColorStop(0.6, c.color + '44');
+      grad.addColorStop(1,   c.color + '00');
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, outerR, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth   = 2.5 * S;
+      ctx.globalAlpha = 0.85;
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   _squishParams(c, dr) {
@@ -881,7 +916,7 @@ export class Renderer {
       ctx.font         = `bold ${Math.round(r * 0.85)}px "ui-rounded",sans-serif`;
       ctx.textAlign    = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle    = 'rgba(255,255,255,.95)';
-      ctx.shadowColor  = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 4;
+      ctx.shadowBlur = 0;
       ctx.fillText('\u2713', x, y + r * 0.05);
     }
     ctx.restore();
@@ -907,7 +942,7 @@ export class Renderer {
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font      = `bold ${Math.round(28 * S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle = titleColor; ctx.shadowColor = titleColor; ctx.shadowBlur = 10;
+    ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
     ctx.fillText(goalManager.displayLevelText(), CX, 22);
     ctx.restore();
   }
@@ -932,7 +967,7 @@ export class Renderer {
     const grd = ctx.createRadialGradient(sp.cx - sp.gemR*0.25, sp.cy - sp.gemR*0.3, 1, sp.cx, sp.cy, sp.gemR);
     grd.addColorStop(0, this.shadeColor(acc, 70)); grd.addColorStop(0.4, acc); grd.addColorStop(1, this.shadeColor(acc, -50));
     ctx.beginPath(); ctx.arc(sp.cx, sp.cy, sp.gemR, 0, Math.PI * 2);
-    ctx.fillStyle = grd; ctx.shadowColor = acc; ctx.shadowBlur = 18 * pulse; ctx.fill();
+    ctx.fillStyle = grd; ctx.shadowBlur = 0; ctx.fill();
     ctx.strokeStyle = `rgba(255,255,255,${0.3 * pulse})`; ctx.lineWidth = 2; ctx.shadowBlur = 0; ctx.stroke();
   }
 
@@ -942,7 +977,7 @@ export class Renderer {
     ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
     ctx.strokeStyle = acc; ctx.lineWidth = 2.5;
     ctx.globalAlpha = 0.45 + 0.2 * Math.sin(t * 1.6 + i);
-    ctx.shadowColor = acc; ctx.shadowBlur = 6; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.stroke();
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   }
 
@@ -951,7 +986,7 @@ export class Renderer {
     for (const fg of flyingGoals) {
       const p = fg.t / fg.maxT;
       ctx.save();
-      ctx.shadowColor = LEVELS[fg.level].color; ctx.shadowBlur = 18 * (1 - p * 0.5); ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
       ctx.translate(fg.x, fg.y); ctx.rotate(fg.spinA || 0); ctx.translate(-fg.x, -fg.y);
       this.drawGoalMatrushka(fg.x, fg.y, fg.r, fg.level, fg.contains, 1, false);
       if (p > 0.05 && p < 0.9 && Math.random() < 0.5) {
@@ -985,7 +1020,7 @@ export class Renderer {
     this.rrect(x, y+press, w, h, h*0.5);
     const grad = ctx.createLinearGradient(x, y+press, x, y+press+h);
     grad.addColorStop(0, this.shadeColor(col, 65)); grad.addColorStop(0.5, col); grad.addColorStop(1, this.shadeColor(col, -40));
-    ctx.fillStyle = grad; ctx.shadowColor = col; ctx.shadowBlur = enabled ? (isAnim ? 32 : 20) : 0; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = grad; ctx.shadowBlur = 0; ctx.fill(); ctx.shadowBlur = 0;
 
     // Koyu outline
     this.rrect(x-2, y+press-2, w+4, h+4, h*0.5+2);
@@ -1005,7 +1040,7 @@ export class Renderer {
     const iFs = Math.round(h*0.58);
     ctx.font = `${iFs}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.globalAlpha = enabled ? 0.95 : 0.4;
-    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 4; ctx.fillStyle = '#fff';
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
     ctx.fillText('⚡', cx - w*0.10, cy+press+h*0.02); ctx.shadowBlur = 0;
 
     // Charge badge
@@ -1015,7 +1050,7 @@ export class Renderer {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.globalAlpha = enabled ? 1 : 0.35;
     ctx.beginPath(); ctx.arc(bx2, by2, bR, 0, Math.PI*2); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 2;
+    ctx.fillStyle = '#fff'; ctx.shadowBlur = 0;
     ctx.fillText(rect.charges, bx2, by2+1);
     ctx.restore();
   }
@@ -1042,7 +1077,7 @@ export class Renderer {
       const tx2 = b.sx + (b.tx - b.sx)*tp, ty2 = b.sy + (b.ty - b.sy)*tp;
       ctx.save(); ctx.globalAlpha = 0.5 - k*0.08;
       ctx.beginPath(); ctx.arc(tx2, ty2, (br-k*S)*0.7, 0, Math.PI*2);
-      ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 6; ctx.fill(); ctx.restore();
+      ctx.fillStyle = b.color; ctx.shadowBlur = 0; ctx.fill(); ctx.restore();
     }
 
     ctx.save(); ctx.translate(px, py);
@@ -1052,7 +1087,7 @@ export class Renderer {
     const sg = ctx.createRadialGradient(px-br*0.38, py-br*0.38, br*0.02, px+br*0.1, py+br*0.1, br*1.05);
     sg.addColorStop(0, this.shadeColor(b.color,90)); sg.addColorStop(0.3, this.shadeColor(b.color,30));
     sg.addColorStop(0.7, b.color); sg.addColorStop(1, this.shadeColor(b.color,-60));
-    ctx.beginPath(); ctx.arc(0, 0, br, 0, Math.PI*2); ctx.fillStyle=sg; ctx.shadowColor=b.color; ctx.shadowBlur=14; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, br, 0, Math.PI*2); ctx.fillStyle=sg; ctx.shadowBlur = 0; ctx.fill();
     // İç halka
     const sg2 = ctx.createRadialGradient(-br*0.2,-br*0.2,0,0,0,br*0.5);
     sg2.addColorStop(0, this.shadeColor(b.color,80)); sg2.addColorStop(1, b.color);
@@ -1066,7 +1101,7 @@ export class Renderer {
     const spx=fx+Math.cos(fa)*br*0.9, spy=fy+Math.sin(fa)*br*0.9;
     [[-0.7,-1],[0.7,-1],[0,-1.2]].forEach(([dx,dy])=>{
       ctx.beginPath(); ctx.moveTo(spx,spy); ctx.lineTo(spx+dx*br*0.4, spy+dy*br*0.4);
-      ctx.strokeStyle='#FFE040'; ctx.lineWidth=1.5*S; ctx.shadowColor='#FFE040'; ctx.shadowBlur=5; ctx.stroke();
+      ctx.strokeStyle='#FFE040'; ctx.lineWidth=1.5*S; ctx.shadowBlur = 0; ctx.stroke();
     });
     ctx.restore();
   }
@@ -1100,7 +1135,7 @@ export class Renderer {
       ctx.save(); ctx.globalAlpha = alpha;
       ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, Math.PI*2);
       ctx.strokeStyle = w.color; ctx.lineWidth = (4-p*3)*S;
-      ctx.shadowColor = w.color; ctx.shadowBlur = 8*(1-p);
+      ctx.shadowBlur = 0;
       ctx.stroke();
       ctx.restore();
     }
@@ -1115,7 +1150,7 @@ export class Renderer {
       ctx.beginPath(); ctx.arc(cx,cy,cr,0,Math.PI*2);
       const sg=ctx.createRadialGradient(cx-cr*0.25,cy-cr*0.3,cr*0.01,cx,cy,cr);
       sg.addColorStop(0,this.shadeColor(a.color,80)); sg.addColorStop(0.4,a.color); sg.addColorStop(1,this.shadeColor(a.color,-60));
-      ctx.fillStyle=sg; ctx.shadowColor=a.color; ctx.shadowBlur=10*(1-p); ctx.fill(); ctx.restore();
+      ctx.fillStyle=sg; ctx.shadowBlur = 0; ctx.fill(); ctx.restore();
     }
   }
 
@@ -1126,7 +1161,7 @@ export class Renderer {
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.font=`bold ${Math.round(32*S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
       ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=3*S; ctx.lineJoin='round'; ctx.strokeText(at.text, at.x, at.y);
-      ctx.fillStyle=at.color; ctx.shadowColor=at.color; ctx.shadowBlur=8*at.alpha; ctx.fillText(at.text, at.x, at.y);
+      ctx.fillStyle=at.color; ctx.shadowBlur = 0; ctx.fillText(at.text, at.x, at.y);
       ctx.restore();
     });
   }
@@ -1143,7 +1178,7 @@ export class Renderer {
       ctx.font=`italic bold ${Math.round((28+mult*4)*S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
       ctx.strokeStyle='#fff'; ctx.lineWidth=4*S; ctx.lineJoin='round'; ctx.strokeText(cd.text,0,0);
       ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.shadowBlur=0; ctx.fillText(cd.text,2*S,3*S);
-      ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=14; ctx.fillText(cd.text,0,0);
+      ctx.fillStyle=col; ctx.shadowBlur = 0; ctx.fillText(cd.text,0,0);
       ctx.restore();
     });
   }
@@ -1182,11 +1217,11 @@ export class Renderer {
       const msg = ['Merge & Absorb!','Chain Mastered!','Ready to Play!'][currentLevel] || 'Well done!';
       ctx.font=`bold ${Math.round(46*S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
       ctx.strokeStyle=`rgba(255,255,255,${a*0.5})`; ctx.lineWidth=4*S; ctx.lineJoin='round'; ctx.strokeText(msg,0,0);
-      ctx.fillStyle=`rgba(255,220,60,${a})`; ctx.shadowColor='#FFD700'; ctx.shadowBlur=20*a; ctx.fillText(msg,0,0);
+      ctx.fillStyle=`rgba(255,220,60,${a})`; ctx.shadowBlur = 0; ctx.fillText(msg,0,0);
     } else {
       ctx.font=`bold ${Math.round(58*S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
       ctx.strokeStyle=`rgba(255,255,255,${a*0.5})`; ctx.lineWidth=5*S; ctx.lineJoin='round'; ctx.strokeText('SUCCESS!',0,0);
-      ctx.fillStyle=`rgba(255,220,60,${a})`; ctx.shadowColor='#FFD700'; ctx.shadowBlur=22*a; ctx.fillText('SUCCESS!',0,0);
+      ctx.fillStyle=`rgba(255,220,60,${a})`; ctx.shadowBlur = 0; ctx.fillText('SUCCESS!',0,0);
     }
     ctx.restore(); ctx.shadowBlur=0;
   }
@@ -1214,7 +1249,7 @@ export class Renderer {
       if (filled) {
         const sg=ctx.createRadialGradient(-starR*0.2,-starR*0.2,0,0,0,starR);
         sg.addColorStop(0,'#FFF176'); sg.addColorStop(0.5,'#FFD700'); sg.addColorStop(1,'#FF8F00');
-        ctx.fillStyle=sg; ctx.shadowColor='#FFD700'; ctx.shadowBlur=14; ctx.fill();
+        ctx.fillStyle=sg; ctx.shadowBlur = 0; ctx.fill();
         ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5; ctx.shadowBlur=0; ctx.stroke();
       } else {
         ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fill();
@@ -1237,11 +1272,11 @@ export class Renderer {
     ctx.translate(CX,by+bh/2); ctx.scale(pulse,pulse); ctx.translate(-CX,-(by+bh/2));
 
     this.rrect(bx-6,by-6,bw+12,bh+12,bh*0.55+6);
-    ctx.strokeStyle=`rgba(${glowRgb},0.35)`; ctx.lineWidth=6; ctx.shadowColor=glow; ctx.shadowBlur=22; ctx.stroke(); ctx.shadowBlur=0;
+    ctx.strokeStyle=`rgba(${glowRgb},0.35)`; ctx.lineWidth=6; ctx.shadowBlur = 0; ctx.stroke(); ctx.shadowBlur=0;
 
     const grad=ctx.createLinearGradient(bx,by,bx,by+bh);
     grad.addColorStop(0,c0); grad.addColorStop(0.48,c1); grad.addColorStop(1,c2);
-    this.rrect(bx,by,bw,bh,bh*0.45); ctx.fillStyle=grad; ctx.shadowColor=glow; ctx.shadowBlur=28; ctx.fill(); ctx.shadowBlur=0;
+    this.rrect(bx,by,bw,bh,bh*0.45); ctx.fillStyle=grad; ctx.shadowBlur = 0; ctx.fill(); ctx.shadowBlur=0;
 
     const shineG=ctx.createLinearGradient(bx,by,bx,by+bh*0.52);
     shineG.addColorStop(0,'rgba(255,255,255,0.36)'); shineG.addColorStop(1,'rgba(255,255,255,0)');
@@ -1260,7 +1295,7 @@ export class Renderer {
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font=`bold ${fs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
     ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.fillText(lbl,CX+1.5,by+bh*0.52+2);
-    ctx.fillStyle='#fff'; ctx.shadowColor='rgba(0,0,0,0.3)'; ctx.shadowBlur=4; ctx.fillText(lbl,CX,by+bh*0.5); ctx.shadowBlur=0;
+    ctx.fillStyle='#fff'; ctx.shadowBlur = 0; ctx.fillText(lbl,CX,by+bh*0.5); ctx.shadowBlur=0;
     ctx.restore();
     state._nextLevelBtn = { x:bx, y:by, w:bw, h:bh, a:btnA };
   }
@@ -1270,7 +1305,7 @@ export class Renderer {
     if (levelSuccess) { state._pauseBtn=null; return; }
     const ICON_PX=44, iconPad=10;
     const pcx=W-iconPad-ICON_PX/2, pcy=SCORE_AREA/2;
-    ctx.save(); ctx.globalAlpha=0.75; ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=6; ctx.fillStyle='#fff';
+    ctx.save(); ctx.globalAlpha=0.75; ctx.shadowBlur = 0; ctx.fillStyle='#fff';
     if (isPaused) {
       const bh=ICON_PX*(1/3);
       ctx.beginPath(); ctx.moveTo(pcx-bh*0.5,pcy-bh); ctx.lineTo(pcx+bh,pcy); ctx.lineTo(pcx-bh*0.5,pcy+bh); ctx.closePath(); ctx.fill();
@@ -1293,8 +1328,7 @@ export class Renderer {
     const pcy = SCORE_AREA / 2 + ICON_PX + 4;
     ctx.save();
     ctx.globalAlpha = 0.75;
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 0;
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = ICON_PX * 0.12;
@@ -1334,7 +1368,7 @@ export class Renderer {
     ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
     const pFs=28, rbw=220, rbh=56, blockTop=CY-(pFs+20+rbh)/2;
     ctx.font=`bold ${pFs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=4;
+    ctx.fillStyle='#fff'; ctx.shadowBlur = 0;
     ctx.fillText('PAUSED', CX, blockTop+pFs*0.5);
     const rbx=CX-rbw/2, rby=blockTop+pFs+20;
     this.rrect(rbx,rby,rbw,rbh,rbh*0.4);
@@ -1356,7 +1390,7 @@ export class Renderer {
     ctx.font=`${Math.round(64*S)}px sans-serif`; ctx.globalAlpha=a; ctx.fillText('😵',CX,CY-110*S);
     // Başlık
     ctx.font=`bold ${Math.round(38*S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle='#fff'; ctx.shadowColor='rgba(255,50,50,0.6)'; ctx.shadowBlur=18;
+    ctx.fillStyle='#fff'; ctx.shadowBlur = 0;
     ctx.fillText('GAME OVER',CX,CY-52*S); ctx.shadowBlur=0;
     // Level pill
     this._drawLevelPill(a, goalManager, CX, CY, S);
@@ -1383,10 +1417,10 @@ export class Renderer {
     ctx.globalAlpha=a; ctx.save();
     ctx.translate(CX,by+bh/2); ctx.scale(pulse,pulse); ctx.translate(-CX,-(by+bh/2));
     this.rrect(bx-5,by-5,bw+10,bh+10,bh*0.55+5);
-    ctx.strokeStyle='rgba(0,230,118,0.3)'; ctx.lineWidth=6; ctx.shadowColor='#00E676'; ctx.shadowBlur=20; ctx.stroke(); ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(0,230,118,0.3)'; ctx.lineWidth=6; ctx.shadowBlur = 0; ctx.stroke(); ctx.shadowBlur=0;
     const grad=ctx.createLinearGradient(bx,by,bx,by+bh);
     grad.addColorStop(0,'#00E676'); grad.addColorStop(0.5,'#00C853'); grad.addColorStop(1,'#00952e');
-    this.rrect(bx,by,bw,bh,bh*0.45); ctx.fillStyle=grad; ctx.shadowColor='#00E676'; ctx.shadowBlur=24; ctx.fill(); ctx.shadowBlur=0;
+    this.rrect(bx,by,bw,bh,bh*0.45); ctx.fillStyle=grad; ctx.shadowBlur = 0; ctx.fill(); ctx.shadowBlur=0;
     const shine=ctx.createLinearGradient(bx,by,bx,by+bh*0.5);
     shine.addColorStop(0,'rgba(255,255,255,0.32)'); shine.addColorStop(1,'rgba(255,255,255,0)');
     this.rrect(bx+4,by+3,bw-8,bh*0.48,bh*0.38); ctx.fillStyle=shine; ctx.fill();
@@ -1394,7 +1428,7 @@ export class Renderer {
     const fs=Math.round(22*S);
     ctx.font=`bold ${fs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
     ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillText('▶  Play Again',CX+1.5,by+bh*0.52+2);
-    ctx.fillStyle='#fff'; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=4; ctx.fillText('▶  Play Again',CX,by+bh*0.5);
+    ctx.fillStyle='#fff'; ctx.shadowBlur = 0; ctx.fillText('▶  Play Again',CX,by+bh*0.5);
     ctx.restore();
     state._gameOverBtn = { x:bx, y:by, w:bw, h:bh };
   }
@@ -1415,7 +1449,7 @@ export class Renderer {
   _demoBall(x, y, r, col) {
     const ctx=state.ctx;
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle=col; ctx.shadowBlur = 0; ctx.fill(); ctx.shadowBlur=0;
   }
 
   _demoLevel0(demoA, tt, demoY, CX, S) {
@@ -1557,7 +1591,7 @@ export class Renderer {
     const c = this._paletteGuideCache;
     ctx.save();
     ctx.globalAlpha = 0.9;
-    ctx.shadowBlur  = 0;
+    ctx.shadowBlur = 0;
     ctx.drawImage(c.oc, 0, c.topY, c.logW, c.logH);
     ctx.restore();
   }
