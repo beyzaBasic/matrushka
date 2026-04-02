@@ -1,5 +1,5 @@
 // ── constants.js ──────────────────────────────────────────────────
-export const TUTORIAL_LEVELS = 2;
+export const TUTORIAL_LEVELS = 1;
 
 export function buildLayout() {
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -52,6 +52,16 @@ const LEVEL_RATIOS = [
 // ── Shape yapısal katsayıları (renderer + physics paylaşır) ─────────
 // Her değer c.r çarpanı. Renderer çizimde, physics _circles()'da kullanır.
 export const SHAPE_DEFS = {
+  jellybear: {
+    body:  { oy:  0.12, r: 0.72 },
+    head:  { oy: -0.38, r: 0.48 },
+    earL:  { ox: -0.36, oy: -0.72, r: 0.20 },
+    earR:  { ox:  0.36, oy: -0.72, r: 0.20 },
+    armL:  { ox: -0.72, oy:  0.08, r: 0.20 },
+    armR:  { ox:  0.72, oy:  0.08, r: 0.20 },
+    footL: { ox: -0.36, oy:  0.70, r: 0.22 },
+    footR: { ox:  0.36, oy:  0.70, r: 0.22 },
+  },
   bear: {
     body:  { oy:  0.12, r: 0.72 },
     head:  { oy: -0.38, r: 0.48 },

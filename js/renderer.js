@@ -119,6 +119,7 @@ export class Renderer {
   drawSphere(c) {
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
     if (shape === 'bear')      { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawBear(fc));      return; }
+    if (shape === 'jellybear')  { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawJellyBear(fc));  return; }
     if (shape === 'matrushka') { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawMatrushka(fc)); return; }
     if (shape === 'duck')      { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawDuck(fc));      return; }
     if (shape === 'fish')      { this._drawDragGlow(c); this._drawCached(c, (fc) => this._drawFish(fc));      return; }
@@ -222,6 +223,109 @@ export class Renderer {
       ctx.beginPath(); ctx.arc(x,y+r*0.14,r*0.18,0.25,Math.PI-0.25); ctx.stroke();
       cheek();
     }
+    ctx.restore();
+  }
+
+  // ── Jelibon Ayı çizimi ───────────────────────────────────────────
+  _drawJellyBear(c) {
+    const ctx = state.ctx;
+    const { LEVELS } = state;
+    const scale = c.boing > 0 ? 1 + Math.sin(c.boing * Math.PI) * 0.25 : 1;
+    const r = Math.max(0.1, c.r * scale);
+    const x = c.x, y = c.y;
+    const col = c.color;
+
+    ctx.save();
+
+    if (c.squish && c.squish.t > 0) {
+      const s = Math.sin(c.squish.t * Math.PI) * c.squish.amt;
+      ctx.translate(x, y); ctx.scale(1 - s * 0.3, 1 + s * 0.3); ctx.translate(-x, -y);
+    }
+    if (c.absorbAnim > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; }
+
+    // Jelibon: yarı saydam, parlak, yuvarlak blob stili
+    const jelly = (cx2, cy2, r2, alpha = 1) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      // Ana renk — doygun jöle tonu
+      ctx.beginPath(); ctx.arc(cx2, cy2, r2, 0, Math.PI * 2);
+      const g = ctx.createRadialGradient(cx2 - r2*0.25, cy2 - r2*0.3, r2*0.05, cx2, cy2, r2);
+      g.addColorStop(0, this._lighten(col, 90));
+      g.addColorStop(0.35, col);
+      g.addColorStop(0.75, this._darken(col, 40));
+      g.addColorStop(1, this._darken(col, 80));
+      ctx.fillStyle = g; ctx.fill();
+      // Şeffaf iç parlaklık
+      ctx.beginPath(); ctx.arc(cx2, cy2, r2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = r2 * 0.06; ctx.stroke();
+      // Specular blob
+      const sp = ctx.createRadialGradient(cx2 - r2*0.28, cy2 - r2*0.32, 0, cx2 - r2*0.28, cy2 - r2*0.32, r2*0.42);
+      sp.addColorStop(0, 'rgba(255,255,255,0.85)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath(); ctx.ellipse(cx2 - r2*0.28, cy2 - r2*0.32, r2*0.30, r2*0.20, -0.4, 0, Math.PI*2);
+      ctx.fillStyle = sp; ctx.fill();
+      ctx.restore();
+    };
+
+    const _bd = SHAPE_DEFS.bear;
+
+    // Kulaklar (arka)
+    jelly(x + r * _bd.earL.ox, y + r * _bd.earL.oy, r * _bd.earL.r);
+    jelly(x + r * _bd.earR.ox, y + r * _bd.earR.oy, r * _bd.earR.r);
+
+    // Eller
+    jelly(x + r * _bd.armL.ox, y + r * _bd.armL.oy, r * _bd.armL.r);
+    jelly(x + r * _bd.armR.ox, y + r * _bd.armR.oy, r * _bd.armR.r);
+
+    // Ayaklar
+    jelly(x + r * _bd.footL.ox, y + r * _bd.footL.oy, r * _bd.footL.r);
+    jelly(x + r * _bd.footR.ox, y + r * _bd.footR.oy, r * _bd.footR.r);
+
+    // Gövde
+    const bx = x, by = y + r * _bd.body.oy, br = r * _bd.body.r;
+    jelly(bx, by, br);
+
+    // Contains halkaları
+    for (let k = 0; k < c.contains.length; k++) {
+      const lvIdx = c.contains[k];
+      if (lvIdx >= LEVELS.length) continue;
+      const lColor = LEVELS[lvIdx].color;
+      const ratio = 1 - (k + 1) * (0.7 / (c.contains.length + 1));
+      const lr = Math.max(0.1, br * Math.max(ratio, 0.15));
+      ctx.beginPath(); ctx.arc(bx, by, lr, 0, Math.PI * 2);
+      const ig = ctx.createRadialGradient(bx - lr*0.3, by - lr*0.3, lr*0.05, bx, by, lr);
+      ig.addColorStop(0, this._lighten(lColor, 70)); ig.addColorStop(0.5, lColor); ig.addColorStop(1, this._darken(lColor, 60));
+      ctx.fillStyle = ig; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    // Kafa
+    const hx = x, hy = y + r * _bd.head.oy, hr = r * _bd.head.r;
+    jelly(hx, hy, hr);
+
+    // Kulak iç nokta
+    ctx.fillStyle = this._darken(col, 30);
+    ctx.beginPath(); ctx.arc(x + r * _bd.earL.ox, y + r * _bd.earL.oy, r * _bd.earL.r * 0.45, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + r * _bd.earR.ox, y + r * _bd.earR.oy, r * _bd.earR.r * 0.45, 0, Math.PI*2); ctx.fill();
+
+    // Gözler — büyük, parlak
+    ctx.shadowBlur = 0;
+    const ehr = hr * 0.18;
+    ctx.fillStyle = '#1a0a00';
+    ctx.beginPath(); ctx.arc(hx - hr*0.30, hy - hr*0.05, ehr, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + hr*0.30, hy - hr*0.05, ehr, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(hx - hr*0.24, hy - hr*0.13, ehr*0.45, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + hr*0.36, hy - hr*0.13, ehr*0.45, 0, Math.PI*2); ctx.fill();
+
+    // Burun — küçük yuvarlak
+    ctx.fillStyle = this._darken(col, 50);
+    ctx.beginPath(); ctx.ellipse(hx, hy + hr*0.18, ehr*0.8, ehr*0.55, 0, 0, Math.PI*2); ctx.fill();
+
+    // Gülücük
+    ctx.strokeStyle = this._darken(col, 45);
+    ctx.lineWidth = hr * 0.07; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(hx, hy + hr*0.28, hr*0.18, 0.2, Math.PI - 0.2); ctx.stroke();
+
     ctx.restore();
   }
 

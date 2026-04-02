@@ -178,7 +178,7 @@ export class MapScreen {
     for (let i = 0; i < TOTAL_CHECKPOINTS; i++) {
       const pos     = this._cpPos(i);
       const world   = getWorldConfig(i);
-      const locked  = (i === 0) ? true : (TEST_MODE ? false : i > activeCPs);
+      const locked  = TEST_MODE ? false : i > activeCPs;
       const done    = i < doneCPs;
       const active  = i === activeCPs;
 
