@@ -181,9 +181,6 @@ export class Game {
         const dropY = CY - MAIN_R + nb.r + 2;
         const ball = this._makeBallObj(nb.level, dropX, dropY);
         ball.vy = 2;
-        if (state.circles.some(c => Math.hypot(c.x - dropX, c.y - dropY) < (c.r + ball.r) * 0.5)) {
-          state.gameOver = true; this.audio.gameOver(); return;
-        }
         state.circles.push(ball);
         state._lastDropX = dropX;
         this.audio.spawn();
@@ -301,7 +298,7 @@ export class Game {
 
   _startFromLevel(internalLevel) {
     state.currentLevel      = internalLevel;
-    state.circles           = [];
+    state.circles           = []; state._sortedCircles = null;
     state.particles         = [];
     state.blastAnims        = [];
     state.absorbingInto     = [];
@@ -492,9 +489,9 @@ export class Game {
     const range = MAIN_R * 0.75;
     let nx;
     if (lastX !== null) {
-      let candidate;
-      do { candidate = CX + (Math.random() * 2 - 1) * range; }
-      while (Math.abs(candidate - lastX) < r * 2);
+      let candidate, attempts = 0;
+      do { candidate = CX + (Math.random() * 2 - 1) * range; attempts++; }
+      while (Math.abs(candidate - lastX) < r * 2 && attempts < 20);
       nx = candidate;
     } else {
       nx = CX + (Math.random() * 2 - 1) * range;
@@ -502,14 +499,11 @@ export class Game {
     const ny = CY - MAIN_R + arcR;
     state.nextBall = { level: lv, r, x: nx, y: ny };
     state.autoDropDeadline = Date.now() + 1000;
-    // Spawn noktasında top varsa 1s sonra game over göster
+    // Spawn noktasında top varsa anında game over
     const blocked = state.circles.some(c =>
-      !c.isBeingDragged &&
-      Math.hypot(c.x - nx, c.y - ny) < c.r + r * 0.8
+      !c.isBeingDragged && Math.hypot(c.x - nx, c.y - ny) < c.r + r * 0.8
     );
-    if (blocked) setTimeout(() => {
-      if (!state.levelSuccess) { state.gameOver = true; this.audio.gameOver(); }
-    }, 1000);
+    if (blocked && !state.levelSuccess) { state.gameOver = true; this.audio.gameOver(); }
   }
 
   // Oyuncu topu aldı — heldBall oluştur
@@ -537,9 +531,6 @@ export class Game {
     const ball = this._makeBallObj(hb.level, dropX, dropY);
     ball.vy = 2;
     // Spawn noktasında başka top varsa game over
-    if (state.circles.some(c => Math.hypot(c.x - dropX, c.y - dropY) < (c.r + ball.r) * 0.5)) {
-      state.gameOver = true; this.audio.gameOver(); return;
-    }
     state.circles.push(ball);
     state._lastDropX = dropX;
     this.audio.spawn();
@@ -558,9 +549,6 @@ export class Game {
     const dropY = Math.max(CY - MAIN_R + hb.r + 2, y);
     const ball = this._makeBallObj(hb.level, dropX, dropY);
     ball.vy = 2;
-    if (state.circles.some(c => Math.hypot(c.x - dropX, c.y - dropY) < (c.r + ball.r) * 0.5)) {
-      state.gameOver = true; this.audio.gameOver(); return;
-    }
     state.circles.push(ball);
     state._lastDropX = dropX;
     this.audio.spawn();
@@ -581,12 +569,14 @@ export class Game {
     if (state.lastComboFrame === state.frameCount) return;
     state.lastComboFrame = state.frameCount;
     state.combo++;
-    state.comboTimer = Date.now() + 3000;
+    state.comboTimer = Date.now() + 2000;
     const multiplier = Math.min(state.combo, 9);
     state.mainBorderFlash = 35;
     if (state.combo >= 2) {
       state.comboDisplays.push({ alpha: 1.0, scale: 1.4, x, y, text: `COMBO x${multiplier}` });
-      this.audio.combo(state.combo);
+      // Her combo'da rate artar: 1.0 → 1.1 → 1.2 ... max 2.0
+      state._comboRate = Math.min(2.0, 1.0 + (state.combo - 1) * 0.12);
+      this.audio.combo(state.combo, state._comboRate);
     }
   }
 
@@ -716,10 +706,8 @@ export class Game {
         blockedCount++;
       }
     }
-    if (blockedCount >= 2) {
-      state.gameOver = true;
-      this.audio.gameOver();
-    }
+    // Manuel mekanik: oyuncu topları hareket ettirebilir, erken game over yok
+    // blockedCount kontrolü kaldırıldı
   }
 
   // ── Update loop ───────────────────────────────────────────────────
@@ -738,7 +726,10 @@ export class Game {
     if (state.gameOver) {
       state.gameOverAlpha = Math.min(1, state.gameOverAlpha + 0.06);
       state.rotVel = 0;
-      for (const c of state.circles) { c.vx = 0; c.vy = 0; this.physics._clampToU(c); }
+      for (const c of state.circles) {
+        c.vx = 0; c.vy = 0;
+        if (!c.isBeingDragged) this.physics._clampToU(c);
+      }
       return;
     }
 
@@ -947,9 +938,11 @@ export class Game {
     // Hedefler
     R.drawGoals(this.goals);
 
-    // Toplar — y'ye göre sırala: altta olanlar önce çizilir (arkada kalır)
-    const sortedCircles = circles.slice().sort((a, b) => a.y - b.y);
-    for (const c of sortedCircles) R.drawSphere(c);
+    // Toplar — y'ye göre sırala: her 3 framede bir güncelle
+    if (state.frameCount % 3 === 0 || !state._sortedCircles || state._sortedCircles.length !== circles.length) {
+      state._sortedCircles = circles.slice().sort((a, b) => a.y - b.y);
+    }
+    for (const c of state._sortedCircles) R.drawSphere(c);
 
     // Absorb animasyonu
     R.drawAbsorbAnims();

@@ -42,7 +42,11 @@ export class AudioManager {
   goalDone()           { this._play('goalDone'); }
   levelComplete()      { this._play('levelComplete'); }
   gameOver()           { this._play('gameOver'); }
-  combo(count)         { this._play('combo'); }
+  combo(count, rate = 1.0) {
+    if (!this._ready) return;
+    const s = this._sounds['combo'];
+    if (s) { s.rate(rate); s.play(); }
+  }
   blast()              { this._play('blast'); }
   pick()               { this._play('pick'); }
 }
