@@ -142,7 +142,7 @@ function _buildCpLevels(cpIdx, totalCp) {
   if (v === 0) return [
     // Şablon A — "Kademeli Tırmanış": her level bir öncekinden biraz daha derin
     { goals: [chain(baseLv, 1)] },                                                // L1 — giriş
-    { goals: [chain(baseLv, 0)] },                                                // L2 — basit, nefes
+    { goals: [chain(baseLv, 2)] },                                                // L2 — basit, nefes
     { goals: [chain(baseLv, 1), chain(minLv, 1)] },                              // L3 — asimetrik 2slot
     { goals: [chain(baseLv, 2), chain(minLv, 1)] },                              // L4 — sol derin
     { goals: [chain(baseLv, 1), chain(baseLv, 2)] },                             // L5 — sağ derin
@@ -155,8 +155,8 @@ function _buildCpLevels(cpIdx, totalCp) {
 
   if (v === 1) return [
     // Şablon B — "Sürpriz Sağ": ağır slot sağda, sol nefes
-    { goals: [chain(baseLv, 0)] },                                                // L1 — tek, hafif
-    { goals: [chain(baseLv, 1)] },                                                // L2 — tek, derin
+    { goals: [chain(baseLv, 1)] },                                                // L1 — tek, hafif
+    { goals: [chain(baseLv, 2)] },                                                // L2 — tek, derin
     { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L3 — sol hafif sağ ağır
     { goals: [chain(baseLv, 1), chain(baseLv, 1)] },                             // L4 — çift aynı
     { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                              // L5 — sağ yükseliş
@@ -171,7 +171,7 @@ function _buildCpLevels(cpIdx, totalCp) {
     // Şablon C — "Üçlü Vurgu": 3 slot erken giriyor, ama hafif başlar
     { goals: [chain(baseLv, 1)] },                                                // L1
     { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L2 — 2slot erken
-    { goals: [chain(baseLv, 1), chain(baseLv, 0), chain(minLv, 1)] },            // L3 — 3slot giriş hafif
+    { goals: [chain(baseLv, 1), chain(baseLv, 2), chain(minLv, 1)] },            // L3 — 3slot giriş hafif
     { goals: [chain(baseLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L4 — sol derin
     { goals: [chain(baseLv, 1), chain(baseLv, 2), chain(minLv, 1)] },            // L5 — orta derin
     { goals: [chain(baseLv, 2), chain(baseLv, 1), chain(baseLv, 2)] },           // L6 — nefes yok, simetrik
@@ -198,10 +198,10 @@ function _buildCpLevels(cpIdx, totalCp) {
   // v === 4
   return [
     // Şablon E — "Büyüyen Baskı": 2. yarıda hızlı tırmanış, boss çok ağır
-    { goals: [chain(baseLv, 0)] },                                                // L1 — en basit giriş
-    { goals: [chain(baseLv, 1)] },                                                // L2
+    { goals: [chain(baseLv, 1)] },                                                // L1 — en basit giriş
+    { goals: [chain(baseLv, 2)] },                                                // L2
     { goals: [chain(baseLv, 1), chain(baseLv, 1)] },                             // L3 — çift aynı
-    { goals: [chain(baseLv, 2), chain(baseLv, 0)] },                             // L4 — sol derin sağ hafif
+    { goals: [chain(baseLv, 2), chain(baseLv, 3)] },                             // L4 — sol derin sağ hafif
     { goals: [chain(maxLv, 1), chain(baseLv, 1)] },                              // L5 — ani zirve
     { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(minLv, 1)] },             // L6 — 3slot, sağ nefes
     { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(baseLv, 1)] },            // L7 — sol ağır
