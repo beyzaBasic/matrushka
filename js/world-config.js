@@ -40,14 +40,13 @@ export const WORLD_CONFIG = [
   // CP 03 · duck (Mavi Şeker)
   { id: 3, name: 'Mavi Şeker', subtitle: 'Bulutların Üstünde',
     shape: 'duck', bgColor: '#D1E9FF',
-    palette: ['#8800FF', '#0066FF', '#00E5FF', '#44FF00', '#FFDD00', '#FF6600', '#FF0055'] },
-
+    palette: ['#FF1493', '#9B00FF', '#0088FF', '#00CCFF', '#00DD00', '#FFD700', '#FF6600'] },
   // ── AKT 4: ENDGAME ───────────────────────────────────────────────
 
   // CP 04 · fish (Lavanta Rüyası)
   { id: 4, name: 'Lavanta Rüyası', subtitle: 'Sakin Sular',
     shape: 'fish', bgColor: '#EBDDFF',
-    palette: ['#0080FF', '#00E5FF', '#55FF00', '#FFCC00', '#FF7700', '#FF0088', '#A300FF'] },
+    palette:['#9B00FF', '#FF1493', '#FF6600', '#FFD700', '#00CC00', '#00E5FF', '#0088FF']},
 
 ];
 

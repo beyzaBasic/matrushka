@@ -450,14 +450,14 @@ export class Game {
   }
 
   _randomBallLevel() {
-    // Slotta olan max level'ı bul
-    const { LEVELS, goalSlots } = state;
+    const MAX_SPAWN_LEVEL = 3; // en fazla 4. sıradaki element (0-indexed)
+    const { LEVELS } = state;
     const def = this.goals.getLevelDef();
     const maxGoalLevel = def.goals.reduce((mx, g) => Math.max(mx, g.level), 0);
-    // 0..maxGoalLevel arası pool
+    // Spawn üst sınırı: goal'daki max ile MAX_SPAWN_LEVEL'in küçüğü
+    const maxSpawn = Math.min(maxGoalLevel, MAX_SPAWN_LEVEL);
     const pool = [];
-    for (let i = 0; i <= maxGoalLevel; i++) pool.push(i);
-    // Üst üste aynı level gelmesin
+    for (let i = 0; i <= maxSpawn; i++) pool.push(i);
     const last = state._lastSpawnLevel ?? -1;
     const candidates = pool.length > 1 ? pool.filter(l => l !== last) : pool;
     const lv = candidates[Math.floor(Math.random() * candidates.length)];
@@ -499,10 +499,15 @@ export class Game {
     const ny = CY - MAIN_R + arcR;
     state.nextBall = { level: lv, r, x: nx, y: ny };
     state.autoDropDeadline = Date.now() + 1000;
-    // Spawn noktasında top varsa anında game over
-    const blocked = state.circles.some(c =>
-      !c.isBeingDragged && Math.hypot(c.x - nx, c.y - ny) < c.r + r * 0.8
-    );
+    // Spawn noktasında yerleşmiş (hareketsiz, aşağıda) top varsa game over
+    // Yeni düşen / hâlâ hareket eden topları sayma
+    const blocked = state.circles.some(c => {
+      if (c.isBeingDragged) return false;
+      // Hâlâ hızla düşüyorsa veya spawn Y'sine yakınsa sayma
+      if (Math.abs(c.vy) > 1.5) return false;
+      if (c.y < ny + r) return false;  // spawn noktasının altına inmemişse sayma
+      return Math.hypot(c.x - nx, c.y - ny) < c.r + r * 0.85;
+    });
     if (blocked && !state.levelSuccess) { state.gameOver = true; this.audio.gameOver(); }
   }
 

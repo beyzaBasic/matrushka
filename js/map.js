@@ -1,6 +1,7 @@
 // ── map.js ────────────────────────────────────────────────────────
 import { getWorldConfig, LEVELS_PER_CP, TOTAL_CHECKPOINTS } from './world-config.js';
 
+const TEST_MODE = true;
 const TOTAL_LEVELS = TOTAL_CHECKPOINTS * LEVELS_PER_CP; // 50
 
 function hexToInt(hex) { return parseInt(hex.replace('#',''), 16); }
@@ -150,6 +151,7 @@ export class MapScreen {
   show(onSelect) {
     this._onSelect = onSelect;
     this._build();
+    this._refreshNodes();  // taze progress ile node durumlarını güncelle
     this._div.style.display = 'block';
     requestAnimationFrame(() => { this._div.style.opacity = '1'; });
   }
@@ -219,12 +221,31 @@ export class MapScreen {
     app.ticker.add((dt) => this._tick(dt));
   }
 
-  // ── Dünya ─────────────────────────────────────────────────────────
+  // ── Node durumlarını taze progress ile güncelle ───────────────────
+  _refreshNodes() {
+    if (!this._nodes.length) return;
+    const progress  = getProgress();
+    const doneLevel = TEST_MODE ? TOTAL_LEVELS : (progress.completedLevel || 0);
+
+    for (const nd of this._nodes) {
+      nd.unlocked = nd.li < doneLevel;
+      nd.isActive = nd.li === doneLevel;
+      const nodeR = nd.isActive ? 20 : (nd.unlocked ? 16 : 13);
+      nd.nodeR = nodeR;
+      nd.numLbl.alpha  = (nd.unlocked || nd.isActive) ? 0.90 : 0.25;
+      nd.numLbl.style.fill = (nd.unlocked || nd.isActive) ? 0xffffff : 0x333355;
+    }
+
+    // Aktif node'a scroll
+    this._scrollToActive();
+  }
+
+  // ── Patika noktaları ─────────────────────────────────────────────
   _buildWorld() {
     const W = this._app.screen.width;
     const H = this._app.screen.height;
     const progress  = getProgress();
-    const doneLevel = progress.completedLevel || 0;
+    const doneLevel = TEST_MODE ? TOTAL_LEVELS : (progress.completedLevel || 0);
 
     // Toplam yükseklik: her level için adım
     const STEP      = 90;   // level'lar arası dikey mesafe
@@ -396,7 +417,17 @@ export class MapScreen {
       const nd = { li, ci, world, unlocked, isActive, x:pt.x, worldY:pt.y, col, colHex, nodeR, palIdx, pulseT:li*0.4, hovered:false, gfx, numLbl };
       hit.on('pointerover', () => { if(nd.unlocked||nd.isActive) nd.hovered=true; });
       hit.on('pointerout',  () => { nd.hovered=false; });
-      hit.on('pointertap',  () => { if(!nd.unlocked && !nd.isActive) return; if(this._onSelect) this._onSelect(ci, li+1); });
+      hit.on('pointertap',  () => {
+        if(!nd.unlocked && !nd.isActive) return;
+        const internalLevel = li + 1;
+        this.hide();
+        if (window._matrushkaGame && window._matrushkaGame.startFromLevel) {
+          window._matrushkaGame.startFromLevel(internalLevel);
+        } else if (this._onSelect) {
+          // Fallback: cpIdx gönder (eski sistem)
+          this._onSelect(internalLevel);
+        }
+      });
       this._layerNodes.addChild(hit);
       this._nodes.push(nd);
     }
