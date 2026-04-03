@@ -336,7 +336,7 @@ export class MapScreen {
       bubble.drawRoundedRect(-bw/2,-bh/2,bw,bh,bh/2); bubble.lineStyle(0);
       bubble.x=pt.x; bubble.y=pt.y-STEP*5.2;
       this._layerPath.addChild(bubble);
-      const nameLbl=new PIXI.Text(world.name.toUpperCase(),{fontFamily:'Georgia,serif',fontSize:10,letterSpacing:2,fill:cpOpen?hexToInt(world.palette[5]):0x334});
+      const nameLbl=new PIXI.Text(world.name.toUpperCase(),{fontFamily:'Georgia,serif',fontSize:24,letterSpacing:2,fill:cpOpen?hexToInt(world.palette[5]):0x334});
       nameLbl.anchor.set(0.5,0.5); nameLbl.x=bubble.x; nameLbl.y=bubble.y; nameLbl.alpha=cpOpen?0.90:0.20;
       this._layerPath.addChild(nameLbl);
     }
@@ -354,7 +354,7 @@ export class MapScreen {
       const gfx=new PIXI.Graphics();
       this._layerNodes.addChild(gfx);
 
-      const numLbl=new PIXI.Text(`${li+1}`,{fontFamily:'Georgia,serif',fontSize:Math.max(7,nodeR*0.65),fill:(unlocked||isActive)?0xffffff:0x333355});
+      const numLbl=new PIXI.Text(`${li+1}`,{fontFamily:'Georgia,serif',fontSize:Math.max(10,nodeR*0.75),fill:(unlocked||isActive)?0xffffff:0x333355});
       numLbl.anchor.set(0.5,0.5); numLbl.x=pt.x; numLbl.y=pt.y;
       numLbl.alpha=(unlocked||isActive)?0.90:0.25;
       this._layerNodes.addChild(numLbl);
