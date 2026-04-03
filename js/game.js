@@ -182,6 +182,7 @@ export class Game {
         const ball = this._makeBallObj(nb.level, dropX, dropY);
         ball.vy = 2;
         state.circles.push(ball);
+        this._checkSpawnCollision(ball);
         state._lastDropX = dropX;
         this.audio.spawn();
         setTimeout(() => {
@@ -283,6 +284,15 @@ export class Game {
       ? 0
       : levelFromCpIdx(cpIdx, TUTORIAL_LEVELS);
     this._startFromLevel(internalLevel);
+    requestAnimationFrame(() => this._loop());
+  }
+
+  // Map'ten çağrılır — li+1 gelir (li=0 → internalLevel=1)
+  startFromLevel(internalLevel) {
+    if (state.canvas) state.canvas.style.display = 'block';
+    this._loopStopped = true;
+    this._startFromLevel(internalLevel);
+    this._loopStopped = false;
     requestAnimationFrame(() => this._loop());
   }
 
@@ -478,6 +488,20 @@ export class Game {
     };
   }
 
+  // Yeni top bırakıldığı noktada circles'daki başka bir topla çakışıyorsa game over
+  _checkSpawnCollision(ball) {
+    if (state.levelSuccess || state.gameOver) return;
+    const hit = state.circles.some(c => {
+      if (c.id === ball.id) return false;
+      if (c.isBeingDragged) return false;
+      return Math.hypot(c.x - ball.x, c.y - ball.y) < c.r + ball.r - 2;
+    });
+    if (hit) {
+      state.gameOver = true;
+      this.audio.gameOver();
+    }
+  }
+
   // U'nun üst kenarı hizasında bekleyen top
   _generateNextBall() {
     const lv = this._randomBallLevel();
@@ -537,6 +561,7 @@ export class Game {
     ball.vy = 2;
     // Spawn noktasında başka top varsa game over
     state.circles.push(ball);
+    this._checkSpawnCollision(ball);
     state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
@@ -555,6 +580,7 @@ export class Game {
     const ball = this._makeBallObj(hb.level, dropX, dropY);
     ball.vy = 2;
     state.circles.push(ball);
+    this._checkSpawnCollision(ball);
     state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
@@ -753,6 +779,7 @@ export class Game {
       const ball = this._makeBallObj(nb.level, nb.x, autoY);
       ball.vy = 2;
       state.circles.push(ball);
+      this._checkSpawnCollision(ball);
       this.audio.spawn();
       setTimeout(() => {
         if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
@@ -989,6 +1016,7 @@ export class Game {
 
   // ── Ana döngü ─────────────────────────────────────────────────────
   _loop() {
+    if (this._loopStopped) return;
     try {
       this._update();
       this._draw();

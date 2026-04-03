@@ -1,4 +1,5 @@
 // ── constants.js ──────────────────────────────────────────────────
+import { WORLD_CONFIG } from './world-config.js';
 export const TUTORIAL_LEVELS = 1;
 
 
@@ -105,71 +106,129 @@ export function buildLevels(MAIN_R, palette, shape = 'sphere') {
   }));
 }
 
-export const LEVEL_DEFS = [
+// ── Dinamik level tasarımı — WORLD_CONFIG'den otomatik üretilir ──────
+// LEVEL_DEFS artık statik array değil; buildLevelDefs(WORLD_CONFIG) ile üretilir.
+// world-config.js'e yeni CP eklemek yeterli — constants.js'e dokunmaya gerek yok.
 
-  // ── TUTORIAL (0) ───────────────────────────────────────────────────
-  {goals:[{level:2,contains:[1]}]},  // TUT — küçük zincir tanıtımı
+/**
+ * Her CP için 10 level üretir. cp index'i ve toplam CP sayısına göre
+ * baseLv (baskın level) ve chain derinliği otomatik ölçeklenir.
+ *
+ * baseLv: CP ilerledikçe artar. İlk CP'de 2-3, son CP'de 5-6 arası.
+ * posIdx 0-9: her level içi pozisyon → slot sayısı, chain, nefes/boss ritmi
+ */
+function _buildCpLevels(cpIdx, totalCp) {
+  const t = totalCp <= 1 ? 0 : cpIdx / (totalCp - 1);
+  const baseLv = Math.round(2 + t * 3);   // CP0→2, CP4→5
+  const maxLv  = Math.min(6, baseLv + 1);
+  const minLv  = Math.max(1, baseLv - 1);
+  const isLast = cpIdx >= totalCp - 1;
 
-  // ── CP 00: Tatlı Uyanış · sphere (L1-10) ──────────────────────────
-  {goals:[{level:1,contains:[0]}]},                                                            // L01 giriş
-  {goals:[{level:2,contains:[1]}]},                                                            // L02
-  {goals:[{level:1,contains:[0]},{level:2,contains:[1]}]},                                     // L03 2 slot
-  {goals:[{level:2,contains:[1]},{level:2,contains:[1]}]},                                     // L04 çift
-  {goals:[{level:3,contains:[2]},{level:1,contains:[0]}]},                                     // L05 yükseliş
-  {goals:[{level:3,contains:[2]},{level:2,contains:[1]}]},                                     // L06
-  {goals:[{level:3,contains:[2,1]},{level:2,contains:[1]}]},                                   // L07 derin
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2]}]},                                   // L08
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2,1]}]},                                   // L09 boss
-  {goals:[{level:4,contains:[3,2]},{level:3,contains:[2,1]}]},                                 // L10 boss
+  const chain = (lv, depth) => {
+    const c = [];
+    for (let d = 1; d <= depth && lv - d >= 0; d++) c.push(lv - d);
+    return { level: lv, contains: c };
+  };
 
-  // ── CP 01: Limon Tarlası · jellybear (L11-20) ─────────────────────
-  {goals:[{level:2,contains:[1]},{level:2,contains:[1]}]},                                     // L11 giriş
-  {goals:[{level:3,contains:[2]},{level:2,contains:[1]}]},                                     // L12
-  {goals:[{level:3,contains:[2]},{level:3,contains:[2]}]},                                     // L13 çift
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2]}]},                                   // L14 derin
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2]},{level:2,contains:[1]}]},              // L15 3 slot
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2,1]},{level:2,contains:[1]}]},            // L16
-  {goals:[{level:4,contains:[3,2]},{level:3,contains:[2,1]},{level:2,contains:[1]}]},          // L17 derin
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3]},{level:3,contains:[2]}]},            // L18
-  {goals:[{level:5,contains:[4]},{level:4,contains:[3,2]},{level:3,contains:[2,1]}]},          // L19 boss
-  {goals:[{level:5,contains:[4,3]},{level:4,contains:[3,2]},{level:3,contains:[2]}]},          // L20 boss
+  // Her CP için farklı 10-level akışı — cpIdx % 5 ile 5 farklı şablon
+  // Ortak kurallar:
+  //   L1-2: 1 slot giriş           (yavaş başla)
+  //   L3-5: 2 slot tırmanış        (oyuncu ısındı)
+  //   L6-8: 3 slot baskı           (asıl zorluk)
+  //   L9-10: boss                  (CP finali)
+  // Şablonlar bu çerçeve içinde farklı chain derinliği ve slot sırası kullanır.
 
-  // ── CP 02: Mercan Ateşi · duck (L21-30) ───────────────────────────
-  {goals:[{level:3,contains:[2]},{level:3,contains:[2]},{level:2,contains:[1]}]},              // L21 giriş
-  {goals:[{level:3,contains:[2,1]},{level:3,contains:[2]},{level:3,contains:[2]}]},            // L22
-  {goals:[{level:4,contains:[3]},{level:3,contains:[2,1]},{level:3,contains:[2]}]},            // L23
-  {goals:[{level:4,contains:[3]},{level:4,contains:[3]},{level:3,contains:[2,1]}]},            // L24 çift 4
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3]},{level:3,contains:[2,1]}]},          // L25
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3,2]},{level:3,contains:[2,1]}]},        // L26 derin
-  {goals:[{level:5,contains:[4]},{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},          // L27 yükseliş
-  {goals:[{level:5,contains:[4,3]},{level:4,contains:[3,2]},{level:4,contains:[3]}]},          // L28
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4]},{level:4,contains:[3,2,1]}]},        // L29 boss
-  {goals:[{level:5,contains:[4,3,2]},{level:5,contains:[4,3]},{level:4,contains:[3,2]}]},      // L30 boss
+  const v = cpIdx % 5;
+  if (v === 0) return [
+    // Şablon A — "Kademeli Tırmanış": her level bir öncekinden biraz daha derin
+    { goals: [chain(baseLv, 1)] },                                                // L1 — giriş
+    { goals: [chain(baseLv, 0)] },                                                // L2 — basit, nefes
+    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                              // L3 — asimetrik 2slot
+    { goals: [chain(baseLv, 2), chain(minLv, 1)] },                              // L4 — sol derin
+    { goals: [chain(baseLv, 1), chain(baseLv, 2)] },                             // L5 — sağ derin
+    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 1)] },             // L6 — 3slot giriş
+    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(baseLv, 1)] },            // L7 — orta derin
+    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(baseLv, 2)] },            // L8 — sağ ağır
+    { goals: [chain(maxLv, 2), chain(maxLv, 1), chain(baseLv, 2)] },             // L9 — boss giriş
+    { goals: [chain(maxLv, 2), chain(baseLv, isLast?3:2), chain(baseLv, 2)] },   // L10 — final boss
+  ];
 
-  // ── CP 03: Okyanus Gecesi · matrushka (L31-40) ────────────────────
-  {goals:[{level:4,contains:[3]},{level:4,contains:[3]},{level:3,contains:[2,1]}]},            // L31 giriş
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3]},{level:4,contains:[3]}]},            // L32
-  {goals:[{level:4,contains:[3,2]},{level:4,contains:[3,2]},{level:4,contains:[3]}]},          // L33
-  {goals:[{level:5,contains:[4]},{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},          // L34
-  {goals:[{level:5,contains:[4,3]},{level:4,contains:[3,2]},{level:4,contains:[3,2]}]},        // L35 derin
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4]},{level:4,contains:[3,2]}]},          // L36
-  {goals:[{level:5,contains:[4,3,2]},{level:5,contains:[4,3]},{level:4,contains:[3,2]}]},      // L37 derin
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4,3]},{level:5,contains:[4]}]},          // L38 üçlü 5
-  {goals:[{level:6,contains:[5]},{level:5,contains:[4,3,2]},{level:5,contains:[4,3]}]},        // L39 boss
-  {goals:[{level:6,contains:[5,4]},{level:5,contains:[4,3,2]},{level:5,contains:[4,3]}]},      // L40 boss
+  if (v === 1) return [
+    // Şablon B — "Sürpriz Sağ": ağır slot sağda, sol nefes
+    { goals: [chain(baseLv, 0)] },                                                // L1 — tek, hafif
+    { goals: [chain(baseLv, 1)] },                                                // L2 — tek, derin
+    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L3 — sol hafif sağ ağır
+    { goals: [chain(baseLv, 1), chain(baseLv, 1)] },                             // L4 — çift aynı
+    { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                              // L5 — sağ yükseliş
+    { goals: [chain(baseLv, 1), chain(maxLv, 1), chain(minLv, 1)] },             // L6 — 3slot, orta zirve
+    { goals: [chain(baseLv, 2), chain(maxLv, 1), chain(baseLv, 1)] },            // L7 — sol derin
+    { goals: [chain(baseLv, 1), chain(maxLv, 2), chain(baseLv, 1)] },            // L8 — orta derin
+    { goals: [chain(maxLv, 1), chain(maxLv, 2), chain(baseLv, 2)] },             // L9 — boss, sağ ağır
+    { goals: [chain(maxLv, 2), chain(maxLv, isLast?3:2), chain(baseLv, 2)] },    // L10 — final boss
+  ];
 
-  // ── CP 04: Kaos · fish (L41-50) ───────────────────────────────────
-  {goals:[{level:5,contains:[4]},{level:5,contains:[4]},{level:4,contains:[3,2]}]},            // L41 giriş
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4]},{level:5,contains:[4]}]},            // L42
-  {goals:[{level:5,contains:[4,3]},{level:5,contains:[4,3]},{level:5,contains:[4]}]},          // L43
-  {goals:[{level:6,contains:[5]},{level:5,contains:[4,3]},{level:5,contains:[4,3]}]},          // L44
-  {goals:[{level:6,contains:[5,4]},{level:5,contains:[4,3]},{level:5,contains:[4,3]}]},        // L45
-  {goals:[{level:6,contains:[5,4]},{level:6,contains:[5]},{level:5,contains:[4,3,2]}]},        // L46
-  {goals:[{level:6,contains:[5,4,3]},{level:6,contains:[5,4]},{level:5,contains:[4,3]}]},      // L47 derin
-  {goals:[{level:6,contains:[5,4,3]},{level:6,contains:[5,4]},{level:6,contains:[5,4]}]},      // L48
-  {goals:[{level:6,contains:[5,4,3]},{level:6,contains:[5,4,3]},{level:6,contains:[5,4]}]},    // L49 boss
-  {goals:[{level:6,contains:[5,4,3]},{level:6,contains:[5,4,3]},{level:6,contains:[5,4,3]}]},  // L50 final boss
-];
+  if (v === 2) return [
+    // Şablon C — "Üçlü Vurgu": 3 slot erken giriyor, ama hafif başlar
+    { goals: [chain(baseLv, 1)] },                                                // L1
+    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L2 — 2slot erken
+    { goals: [chain(baseLv, 1), chain(baseLv, 0), chain(minLv, 1)] },            // L3 — 3slot giriş hafif
+    { goals: [chain(baseLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L4 — sol derin
+    { goals: [chain(baseLv, 1), chain(baseLv, 2), chain(minLv, 1)] },            // L5 — orta derin
+    { goals: [chain(baseLv, 2), chain(baseLv, 1), chain(baseLv, 2)] },           // L6 — nefes yok, simetrik
+    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(baseLv, 2)] },            // L7 — sol zirve
+    { goals: [chain(baseLv, 2), chain(maxLv, 1), chain(baseLv, 2)] },            // L8 — orta zirve
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(maxLv, 1)] },             // L9 — boss, köşegen
+    { goals: [chain(maxLv, 2), chain(maxLv, isLast?3:2), chain(maxLv, 2)] },     // L10 — final boss üçlü
+  ];
+
+  if (v === 3) return [
+    // Şablon D — "Dalgalı Nefes": zorluğu dalgalı tut, nefes slotları beklenmedik yerde
+    { goals: [chain(baseLv, 2)] },                                                // L1 — erken derin, tek slot
+    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L2 — nefes sol
+    { goals: [chain(baseLv, 2), chain(baseLv, 1)] },                             // L3 — sol derin tekrar
+    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                              // L4 — nefes sağ
+    { goals: [chain(maxLv, 1), chain(baseLv, 2)] },                              // L5 — ani yükseliş
+    { goals: [chain(baseLv, 2), chain(minLv, 1), chain(baseLv, 1)] },            // L6 — 3slot, orta nefes
+    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 1)] },             // L7 — nefes sağa itti
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(baseLv, 1)] },            // L8 — sol ağır
+    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(maxLv, 1)] },             // L9 — boss köşegen
+    { goals: [chain(maxLv, isLast?3:2), chain(maxLv, 2), chain(baseLv, 2)] },    // L10 — final boss
+  ];
+
+  // v === 4
+  return [
+    // Şablon E — "Büyüyen Baskı": 2. yarıda hızlı tırmanış, boss çok ağır
+    { goals: [chain(baseLv, 0)] },                                                // L1 — en basit giriş
+    { goals: [chain(baseLv, 1)] },                                                // L2
+    { goals: [chain(baseLv, 1), chain(baseLv, 1)] },                             // L3 — çift aynı
+    { goals: [chain(baseLv, 2), chain(baseLv, 0)] },                             // L4 — sol derin sağ hafif
+    { goals: [chain(maxLv, 1), chain(baseLv, 1)] },                              // L5 — ani zirve
+    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(minLv, 1)] },             // L6 — 3slot, sağ nefes
+    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(baseLv, 1)] },            // L7 — sol ağır
+    { goals: [chain(maxLv, 1), chain(maxLv, 2), chain(baseLv, 2)] },             // L8 — çift maxLv
+    { goals: [chain(maxLv, 2), chain(maxLv, 1), chain(maxLv, 2)] },              // L9 — boss simetrik ağır
+    { goals: [chain(maxLv, isLast?3:2), chain(maxLv, 2), chain(maxLv, isLast?3:2)] }, // L10 — final boss
+  ];
+}
+
+/**
+ * WORLD_CONFIG import ederek tüm LEVEL_DEFS'i üretir.
+ * Tutorial entry'si başa otomatik eklenir.
+ */
+function _buildLevelDefs() {
+  const totalCp = WORLD_CONFIG.length;
+  const defs = [
+    // Tutorial (internal level 0)
+    { goals: [{ level: 2, contains: [1] }] },
+  ];
+  for (let cp = 0; cp < totalCp; cp++) {
+    const cpLevels = _buildCpLevels(cp, totalCp);
+    for (const lv of cpLevels) defs.push(lv);
+  }
+  return defs;
+}
+
+export const LEVEL_DEFS = _buildLevelDefs();
 
 export const BLAST_BTNS_TEMPLATE = [
   { id: 'yellow', levels: [1], color: '#FFD700', maxCharges: 4 },

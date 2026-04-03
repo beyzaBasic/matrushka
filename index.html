@@ -31,28 +31,22 @@ canvas { display: block; touch-action: none; }
 
   const canvas = document.getElementById('c');
 
-  function startGame(cpIdx) {
-    canvas.style.display = 'block';
-    const game = new Game(canvas);
-    game.startFromCheckpoint(cpIdx);
-    window._matrushkaGame = game;
-    window.addEventListener('keydown', e => {
-      if (e.key === ' ') {
-        import('./js/state.js').then(({ state }) => { state.isPaused = !state.isPaused; });
-      }
-    });
-  }
+  // Game bir kez oluşturulur, map ile paylaşılır
+  const game = new Game(canvas);
+  window._matrushkaGame = game;
 
-  // Harita görünene kadar canvas gizli
+  window.addEventListener('keydown', e => {
+    if (e.key === ' ') {
+      import('./js/state.js').then(({ state }) => { state.isPaused = !state.isPaused; });
+    }
+  });
+
+  // Map başlangıçta canvas'ı gizler, node tıklanınca game.startFromLevel() çağırır
   canvas.style.display = 'none';
 
-  const map = new MapScreen();
+  const map = new MapScreen(game);
   window._matrushkaMap = map;
-
-  map.show((cpIdx) => {
-    map.hide();
-    setTimeout(() => startGame(cpIdx), 500);
-  });
+  map.show();
 </script>
 </body>
 </html>
