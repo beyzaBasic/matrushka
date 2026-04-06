@@ -325,21 +325,7 @@ export class MapScreen {
     pathG.lineStyle(0);
     this._layerPath.addChild(pathG);
 
-    // CP isimleri
-    for (let ci=0; ci<TOTAL_CHECKPOINTS; ci++) {
-      const world=getWorldConfig(ci), midLi=ci*LEVELS_PER_CP+Math.floor(LEVELS_PER_CP/2);
-      const pt=pts[Math.min(midLi,pts.length-1)], cpOpen=doneLevel>=ci*LEVELS_PER_CP;
-      const bubble=new PIXI.Graphics(), bw=110, bh=36;
-      bubble.beginFill(hexToInt(world.bgColor),cpOpen?0.65:0.22);
-      bubble.drawRoundedRect(-bw/2,-bh/2,bw,bh,bh/2); bubble.endFill();
-      bubble.lineStyle(1.5,hexToInt(world.palette[cpOpen?4:1]),cpOpen?0.50:0.15);
-      bubble.drawRoundedRect(-bw/2,-bh/2,bw,bh,bh/2); bubble.lineStyle(0);
-      bubble.x=pt.x; bubble.y=pt.y-STEP*5.2;
-      this._layerPath.addChild(bubble);
-      const nameLbl=new PIXI.Text(world.name.toUpperCase(),{fontFamily:'Georgia,serif',fontSize:24,letterSpacing:2,fill:cpOpen?hexToInt(world.palette[5]):0x334});
-      nameLbl.anchor.set(0.5,0.5); nameLbl.x=bubble.x; nameLbl.y=bubble.y; nameLbl.alpha=cpOpen?0.90:0.20;
-      this._layerPath.addChild(nameLbl);
-    }
+    // CP isimleri gösterilmiyor
 
     // Level node'ları
     this._nodes = [];
@@ -354,7 +340,7 @@ export class MapScreen {
       const gfx=new PIXI.Graphics();
       this._layerNodes.addChild(gfx);
 
-      const numLbl=new PIXI.Text(`${li+1}`,{fontFamily:'Georgia,serif',fontSize:Math.max(10,nodeR*0.75),fill:(unlocked||isActive)?0xffffff:0x333355});
+      const numLbl=new PIXI.Text(`${li+1}`,{fontFamily:'"ui-rounded","Arial Rounded MT Bold",sans-serif',fontSize:Math.max(10,nodeR*0.75),fontWeight:'bold',fill:(unlocked||isActive)?0xffffff:0x333355});
       numLbl.anchor.set(0.5,0.5); numLbl.x=pt.x; numLbl.y=pt.y;
       numLbl.alpha=(unlocked||isActive)?0.90:0.25;
       this._layerNodes.addChild(numLbl);
@@ -502,7 +488,7 @@ export class MapScreen {
     btn.textContent='Devam ▶';
     btn.style.cssText=`position:fixed;bottom:48px;left:50%;transform:translateX(-50%);
       z-index:200;padding:16px 48px;background:linear-gradient(135deg,#FFD700,#FF9500);
-      color:#000;font-size:18px;font-weight:bold;font-family:Georgia,serif;letter-spacing:2px;
+      color:#000;font-size:18px;font-weight:bold;font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;letter-spacing:2px;
       border:none;border-radius:50px;cursor:pointer;box-shadow:0 0 32px rgba(255,210,0,0.5);
       opacity:0;transition:opacity 0.4s;`;
     document.body.appendChild(btn);

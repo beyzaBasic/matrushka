@@ -336,7 +336,7 @@ export class Game {
     this.renderer.clearShapeCache();
     this.goals.initLevelGoals();
     this._preloadArena();
-    state.nextBall = null; state.heldBall = null;
+    state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
     setTimeout(() => {
       if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
     }, 600);
@@ -488,51 +488,66 @@ export class Game {
     };
   }
 
-  // Yeni top bırakıldığı noktada circles'daki başka bir topla çakışıyorsa game over
-  _checkSpawnCollision(ball) {
-    if (state.levelSuccess || state.gameOver) return;
-    const hit = state.circles.some(c => {
-      if (c.id === ball.id) return false;
-      if (c.isBeingDragged) return false;
-      return Math.hypot(c.x - ball.x, c.y - ball.y) < c.r + ball.r - 2;
-    });
-    if (hit) {
-      state.gameOver = true;
-      this.audio.gameOver();
-    }
+  // Spawn collision check — artık game over tetiklemez
+  _checkSpawnCollision(_ball) {
+    // Game over yalnızca _generateNextBall'da boş yer kalmadığında tetiklenir
   }
 
-  // U'nun üst kenarı hizasında bekleyen top
+  // İki top arasında ciddi örtüşme var mı?
+  // Penetrasyon (nüfuz derinliği) yeni topun yarıçapının %40'ından fazlaysa — "ciddi çakışma"
+  _significantOverlap(cx, cy, r, c) {
+    if (c.isBeingDragged) return false;
+    const dist = Math.hypot(cx - c.x, cy - c.y);
+    return (c.r + r - dist) > r * 0.4;
+  }
+
+  // U'nun üst kenarında boş yer bul ve topu oraya yerleştir
   _generateNextBall() {
     const lv = this._randomBallLevel();
-    const { CX, CY, MAIN_R, LEVELS, S } = state;
+    const { CX, CY, MAIN_R, LEVELS } = state;
     const r = LEVELS[lv].r;
-    const arcR = r + 8 * S;
-    // Son düşürülen toptan en az r*2 uzakta spawn et
-    const lastX = state._lastDropX ?? null;
-    const range = MAIN_R * 0.75;
-    let nx;
-    if (lastX !== null) {
-      let candidate, attempts = 0;
-      do { candidate = CX + (Math.random() * 2 - 1) * range; attempts++; }
-      while (Math.abs(candidate - lastX) < r * 2 && attempts < 20);
-      nx = candidate;
-    } else {
-      nx = CX + (Math.random() * 2 - 1) * range;
+    const topY = CY - MAIN_R + r + 2;
+    const xMin = CX - MAIN_R + r + 2;
+    const xMax = CX + MAIN_R - r - 2;
+
+    // Üst çizgi boyunca boş noktaları tara
+    const step = r * 0.5;
+    const emptySpots = [];
+    for (let cx = xMin; cx <= xMax; cx += step) {
+      const blocked = state.circles.some(c => this._significantOverlap(cx, topY, r, c));
+      if (!blocked) emptySpots.push(cx);
     }
-    const ny = CY - MAIN_R + arcR;
-    state.nextBall = { level: lv, r, x: nx, y: ny };
-    state.autoDropDeadline = Date.now() + 1000;
-    // Spawn noktasında yerleşmiş (hareketsiz, aşağıda) top varsa game over
-    // Yeni düşen / hâlâ hareket eden topları sayma
-    const blocked = state.circles.some(c => {
-      if (c.isBeingDragged) return false;
-      // Hâlâ hızla düşüyorsa veya spawn Y'sine yakınsa sayma
-      if (Math.abs(c.vy) > 1.5) return false;
-      if (c.y < ny + r) return false;  // spawn noktasının altına inmemişse sayma
-      return Math.hypot(c.x - nx, c.y - ny) < c.r + r * 0.85;
-    });
-    if (blocked && !state.levelSuccess) { state.gameOver = true; this.audio.gameOver(); }
+
+    const lastX = state._lastDropX ?? null;
+    let nx;
+    let isBlocked = false;
+
+    if (emptySpots.length > 0) {
+      if (lastX !== null && emptySpots.length > 1) {
+        emptySpots.sort((a, b) => Math.abs(b - lastX) - Math.abs(a - lastX));
+        const half = Math.ceil(emptySpots.length / 2);
+        nx = emptySpots[Math.floor(Math.random() * half)];
+      } else {
+        nx = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+      }
+    } else {
+      // Boş yer yok — ortaya koy, görünsün, game over tetikle
+      nx = CX;
+      isBlocked = true;
+    }
+
+    state.nextBall = { level: lv, r, x: nx, y: topY };
+    state._nextBallBlocked = isBlocked;
+    state.autoDropDeadline = isBlocked ? 0 : Date.now() + 1000;
+
+    if (isBlocked && !state.levelSuccess) {
+      setTimeout(() => {
+        if (!state.levelSuccess && !state.gameOver) {
+          state.gameOver = true;
+          this.audio.gameOver();
+        }
+      }, 800);
+    }
   }
 
   // Oyuncu topu aldı — heldBall oluştur
@@ -908,7 +923,24 @@ export class Game {
       ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx1, CY - MAIN_R); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(lx2, CY - MAIN_R); ctx.stroke();
     }
-    ctx.globalAlpha = 1;
+    // Üst sınır kesik çizgisi — U ağzını kapatır, aynı renk, sabit
+    {
+      const dashLen = 9 * S, gapLen = 6 * S;
+      ctx.setLineDash([dashLen, gapLen]);
+      ctx.lineDashOffset = 0;
+      ctx.beginPath();
+      ctx.moveTo(lx2, CY - MAIN_R);
+      ctx.lineTo(lx1, CY - MAIN_R);
+      ctx.strokeStyle = arenaColor;
+      ctx.lineWidth = Math.round(2.5 * S);
+      ctx.globalAlpha = 0.55;
+      ctx.shadowColor = arenaColor;
+      ctx.shadowBlur = 5 * S;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
     ctx.restore();
 
     // nextBall göstergesi — orta üst
@@ -943,6 +975,21 @@ export class Game {
         ctx.stroke();
       }
 
+      // Blocked halo — nextBall uyarısı
+      if (state._nextBallBlocked) {
+        const pulse = 0.5 + 0.5 * Math.abs(Math.sin(Date.now() / 130));
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(nb.x, nb.y, nb.r + 4 * S, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(220,40,40,${pulse})`;
+        ctx.lineWidth = 5 * S;
+        ctx.shadowColor = 'rgba(220,40,40,0.9)';
+        ctx.shadowBlur = (20 + pulse * 20) * S;
+        ctx.globalAlpha = pulse;
+        ctx.stroke();
+        ctx.restore();
+      }
+
       ctx.globalAlpha = 1;
       R.drawSphere({ ...nb, color: state.LEVELS[nb.level]?.color || '#fff', boing:0, absorbAnim:0, squish:null, absorbGlow:0, isBeingDragged:false, contains:[] });
       ctx.restore();
@@ -975,6 +1022,26 @@ export class Game {
       state._sortedCircles = circles.slice().sort((a, b) => a.y - b.y);
     }
     for (const c of state._sortedCircles) R.drawSphere(c);
+
+    // Blocked halo — üst üste binen mevcut toplar
+    if (state._nextBallBlocked && state.nextBall) {
+      const nb = state.nextBall;
+      const pulse = 0.5 + 0.5 * Math.abs(Math.sin(Date.now() / 130));
+      for (const c of circles) {
+        if (this._significantOverlap(nb.x, nb.y, nb.r, c)) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, c.r + 4 * S, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(220,40,40,${pulse})`;
+          ctx.lineWidth = 5 * S;
+          ctx.shadowColor = 'rgba(220,40,40,0.9)';
+          ctx.shadowBlur = (20 + pulse * 20) * S;
+          ctx.globalAlpha = pulse;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
 
     // Absorb animasyonu
     R.drawAbsorbAnims();
