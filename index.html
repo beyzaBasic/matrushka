@@ -2,17 +2,24 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Matrushka</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
+html {
+  height: 100%;
+  height: -webkit-fill-available;
+}
 body {
   background: #111;
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100vw;
+  /* Android Chrome / Samsung Internet: dvh gerçek görünen yüksekliği verir */
   height: 100vh;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   -webkit-touch-callout: none;
   -webkit-user-select: none;

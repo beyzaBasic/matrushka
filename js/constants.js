@@ -5,7 +5,11 @@ export const TUTORIAL_LEVELS = 1;
 
 export function buildLayout() {
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  const CSS_W = window.innerWidth, CSS_H = window.innerHeight;
+
+  // visualViewport: Android Chrome/Samsung'da browser toolbar'ı hariç gerçek görünen alan
+  const vvp = window.visualViewport;
+  const CSS_W = vvp ? Math.round(vvp.width)  : window.innerWidth;
+  const CSS_H = vvp ? Math.round(vvp.height) : window.innerHeight;
   const W = CSS_W, H = CSS_H, MIN_DIM = Math.min(W, H), CX = W / 2;
   const S = MIN_DIM / 800;
 
@@ -21,8 +25,8 @@ export function buildLayout() {
     } catch (_) { return 0; }
   })();
 
-  // SCORE_AREA: H'ın %27'si, min 160 max 250 — küçük ekranlarda büyük alanı engelleriz
-  const SCORE_AREA = Math.max(160, Math.min(250, Math.round(H * 0.27)));
+  // SCORE_AREA: H'a orantılı, küçük ekranlarda daha kompakt
+  const SCORE_AREA = Math.max(Math.round(H * 0.18), Math.min(220, Math.round(H * 0.24)));
 
   // BTN_PAD: ekran genişliğinin %2.5'i
   const BTN_PAD = Math.max(8, Math.round(MIN_DIM * 0.025));

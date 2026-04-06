@@ -29,6 +29,10 @@ export class Game {
     this._applyLayout();
     this._setupInput();
     window.addEventListener('resize', () => { this._applyLayout(); });
+    // Samsung / Android Chrome: toolbar gizlenince visualViewport resize tetiklenir
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => { this._applyLayout(); });
+    }
     // Başlangıçta ses açık
     if (typeof Howler !== 'undefined') Howler.mute(false);
 
@@ -158,12 +162,18 @@ export class Game {
     if (state.nextBall && !state.heldBall) {
       const nb = state.nextBall;
       if (Math.hypot(x - nb.x, y - nb.y) < Math.max(nb.r * 1.8, 44 * S)) {
+        // Pick edilenin kalan timer süresi kadar bekleyip yeni nextBall üret
+        const remaining = state.autoDropDeadline > 0
+          ? Math.max(0, state.autoDropDeadline - Date.now())
+          : 0;
         state.heldBall = { ...nb, x, y };
         state.nextBall = null;
+        state._nextBallBlocked = false;
+        state.autoDropDeadline = 0;
         this.audio.pick();
         setTimeout(() => {
           if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-        }, 300);
+        }, remaining);
         return;
       }
     }
@@ -556,12 +566,17 @@ export class Game {
     const nb = state.nextBall;
     const dist = Math.hypot(touchX - nb.x, touchY - nb.y);
     if (dist > nb.r * 1.8) return false; // Sadece top üzerine gelince al
+    const remaining = state.autoDropDeadline > 0
+      ? Math.max(0, state.autoDropDeadline - Date.now())
+      : 0;
     state.heldBall = { ...nb, x: touchX, y: touchY };
     state.nextBall = null;
+    state._nextBallBlocked = false;
+    state.autoDropDeadline = 0;
     this.audio.pick();
     setTimeout(() => {
       if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-    }, 300);
+    }, remaining);
     return true;
   }
 
@@ -785,19 +800,19 @@ export class Game {
     if (state.mainBorderFlash > 0) state.mainBorderFlash--;
 
     // Otomatik düşme — oyuncu 4s içinde almazsa top kendisi düşer
-    if (state.nextBall && !state.heldBall && !state.levelSuccess && !state.gameOver &&
+    if (state.nextBall && !state.levelSuccess && !state.gameOver &&
         state.autoDropDeadline > 0 && now >= state.autoDropDeadline) {
       const nb = state.nextBall;
       state.nextBall = null;
+      state._nextBallBlocked = false;
       state.autoDropDeadline = 0;
       const autoY = CY - MAIN_R + nb.r + 4;
       const ball = this._makeBallObj(nb.level, nb.x, autoY);
       ball.vy = 2;
       state.circles.push(ball);
-      this._checkSpawnCollision(ball);
       this.audio.spawn();
       setTimeout(() => {
-        if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
+        if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
       }, 500);
     }
 
