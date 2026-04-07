@@ -986,9 +986,9 @@ export class Game {
       ctx.beginPath();
       ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
       ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
-      //ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
+      ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
       ctx.lineTo(tx1-cr, topY);
-      //ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
+      ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
       ctx.lineTo(lx1, ly1);
       ctx.closePath();
       ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
@@ -999,9 +999,9 @@ export class Game {
         ctx.beginPath();
         ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
         ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
-       // ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
+        ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
         ctx.lineTo(tx1-cr, topY);
-       // ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
+        ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
         ctx.lineTo(lx1, ly1);
       };
 
