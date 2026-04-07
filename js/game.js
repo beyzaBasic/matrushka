@@ -36,6 +36,9 @@ export class Game {
     // Başlangıçta ses açık
     if (typeof Howler !== 'undefined') Howler.mute(false);
 
+    // Dark mode — localStorage'dan oku, varsayılan: dark
+    state.isDarkMode = localStorage.getItem('matrushka_darkMode') !== 'false';
+
     // Arka plana geçince pause, öne gelince devam
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -115,6 +118,13 @@ export class Game {
     if (sb && x >= sb.x && x <= sb.x + sb.w && y >= sb.y && y <= sb.y + sb.h) {
       state.isMuted = !state.isMuted;
       if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
+      return;
+    }
+    // Dark mode switch butonu
+    const db = state._darkModeBtn;
+    if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
+      state.isDarkMode = !state.isDarkMode;
+      localStorage.setItem('matrushka_darkMode', state.isDarkMode);
       return;
     }
     const pb = state._pauseBtn;
@@ -906,10 +916,29 @@ export class Game {
     const R = this.renderer;
     const { ctx, W, H, CX, CY, MAIN_R, S, circles, LEVELS } = state;
 
-    // Arka plan — düz renk, her CP'ye özel
+    // ── Arka plan — dark/light mode ──────────────────────────────────
     const th = state.theme;
-    ctx.fillStyle = th?.bgColor || '#0d0a1a';
-    ctx.fillRect(0, 0, W, H);
+    const isDark = state.isDarkMode;
+    {
+      const bg = isDark
+        ? ctx.createRadialGradient(CX, H * 0.42, 0, CX, H * 0.5, Math.max(W, H) * 0.75)
+        : ctx.createRadialGradient(CX, H * 0.42, 0, CX, H * 0.5, Math.max(W, H) * 0.75);
+      if (isDark) {
+        // Derin lacivert → mor — "C" seçeneği
+        bg.addColorStop(0,   '#1E1545');
+        bg.addColorStop(0.45,'#150F35');
+        bg.addColorStop(0.80,'#0F0A28');
+        bg.addColorStop(1,   '#080518');
+      } else {
+        // Sıcak krem → altın
+        bg.addColorStop(0,   '#FFF8EE');
+        bg.addColorStop(0.45,'#FDECD2');
+        bg.addColorStop(0.80,'#F5D5A8');
+        bg.addColorStop(1,   '#E8BC80');
+      }
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+    }
 
     // Arena rengi — 3 framede bir güncelle (görsel fark yok)
     if (state.frameCount % 3 === 0 || !this._cachedArenaColor) {
@@ -945,23 +974,47 @@ export class Game {
       const topY   = CY - MAIN_R;
       const tx1 = CX + topHW, tx2 = CX - topHW;
 
-      const _drawArena = () => {
-        ctx.beginPath(); ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(tx1, topY); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(tx2, topY); ctx.stroke();
+      // Simetrik rounded köşe
+      const rDX = tx1-lx1, rDY = topY-ly1, rLen = Math.sqrt(rDX*rDX+rDY*rDY);
+      const rNx = rDX/rLen, rNy = rDY/rLen;
+      const lDX = tx2-lx2, lDY = topY-ly2, lLen = Math.sqrt(lDX*lDX+lDY*lDY);
+      const lNx = lDX/lLen, lNy = lDY/lLen;
+      const cr = Math.min(rLen * 0.14, 22 * S);
+
+      // Kap iç dolgu
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
+      ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
+      //ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
+      ctx.lineTo(tx1-cr, topY);
+      //ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
+      ctx.lineTo(lx1, ly1);
+      ctx.closePath();
+      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
+      ctx.fill();
+      ctx.restore();
+
+      const _drawArenaPath = () => {
+        ctx.beginPath();
+        ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
+        ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
+       // ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
+        ctx.lineTo(tx1-cr, topY);
+       // ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
+        ctx.lineTo(lx1, ly1);
       };
 
       ctx.save();
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
       ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
-      _drawArena();
-      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _drawArena(); }
+      _drawArenaPath(); ctx.stroke();
+      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _drawArenaPath(); ctx.stroke(); }
 
-      // Üst kesik çizgi — açıklığı kapatır
       const dashLen = 9 * S, gapLen = 6 * S;
       ctx.setLineDash([dashLen, gapLen]);
-      ctx.lineDashOffset = 0;
-      ctx.beginPath(); ctx.moveTo(tx2, topY); ctx.lineTo(tx1, topY);
+      ctx.beginPath(); ctx.moveTo(tx2+cr, topY); ctx.lineTo(tx1-cr, topY);
       ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(2.5 * S);
       ctx.globalAlpha = 0.55; ctx.shadowColor = arenaColor; ctx.shadowBlur = 5 * S;
       ctx.stroke();
@@ -980,10 +1033,7 @@ export class Game {
         const progress = remaining / 1000; // 1→0
         const arcR = nb.r + 8 * S;
         // bgColor parlaklığı: koyu bg → beyaz arc, açık bg → koyu arc
-        const bgHex = state.theme?.bgColor || '#111111';
-        const bgN = parseInt(bgHex.replace('#',''), 16);
-        const bgL = ((bgN>>16)&255)*0.299 + ((bgN>>8)&255)*0.587 + (bgN&255)*0.114;
-        const isDarkBg = bgL < 128;
+        const isDarkBg = state.isDarkMode;
         const trackColor = isDarkBg ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
         const baseColor  = isDarkBg ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)';
         // Arka arc (track)
@@ -1099,6 +1149,7 @@ export class Game {
 
     // Pause butonu + sound (her zaman en üstte)
     R.drawSoundBtn();
+    R.drawDarkModeBtn();
     R.drawPauseBtn();
     if (state.isPaused) {
       R.drawPauseOverlay();

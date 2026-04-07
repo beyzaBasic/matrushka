@@ -36,9 +36,11 @@ export const state = {
   // Audio (game.js init eder)
   audio: null,
   // UI hit areas
-  _pauseBtn: null, _resumeBtn: null, _nextLevelBtn: null, _gameOverBtn: null, _soundBtn: null,
+  _pauseBtn: null, _resumeBtn: null, _nextLevelBtn: null, _gameOverBtn: null, _soundBtn: null, _darkModeBtn: null,
   // Ses
   isMuted: false,
+  // Dark mode (game.js localStorage'dan init eder)
+  isDarkMode: true,
   // Kap formu ve yerçekimi (theme.js her CP geçişinde günceller)
   containerForm: { openFrac: 0.50, topWidthFactor: 1.00 },
   gravity: 0.35,
