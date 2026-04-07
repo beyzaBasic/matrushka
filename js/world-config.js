@@ -16,37 +16,60 @@
 export const LEVELS_PER_CP = 10;
 export const TOTAL_CHECKPOINTS = 5;
 
+// ── Kap form tanımları (physics + renderer paylaşır) ─────────────
+// openFrac: alt yay açısı katsayısı (0..1 * PI). Küçük → geniş yuvarlak dip, büyük → dar uzun.
+// topWidthFactor: üst açıklık / junction genişliği oranı.
+//   1.0 = dik duvar, >1 = dışa açılan (kadeh), <1 = içe kapanan (vazo)
+export const CONTAINER_FORMS = {
+  classicU:  { openFrac: 0.50, topWidthFactor: 1.00 }, // CP0 – standart U
+  roundBowl: { openFrac: 0.32, topWidthFactor: 1.00 }, // CP1 – geniş yuvarlak kase
+  tallNarrow:{ openFrac: 0.68, topWidthFactor: 1.00 }, // CP2 – dar uzun tüp
+  goblet:    { openFrac: 0.50, topWidthFactor: 1.20 }, // CP3 – kadeh (dışa açılır)
+  vase:      { openFrac: 0.50, topWidthFactor: 0.65 }, // CP4 – vazo (içe kapanır)
+};
+
 export const WORLD_CONFIG = [
 
   // ── AKT 1: SABAH ─────────────────────────────────────────────────
 
-  // CP 00 · sphere (Tatlı Uyanış)
+  // CP 00 · sphere (Tatlı Uyanış) — Klasik U, hafif yerçekimi
   { id: 0, name: 'Tatlı Uyanış', subtitle: 'İlk Dokunuş',
     shape: 'sphere', bgColor: '#0D1B4B',
-    palette: ['#FFE135', '#FF6D00', '#E91E8C', '#2979FF', '#1DE9B6', '#CE93D8', '#FFD600'] },
+    palette: ['#FFE135', '#FF6D00', '#E91E8C', '#2979FF', '#1DE9B6', '#CE93D8', '#FFD600'],
+    containerForm: CONTAINER_FORMS.classicU,
+    gravity: 0.28 },
 
-  // CP 01 · jellybear (Limon Tarlası)
+  // CP 01 · jellybear (Limon Tarlası) — Yuvarlak kase, normal yerçekimi
   { id: 1, name: 'Limon Tarlası', subtitle: 'Ekşiden Tatlıya',
     shape: 'jellybear', bgColor: '#F5FFFA',
-    palette: ['#ADFF2F', '#FFD700', '#FFA500', '#FF7F50', '#FF1493', '#8A2BE2', '#0000CD'] },
+    palette: ['#ADFF2F', '#FFD700', '#FFA500', '#FF7F50', '#FF1493', '#8A2BE2', '#0000CD'],
+    containerForm: CONTAINER_FORMS.roundBowl,
+    gravity: 0.35 },
 
   // ── AKT 2: ÖĞLE ──────────────────────────────────────────────────
 
-  // CP 02 · matrushka (Nane Bahçesi)
+  // CP 02 · matrushka (Nane Bahçesi) — Dar uzun tüp, orta yerçekimi
   { id: 2, name: 'Nane Bahçesi', subtitle: 'Taze dünya',
     shape: 'matrushka', bgColor: '#c8ffe0',
-    palette: ['#00f279', '#00ccff', '#0044ff', '#cc00ff', '#ff0077', '#ff6600', '#ffee00'] },
+    palette: ['#00f279', '#00ccff', '#0044ff', '#cc00ff', '#ff0077', '#ff6600', '#ffee00'],
+    containerForm: CONTAINER_FORMS.tallNarrow,
+    gravity: 0.44 },
 
-  // CP 03 · duck (Mavi Şeker)
+  // CP 03 · duck (Mavi Şeker) — Kadeh (dışa açılır), ağır yerçekimi
   { id: 3, name: 'Mavi Şeker', subtitle: 'Bulutların Üstünde',
     shape: 'duck', bgColor: '#D1E9FF',
-    palette: ['#FF1493', '#9B00FF', '#0088FF', '#00CCFF', '#00DD00', '#FFD700', '#FF6600'] },
+    palette: ['#FF1493', '#9B00FF', '#0088FF', '#00CCFF', '#00DD00', '#FFD700', '#FF6600'],
+    containerForm: CONTAINER_FORMS.goblet,
+    gravity: 0.53 },
+
   // ── AKT 4: ENDGAME ───────────────────────────────────────────────
 
-  // CP 04 · fish (Lavanta Rüyası)
+  // CP 04 · fish (Lavanta Rüyası) — Vazo (içe kapanır), çok ağır yerçekimi
   { id: 4, name: 'Lavanta Rüyası', subtitle: 'Sakin Sular',
     shape: 'fish', bgColor: '#EBDDFF',
-    palette:['#9B00FF', '#FF1493', '#FF6600', '#FFD700', '#00CC00', '#00E5FF', '#0088FF']},
+    palette:['#9B00FF', '#FF1493', '#FF6600', '#FFD700', '#00CC00', '#00E5FF', '#0088FF'],
+    containerForm: CONTAINER_FORMS.vase,
+    gravity: 0.64 },
 
 ];
 

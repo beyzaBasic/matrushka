@@ -511,14 +511,26 @@ export class Game {
     return (c.r + r - dist) > r * 0.4;
   }
 
-  // U'nun üst kenarında boş yer bul ve topu oraya yerleştir
+  // Üst açıklığın efektif yarı-genişliği — container form'a göre
+  _topHalfWidth() {
+    const { MAIN_R } = state;
+    const form = state.containerForm || {};
+    const openAngle = Math.PI * (form.openFrac ?? 0.50);
+    const topWidthFactor = form.topWidthFactor ?? 1.00;
+    const arcStartAngle = -Math.PI / 2 + openAngle;
+    const juncHW = MAIN_R * Math.cos(arcStartAngle);
+    return juncHW * topWidthFactor;
+  }
+
+  // Üst açıklık içinde boş yer bul ve topu oraya yerleştir
   _generateNextBall() {
     const lv = this._randomBallLevel();
     const { CX, CY, MAIN_R, LEVELS } = state;
     const r = LEVELS[lv].r;
     const topY = CY - MAIN_R + r + 2;
-    const xMin = CX - MAIN_R + r + 2;
-    const xMax = CX + MAIN_R - r - 2;
+    const topHW = this._topHalfWidth();
+    const xMin = CX - topHW + r + 2;
+    const xMax = CX + topHW - r - 2;
 
     // Üst çizgi boyunca boş noktaları tara
     const step = r * 0.5;
@@ -915,48 +927,47 @@ export class Game {
     }
     const arenaColor = this._cachedArenaColor;
 
-    // Arena — U şekli
+    // Arena — Container form'a göre (CP başına farklı kap şekli)
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
     const mBlur = mFlash > 0 ? 7 + mFlash * 22 : 6;
-    const openAngle = Math.PI * 0.50;
-    const arcStart = -Math.PI / 2 + openAngle;
-    const arcEnd   = -Math.PI / 2 - openAngle;
-    const lx1 = CX + Math.cos(arcStart) * MAIN_R, ly1 = CY + Math.sin(arcStart) * MAIN_R;
-    const lx2 = CX + Math.cos(arcEnd) * MAIN_R,   ly2 = CY + Math.sin(arcEnd) * MAIN_R;
-    ctx.save();
-    ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
-    ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
-    // Arc
-    ctx.beginPath(); ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2); ctx.stroke();
-    // Duvarlar
-    ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx1, CY - MAIN_R); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(lx2, CY - MAIN_R); ctx.stroke();
-    // Flash: sadece mainBorderFlash varsa ikinci geçiş
-    if (mFlash > 0) {
-      ctx.shadowBlur = mBlur * 1.5;
-      ctx.beginPath(); ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(lx1, CY - MAIN_R); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(lx2, CY - MAIN_R); ctx.stroke();
-    }
-    // Üst sınır kesik çizgisi — U ağzını kapatır, aynı renk, sabit
     {
+      const form = state.containerForm || {};
+      const openAngle     = Math.PI * (form.openFrac ?? 0.50);
+      const topWidthFactor = form.topWidthFactor ?? 1.00;
+      const arcStart = -Math.PI / 2 + openAngle;
+      const arcEnd   = -Math.PI / 2 - openAngle;
+      // Yay–duvar kesişim noktaları
+      const lx1 = CX + Math.cos(arcStart) * MAIN_R, ly1 = CY + Math.sin(arcStart) * MAIN_R;
+      const lx2 = CX + Math.cos(arcEnd)   * MAIN_R, ly2 = CY + Math.sin(arcEnd)   * MAIN_R;
+      // Üst kenar genişliği — topWidthFactor ile junction genişliği ölçeklenir
+      const juncHW = Math.abs(lx1 - CX);
+      const topHW  = juncHW * topWidthFactor;
+      const topY   = CY - MAIN_R;
+      const tx1 = CX + topHW, tx2 = CX - topHW;
+
+      const _drawArena = () => {
+        ctx.beginPath(); ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(lx1, ly1); ctx.lineTo(tx1, topY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(lx2, ly2); ctx.lineTo(tx2, topY); ctx.stroke();
+      };
+
+      ctx.save();
+      ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
+      ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
+      _drawArena();
+      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _drawArena(); }
+
+      // Üst kesik çizgi — açıklığı kapatır
       const dashLen = 9 * S, gapLen = 6 * S;
       ctx.setLineDash([dashLen, gapLen]);
       ctx.lineDashOffset = 0;
-      ctx.beginPath();
-      ctx.moveTo(lx2, CY - MAIN_R);
-      ctx.lineTo(lx1, CY - MAIN_R);
-      ctx.strokeStyle = arenaColor;
-      ctx.lineWidth = Math.round(2.5 * S);
-      ctx.globalAlpha = 0.55;
-      ctx.shadowColor = arenaColor;
-      ctx.shadowBlur = 5 * S;
+      ctx.beginPath(); ctx.moveTo(tx2, topY); ctx.lineTo(tx1, topY);
+      ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(2.5 * S);
+      ctx.globalAlpha = 0.55; ctx.shadowColor = arenaColor; ctx.shadowBlur = 5 * S;
       ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
+      ctx.setLineDash([]); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.restore();
     }
-    ctx.restore();
 
     // nextBall göstergesi — orta üst
     if (state.nextBall) {

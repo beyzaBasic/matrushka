@@ -18,6 +18,10 @@ export class ThemeManager {
     // LEVELS'ı palette renkleriyle yeniden oluştur
     state.LEVELS = buildLevels(state.MAIN_R, palette, cfg.shape || 'sphere');
 
+    // Kap formu ve yerçekimi — physics._clampToU + game._draw okur
+    state.containerForm = cfg.containerForm || { openFrac: 0.50, topWidthFactor: 1.00 };
+    state.gravity       = cfg.gravity ?? 0.35;
+
     // state.theme: tüm çizim kodlarının okuyacağı tek kaynak
     state.theme = {
       cpIdx,
@@ -32,6 +36,8 @@ export class ThemeManager {
       bgTop: cfg.bgTop || cfg.bgColor,
       bgMid: cfg.bgMid || _blend(cfg.bgColor, palette[2], 0.18),
       bgBot: cfg.bgBot || _blend(cfg.bgColor, palette[4], 0.12),
+      containerForm: state.containerForm,
+      gravity:       state.gravity,
     };
 
     // Sahnedeki mevcut topları ve blast butonlarını da güncelle

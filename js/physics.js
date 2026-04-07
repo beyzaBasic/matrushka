@@ -41,7 +41,30 @@ export class PhysicsManager {
     return { ov: bestOv, nx: bestNx, ny: bestNy };
   }
 
-  // U sınırı — kesin clamp, her yerden çağrılır
+  // Container parametrelerini hesapla — her _clampToU çağrısında cache'lenir
+  _containerParams() {
+    const { CY, MAIN_R } = state;
+    const form = state.containerForm || {};
+    const openAngle = Math.PI * (form.openFrac ?? 0.50);
+    const topWidthFactor = form.topWidthFactor ?? 1.00;
+    const arcStartAngle = -Math.PI / 2 + openAngle;
+    // Yay ile duvar kesişim noktası
+    const juncHW = MAIN_R * Math.cos(arcStartAngle);   // junction yarı-genişliği (≥0)
+    const juncY  = CY + MAIN_R * Math.sin(arcStartAngle); // junction y koordinatı
+    const topY   = CY - MAIN_R;
+    const wallH  = Math.max(1, juncY - topY);
+    return { juncHW, juncY, topY, wallH, topWidthFactor };
+  }
+
+  // Belirli y'de efektif duvar yarı-genişliği
+  _wallHW(y, params) {
+    const { juncHW, juncY, wallH, topWidthFactor } = params;
+    if (y >= juncY) return juncHW; // yay bölgesi — duvar gerekmez, sadece referans
+    const t = Math.max(0, Math.min(1, (juncY - y) / wallH)); // 0=junction, 1=top
+    return juncHW * (1 + (topWidthFactor - 1) * t);
+  }
+
+  // Kap sınırı — container form'a göre genelleştirilmiş, her yerden çağrılır
   _clampToU(c) {
     const { CX, CY, MAIN_R } = state;
     const BOUNCE = 0.55;
@@ -51,22 +74,19 @@ export class PhysicsManager {
       const dist = Math.hypot(cc.x - c.x, cc.y - c.y) + cc.r;
       return Math.max(max, dist);
     }, c.r);
-    // X: duvarlar arası
-    c.x = Math.max(CX - MAIN_R + er, Math.min(CX + MAIN_R - er, c.x));
-    // Y üst sınır — bounce
-    if (c.y - er < CY - MAIN_R) {
-      c.y = CY - MAIN_R + er;
-      if (c.vy < 0) { c.vy = Math.abs(c.vy) * BOUNCE; }
-    }
-    // Alt yarım daire — bounce + squish
-    const dx = c.x - CX, dy = c.y - CY;
-    if (dy >= 0) {
+
+    const cp = this._containerParams();
+    const { juncY, topY } = cp;
+
+    if (c.y >= juncY) {
+      // ── Yay bölgesi (alt): dairesel sınır ──────────────────────
+      const dx = c.x - CX, dy = c.y - CY;
       const d = Math.hypot(dx, dy) || 0.01;
       if (d + er > MAIN_R) {
-        const nx = dx/d, ny = dy/d;
+        const nx = dx / d, ny = dy / d;
         c.x = CX + nx * (MAIN_R - er);
         c.y = CY + ny * (MAIN_R - er);
-        const dot = c.vx*nx + c.vy*ny;
+        const dot = c.vx * nx + c.vy * ny;
         if (dot > 0) {
           c.vx -= (1 + BOUNCE) * dot * nx;
           c.vy -= (1 + BOUNCE) * dot * ny;
@@ -74,14 +94,22 @@ export class PhysicsManager {
         }
       }
     } else {
-      // Üst dikey duvarlar — X sınırı (er ile)
-      if (c.x - er < CX - MAIN_R) {
-        c.x = CX - MAIN_R + er;
+      // ── Duvar bölgesi (üst): y pozisyonuna göre efektif genişlik ──
+      const hw = this._wallHW(c.y, cp);
+      // Sol duvar
+      if (c.x - er < CX - hw) {
+        c.x = CX - hw + er;
         if (c.vx < 0) c.vx = Math.abs(c.vx) * BOUNCE;
       }
-      if (c.x + er > CX + MAIN_R) {
-        c.x = CX + MAIN_R - er;
+      // Sağ duvar
+      if (c.x + er > CX + hw) {
+        c.x = CX + hw - er;
         if (c.vx > 0) c.vx = -Math.abs(c.vx) * BOUNCE;
+      }
+      // Üst sınır
+      if (c.y - er < topY) {
+        c.y = topY + er;
+        if (c.vy < 0) c.vy = Math.abs(c.vy) * BOUNCE;
       }
     }
   }
@@ -185,15 +213,17 @@ export class PhysicsManager {
           }
         }
       }
-      // her iter sonunda wall clamp — sonraki iter tutarlı başlar
+      // her iter sonunda wall clamp — container form'a göre, sonraki iter tutarlı başlar
+      const cp2 = this._containerParams();
       for (const c of circles) {
         if (c.isBeingDragged) continue;
         const er = this._circles(c)[0].r;
-        const dx = c.x - CX, dy = c.y - CY;
-        if (dy >= 0) {
-          const d = Math.hypot(dx, dy) || 0.01;
+        const dx = c.x - CX, dy2 = c.y - CY;
+        if (c.y >= cp2.juncY) {
+          // Yay bölgesi — dairesel sınır
+          const d = Math.hypot(dx, dy2) || 0.01;
           if (d + er > MAIN_R) {
-            const nx = dx / d, ny = dy / d;
+            const nx = dx / d, ny = dy2 / d;
             c.x = CX + nx * (MAIN_R - er);
             c.y = CY + ny * (MAIN_R - er);
             const dot = c.vx * nx + c.vy * ny;
@@ -204,17 +234,19 @@ export class PhysicsManager {
             }
           }
         } else {
-          if (c.x - er < CX - MAIN_R) {
-            c.x = CX - MAIN_R + er;
+          // Duvar bölgesi — container form genişliğine göre
+          const hw = this._wallHW(c.y, cp2);
+          if (c.x - er < CX - hw) {
+            c.x = CX - hw + er;
             if (c.vx < 0) { c.vx = -c.vx * WALL_BOUNCE; }
             c.squish = { t: 1.0, amt: 0.2, ax: -1, ay: 0 };
           }
-          if (c.x + er > CX + MAIN_R) {
-            c.x = CX + MAIN_R - er;
+          if (c.x + er > CX + hw) {
+            c.x = CX + hw - er;
             if (c.vx > 0) { c.vx = -c.vx * WALL_BOUNCE; }
             c.squish = { t: 1.0, amt: 0.2, ax: 1, ay: 0 };
           }
-          const topLimit = state.CY - state.MAIN_R;
+          const topLimit = cp2.topY;
           if (c.y - er < topLimit) {
             c.y = topLimit + er;
             if (c.vy < 0) c.vy = Math.abs(c.vy) * 0.3;
@@ -238,7 +270,7 @@ export class PhysicsManager {
         this._clampToU(c);
         continue;
       }
-      c.vy += 0.35 * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
+      c.vy += (state.gravity ?? 0.35) * S; c.x += c.vx; c.y += c.vy; c.vx *= 0.992; c.vy *= 0.985;
       this._clampToU(c);
       if (c.squish && c.squish.t > 0) c.squish.t = Math.max(0, c.squish.t - 0.09);
       c.absorbGlow = 0;

@@ -39,4 +39,7 @@ export const state = {
   _pauseBtn: null, _resumeBtn: null, _nextLevelBtn: null, _gameOverBtn: null, _soundBtn: null,
   // Ses
   isMuted: false,
+  // Kap formu ve yerçekimi (theme.js her CP geçişinde günceller)
+  containerForm: { openFrac: 0.50, topWidthFactor: 1.00 },
+  gravity: 0.35,
 };
