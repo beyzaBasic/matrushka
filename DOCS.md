@@ -2,7 +2,7 @@
 
 ## Genel Bakış
 
-**Matrushka**, canvas tabanlı bir merge/puzzle mobil oyunudur. Oyuncu, top düşürerek aynı seviyedeki topları birleştirir ve daha büyük toplar oluşturur. Her level belirli hedeflerin tamamlanmasını gerektirir. Oyun 50 level + 1 tutorial'dan oluşur ve 5 checkpoint'e bölünmüştür.
+**Matrushka**, Canvas 2D tabanlı mobil hypercasual merge/puzzle oyunudur. Oyuncu top düşürerek aynı seviyedeki topları birleştirir, büyükleri küçükleri yutar. 50 level + 1 tutorial, 5 checkpoint'e bölünmüştür.
 
 ---
 
@@ -10,21 +10,38 @@
 
 ```
 matrushka/
-├── index.html
+├── index.html            — oyun girişi, MapScreen başlatır, Game açar
 └── js/
-    ├── state.js          — Merkezi paylaşılan state
-    ├── constants.js      — Layout hesaplamaları, level tanımları
-    ├── world-config.js   — Checkpoint/dünya konfigürasyonları
-    ├── game.js           — Ana döngü, input, level yönetimi
-    ├── physics.js        — Çarpışma, absorb, fizik
-    ├── renderer.js       — Canvas 2D çizim
-    ├── goals.js          — Hedef eşleştirme ve animasyon
-    ├── blast.js          — Blast butonu mekanikleri
-    ├── hints.js          — Tutorial ipucu çizimi
-    ├── tutorial.js       — Tutorial adım yönetimi
+    ├── state.js          — merkezi paylaşılan singleton state
+    ├── constants.js      — buildLayout, LEVEL_RATIOS, SHAPE_DEFS, buildLevels
+    ├── world-config.js   — TEK KAYNAK: 5 CP konfigürasyonu (palette, shape, bg, form, gravity)
+    ├── game.js           — ana döngü, input, spawn, merge/absorb, dark mode
+    ├── physics.js        — çarpışma, clampToU, duvar sınırları
+    ├── renderer.js       — tüm Canvas 2D çizim işlemleri
+    ├── goals.js          — hedef slot sistemi, flying goal animasyonu
+    ├── blast.js          — blast butonu mekanikleri
+    ├── hints.js          — hint chain çizimi
+    ├── tutorial.js       — tutorial adım yönetimi (tut0Step 0-4)
     ├── audio.js          — Howler.js ses efektleri
-    ├── theme.js          — Renk paleti yönetimi
-    └── map.js            — Pixi.js harita ekranı
+    ├── theme.js          — ThemeManager: CP geçişinde state.theme dağıtır
+    └── map.js            — Pixi.js harita ekranı (MapScreen class)
+sounds/
+    spawn.mp3, merge.mp3, absorb.mp3, combo.wav
+    goalDone.mp3, levelComplete.mp3, gameOver.mp3, pick.mp3, blast.mp3
+```
+
+---
+
+## Veri Akışı
+
+```
+world-config.js  (palette[7], lightBg[4], darkBg[4], shape, containerForm, gravity)
+       ↓
+ThemeManager.apply(cpIdx)
+       ↓
+state.theme  →  game.js (bg), renderer.js (arena, ui), hints.js (chain)
+state.LEVELS →  toplar, slotlar, blast butonları
+state.containerForm + state.gravity → physics + renderer
 ```
 
 ---
@@ -33,35 +50,29 @@ matrushka/
 
 ### Top Düşürme
 - Üstte bekleyen `nextBall` tıklanarak `heldBall`'a dönüştürülür
-- `heldBall` sürüklenerek bırakılır veya arenayla bir tıklama ile direkt tepeye düşürülür
-- `nextBall` pick edildiğinde pick edilenin kalan timer süresi kadar beklendikten sonra yeni `nextBall` üretilir
-- `autoDropDeadline` (1 sn) dolduğunda top otomatik düşer — `heldBall` varlığından bağımsız
+- `heldBall` sürüklenerek bırakılır; boşluğa tap ile direkt düşer
+- `autoDropDeadline` (1 sn) dolunca otomatik düşer — `heldBall`'dan bağımsız
 
-### Birleşme (Merge)
-- Aynı level, `contains` boş iki top çarpıştığında bir üst levele merge olur
-- Merge zincirleri combo sayacını artırır
-
-### Absorb (Yutma)
-- Büyük top küçüğü yutabilir; küçük top büyüğün `contains` dizisine girer
-- Hedef eşleştirmede nested yapı önemlidir: `{ level: 4, contains: [3, 2] }`
-
-### Hedefler (Goals)
-- Her level 1–3 hedef slotuna sahiptir
-- Hedef: belirli level ve `contains` kombinasyonu
-- Eşleşen top hedef slota uçar, tüm slotlar dolunca level tamamlanır
-
-### Blast
-- Arenayla aynı seviyedeki topları etkileyen dinamik butonlar
-- Sınırlı şarj sayısı (level başına 1–4)
-- Ateşleme sırasıyla gerçekleşir (120ms aralık)
-
-### Dünya Döndürme
-- Arenaın dış halkasından sürükleyerek dünya döndürülür
-- `rotVel` ile ivme kazanır, sürtünmeyle durur
+### Merge / Absorb (Manuel)
+- **Otomatik yok** — sadece oyuncu drag ile tetikler
+- Drag sırasında absorb/merge hedefine yaklaşınca: glow + halka (`absorbNear` / `mergeNear`)
+- Bırakılınca `_tryInteract(dc)` → en yakın hedefe göre absorb veya merge
+- `canAbsorb(big, small)`: `big.level > small.level`, fark == 1, `big.contains` boş
 
 ### Game Over
-- Yeni top için üstte **anlamlı boş yer** bulunamazsa (penetrasyon > yarıçapın %40'ı) game over
-- Top önce görünür (üst üste binen hem top hem altındaki top kırmızı halo alır), 800ms sonra game over tetiklenir
+- Yeni top için üstte anlamlı boş yer bulunamazsa (penetrasyon > yarıçapın %40'ı) → 800ms sonra game over
+- Çakışan toplar kırmızı pulse halo alır
+
+### Hedefler (Goals)
+- Her level 1–3 hedef slotu; eşleşen top slota uçar, tümü dolunca level tamamlanır
+- Nested yapı desteklenir: `{ level: 4, contains: [3, 2] }`
+
+### Blast
+- Arenayla aynı seviyedeki topları etkileyen dinamit butonları
+- Sınırlı şarj (level başına 1–4), 120ms aralıklı ateşleme
+
+### Dünya Döndürme
+- Arena dış halkasından sürükleyerek döndürülür, `rotVel` ile ivme kazanır
 
 ---
 
@@ -74,7 +85,7 @@ matrushka/
 | CP başına level | 10 |
 | Şekil tipleri | sphere, jellybear, matrushka, duck, fish |
 
-Her CP 5 şablon üzerinden inşa edilir:
+Level şablonu (CP başına):
 - **L1–L2**: 1 slotlu giriş
 - **L3–L5**: 2 slotlu ısınma
 - **L6–L8**: 3 slotlu baskı
@@ -82,13 +93,89 @@ Her CP 5 şablon üzerinden inşa edilir:
 
 ---
 
-## State (`state.js`)
+## World Config (`world-config.js`)
 
-Tüm modüller bu merkezi objeyi okur/yazar.
+Her CP için tek kaynak. 5 checkpoint:
+
+| CP | İsim | Shape | Container | lightBg | darkBg |
+|----|------|-------|-----------|---------|--------|
+| 00 | Tatlı Uyanış | sphere | classicU | Warm Sand | Deep Navy |
+| 01 | Limon Tarlası | jellybear | roundBowl | Dusty Lavender | Deep Plum |
+| 02 | Nane Bahçesi | matrushka | tallNarrow | Soft Sage | Dark Forest |
+| 03 | Mavi Şeker | duck | goblet | Warm Sand | Deep Navy |
+| 04 | Lavanta Rüyası | fish | vase | Soft Sage | Dark Forest |
+
+### Kap Formları (`CONTAINER_FORMS`)
+
+| Form | openFrac | topWidthFactor | Görünüm |
+|------|----------|----------------|---------|
+| classicU | 0.50 | 1.00 | Standart U |
+| roundBowl | 0.32 | 1.00 | Geniş yuvarlak kase |
+| tallNarrow | 0.68 | 1.00 | Dar uzun tüp |
+| goblet | 0.50 | 1.20 | Kadeh (dışa açılır) |
+| vase | 0.50 | 0.65 | Vazo (içe kapanır) |
+
+Her CP'nin `containerForm`'una göre `MAIN_R` dinamik ölçeklenir — kap kenarı ekrandan taşmaz.
+
+### Arka Plan Renkleri
+
+Her CP'de `lightBg` (4 stop) ve `darkBg` (4 stop) tanımlıdır:
+- **Warm Sand**: `#F0E8D8 → #D9CAAB`
+- **Dusty Lavender**: `#EEE8F5 → #C4B8DA`
+- **Soft Sage**: `#EFF5EC → #BCCFAF`
+- **Deep Navy**: `#0D1B4B → #030A1C`
+- **Deep Plum**: `#1A0A2E → #06020C`
+- **Dark Forest**: `#071A10 → #010603`
+
+---
+
+## Theme Manager (`theme.js`)
+
+`world-config.js` veri deposu, `theme.js` dağıtıcısı.
+
+```
+apply(cpIdx)
+  → getWorldConfig(cpIdx)
+  → state.LEVELS = buildLevels(MAIN_R, palette, shape)
+  → state.containerForm, state.gravity
+  → state.theme = { cpIdx, name, bgColor, lightBg, darkBg, palette,
+                    shape, arenaBase, accentMid, accentLo,
+                    containerForm, gravity }
+  → mevcut toplar ve blast butonlarının renklerini güncelle
+```
+
+- `applyForLevel(internalLevel)`: CP değiştiyse `apply()`, değişmediyse sadece LEVELS yenile
+- `reapplyAfterResize()`: resize sonrası LEVELS + renkler yenilenir
+
+---
+
+## Layout & Mobil Adaptasyon (`constants.js`)
+
+### `buildLayout()`
+
+- **`visualViewport` API**: Android Chrome/Samsung toolbar hariç gerçek yüksekliği alır
+- **DPR**: Max 2 (performans)
+- **`S = MIN_DIM / 800`**: Tüm UI elemanları bu oranla ölçeklenir
+- **`SCORE_AREA`**: `H`'ın %18–24'ü
+- **`safeBot`**: `env(safe-area-inset-bottom)` — iPhone home indicator / Android nav bar
+- **`safeTop`**: `env(safe-area-inset-top)` — iPhone notch / Dynamic Island
+- **`MAIN_R`**: `(W - SIDE_PAD*2) / 2` bazlı — kap formu taşmaz
+- CP geçişinde `_applyLayout()` yeniden çağrılır → form değişince MAIN_R adapte olur
+
+### `index.html`
+```css
+height: 100vh;
+height: 100dvh;
+min-height: -webkit-fill-available;
+```
+
+---
+
+## State (`state.js`)
 
 | Değişken | Açıklama |
 |----------|----------|
-| `circles` | Arenادaki aktif toplar |
+| `circles` | Arenадaki aktif toplar |
 | `nextBall` | Üstte bekleyen önizleme topu |
 | `heldBall` | Oyuncunun sürüklediği top |
 | `draggedCircle` | Arenada elle sürüklenen mevcut top |
@@ -97,65 +184,93 @@ Tüm modüller bu merkezi objeyi okur/yazar.
 | `goalSlots` | Hedef slot durumları |
 | `combo / comboTimer` | Merge streak sayacı |
 | `autoDropDeadline` | Otomatik düşme zamanı (ms) |
-| `worldRot / rotVel` | Arena rotasyonu |
 | `BLAST_BTNS` | Blast buton durumları ve şarjlar |
 | `isPaused / isMuted` | Pause ve ses durumu |
+| `isDarkMode` | Dark/light mod (localStorage'da saklanır) |
 | `_nextBallBlocked` | Yeni topun boş yer bulamadığı durum |
-
----
-
-## Layout & Mobil Adaptasyon (`constants.js`)
-
-### `buildLayout()`
-- **`visualViewport` API**: Android Chrome/Samsung'da toolbar hariç gerçek yüksekliği alır
-- **DPR**: Maksimum 2'ye sabitlenir (performans)
-- **`S = MIN_DIM / 800`**: Tüm UI elemanları bu oranla ölçeklenir
-- **`SCORE_AREA`**: `H`'ın %18–24'ü — küçük ekranlarda kompakt kalır
-- **Safe area**: `env(safe-area-inset-bottom)` ile Android nav bar / iPhone home indicator hesaplanır
-
-### `index.html`
-```css
-height: 100vh;
-height: 100dvh;              /* Chrome/Android: browser chrome hariç */
-min-height: -webkit-fill-available; /* Samsung Internet fallback */
-```
-
-### `game.js`
-- `window.visualViewport` resize event dinlenir → toolbar gizlenince layout yeniden hesaplanır
+| `_darkModeBtn` | Dark mode buton hit area |
+| `safeTop` | Üst safe area inset (px) |
+| `containerForm` | Mevcut CP kap formu |
+| `gravity` | Mevcut CP yerçekimi |
 
 ---
 
 ## Rendering (`renderer.js`)
 
-**Canvas 2D** tabanlı. Pixi.js yalnızca harita ekranında kullanılır.
+Canvas 2D tabanlı. Pixi.js yalnızca harita ekranında kullanılır.
 
-- **Toplar**: Level'a göre çok parçalı şekil (jellybear = gövde + kafa + kulaklar + kollar + ayaklar)
-- **Şekil tanımları**: `SHAPE_DEFS` — her part `ox, oy, r` çarpanlarıyla `c.r`'a göre ölçeklenir
-- **Partiküller**: Merge noktasında renk eşleşmeli patlama animasyonu
-- **Chain waves**: Merge'den yayılan halka efekti
-- **Flying goals**: Hedef slota yay yörüngesiyle uçan top
-- **HUD**: Score alanı, hedef gemler, blast butonu, ses/pause butonları
-- **Üst sınır**: U ağzında aynı arena rengiyle sabit kesik çizgi
-- **Blocked halo**: Boş yer yokken hem `nextBall` hem çakışan top kırmızı pulse halo alır
+### Arka Plan
+- Dark/light mod + CP'ye özgü radial gradient (`state.theme.darkBg` / `lightBg`)
+- CP geçişinde otomatik değişir, `isDarkMode` toggle ile anlık değişir
+
+### Kap (Arena)
+- Tek sürekli path: alt yay → junction rounded köşe → duvar → üst rounded köşe → üst çizgi
+- Junction ve üst köşelerde `quadraticCurveTo` ile yuvarlama (`cr = MAIN_R * 0.07`)
+- Kap içi hafif koyu dolgu (dark modda daha yoğun)
+
+### Butonlar (sağ üst, `safeTop` bazlı)
+- **Pause**: `safeTop + ICON_PX/2 + 10`
+- **Ses**: pause + `(ICON_PX + 6)`
+- **Dark Mode**: pause + `(ICON_PX + 6) * 2`
+- Dark modda: sarı ay hilali 🌙 | Light modda: turuncu güneş ☀️
+
+### Toplar
+- Level'a göre çok parçalı şekil (jellybear = gövde + kafa + kulaklar + kollar + ayaklar)
+- Shape cache: aynı şekil/boyut/renk → `OffscreenCanvas`'ta önbellek
+- Squish/boing aktifken cache devre dışı
+
+### Timer Arc
+- `isDarkMode` bazlı renk: koyu → beyaz, açık → koyu arc
+- Son %30 → kırmızı urgency
+
+### Diğer Efektler
+- Partiküller, chain waves, flying goals, blast mermisi, combo display
+- `_drawDragGlow(c)` — `absorbNear || mergeNear` → renk hale + halka
 
 ---
 
-## Harita Ekranı (`map.js`)
+## Shape Sistemi
 
-**Pixi.js** tabanlı. Canvastan bağımsız `div` içinde çalışır.
+| Shape | CP | Notlar |
+|-------|----|--------|
+| sphere | 00 | Kawaii yüz (7 ifade) |
+| jellybear | 01 | Jöle ayı, yarı saydam |
+| matrushka | 02 | İç içe oval |
+| duck | 03 | Büyük gaga, ayak |
+| fish | 04 | Kuyruklu balık |
 
-- Level node'ları tıklanabilir daireler olarak gösterilir
-- Bézier eğrili yol tamamlanan segmentlerde renkli olur
-- CP geçişlerinde konfeti yağmuru animasyonu
-- İlerleme `localStorage`'da saklanır (`matrushka_progress`)
-- Font: `"ui-rounded","Arial Rounded MT Bold",sans-serif` (gameplay ile aynı)
-- Bölüm isimleri gösterilmez
+### Physics Collision (`_circles`)
+```
+sphere:    (0,      0,       r)
+jellybear: (0,    +0.05r, 0.90r)
+matrushka: (0,    +0.05r, 0.82r)
+duck:      (+0.10r, -0.10r, 0.88r)
+fish:      (-0.10r,  0,    0.88r)
+```
+
+---
+
+## Fizik (`physics.js`)
+
+- `RESTITUTION = 0.20`, `WALL_BOUNCE = 0.25` — düşük zıplama, stabil yığılma
+- `ITERS = 1` — tek iterasyon, titreme önleme
+- `_clampToU`: shape'e göre efektif yarıçap (`er`) kullanır
+- Drag sırasında absorb/merge çifti → itme `0.1x`
+
+---
+
+## Dark Mode
+
+- `state.isDarkMode` → `localStorage.getItem('matrushka_darkMode')`
+- Varsayılan: `true` (dark)
+- Toggle: dark mode butonu (renderer) + tıklama handler (game.js)
+- Arka plan, kap dolgu, timer arc rengi buna göre değişir
 
 ---
 
 ## Ses (`audio.js`)
 
-Howler.js kullanır. Tab gizlenince otomatik mute, görünür olunca `isMuted` durumuna göre geri açılır.
+Howler.js. Tab gizlenince auto-mute, görünür olunca `isMuted` durumuna göre geri açılır.
 
 | Ses | Tetikleyici |
 |-----|-------------|
@@ -169,22 +284,37 @@ Howler.js kullanır. Tab gizlenince otomatik mute, görünür olunca `isMuted` d
 
 ---
 
-## Performans Notları
+## Harita Ekranı (`map.js`)
 
-- Parçacık sayısı maksimum 80 ile sınırlandırılmış
-- `_sortedCircles` her 3 frame'de bir güncellenir
-- Arena rengi (`_cachedArenaColor`) her 3 frame'de bir hesaplanır
-- Shape cache: aynı şekil/boyut/renk kombinasyonu `OffscreenCanvas`'ta önbelleğe alınır
-- Squish/boing animasyonu aktifken cache devre dışı bırakılır
+Pixi.js tabanlı, canvastan bağımsız `div` içinde.
+
+- Bézier eğrili yol, tamamlanan segmentler renkli
+- CP geçişinde konfeti animasyonu
+- İlerleme: `localStorage` (`matrushka_progress`)
 
 ---
 
-## Kısayollar
+## Performans Notları
 
-| Eylem | Kontrol |
-|-------|---------|
-| Pause / Resume | `Space` |
-| Ses aç/kapat | Ses butonu |
-| Top sürükle | Touch/Mouse drag |
-| Arena döndür | Dış halkadan sürükle |
-| Blast | Blast butonu |
+- Parçacık max 80
+- `_sortedCircles` her 3 frame'de güncellenir
+- Arena rengi (`_cachedArenaColor`) her 3 frame'de hesaplanır
+- Shape cache: `OffscreenCanvas`, max 200 entry
+
+---
+
+## Teknik Kurallar
+
+- `shadowBlur` **yasak** — titreme yaratır (blast mermisi hariç)
+- Gradient arka plan **yasak** — `lightBg`/`darkBg` radial gradient kullan
+- `world-config.js` tek veri kaynağı — CP renk/şekil/form buradan gelir
+- `theme.js` dispatcher — modüller direkt world-config okumaz
+
+---
+
+## Yapılacaklar
+
+- [ ] Tutorial yeniden yazılmalı — manuel merge/absorb mekaniğini göstermeli
+- [ ] `TEST_MODE = false` yayın öncesi
+- [ ] `combo.wav` → MP3'e çevir
+- [ ] Kap köşe junction asimetrisi kontrol edilmeli (farklı openFrac değerlerinde test)
