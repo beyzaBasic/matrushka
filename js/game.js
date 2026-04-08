@@ -226,35 +226,16 @@ export class Game {
     state.mouseVel.y = y - state.mousePos.y;
     state.prevMousePos = { x: state.mousePos.x, y: state.mousePos.y };
     state.mousePos = { x, y };
-    // draggedCircle varsa mousePos'u U içine clamp et
+
     if (state.draggedCircle) {
-      const { CX, CY, MAIN_R } = state;
-      const c = state.draggedCircle;
-      let mx = Math.max(CX - MAIN_R + c.r, Math.min(CX + MAIN_R - c.r, x));
-      let my = Math.max(CY - MAIN_R + c.r, y);
-      const ddx = mx - CX, ddy = my - CY;
-      if (ddy >= 0 && Math.hypot(ddx, ddy) > MAIN_R - c.r) {
-        const ang = Math.atan2(ddy, ddx);
-        mx = CX + Math.cos(ang) * (MAIN_R - c.r);
-        my = CY + Math.sin(ang) * (MAIN_R - c.r);
-      }
-      state.mousePos = { x: mx, y: my };
+      const clamped = this._clampToCapBounds(x, y, state.draggedCircle.r);
+      state.mousePos = { x: clamped.x, y: clamped.y };
     }
 
-
-    // heldBall parmakla takip etsin — U sınırları içinde
     if (state.heldBall) {
-      const { CX, CY, MAIN_R } = state;
-      const hb = state.heldBall;
-      let hx = Math.max(CX - MAIN_R + hb.r, Math.min(CX + MAIN_R - hb.r, x));
-      let hy = Math.max(CY - MAIN_R + hb.r, y);
-      const ddx = hx - CX, ddy = hy - CY;
-      if (ddy >= 0 && Math.hypot(ddx, ddy) > MAIN_R - hb.r) {
-        const ang = Math.atan2(ddy, ddx);
-        hx = CX + Math.cos(ang) * (MAIN_R - hb.r);
-        hy = CY + Math.sin(ang) * (MAIN_R - hb.r);
-      }
-      hb.x = hx; hb.y = hy;
+      const clamped = this._clampToCapBounds(x, y, state.heldBall.r);
+      state.heldBall.x = clamped.x;
+      state.heldBall.y = clamped.y;
     }
 
     if (state.isDraggingWorld) {
@@ -521,15 +502,40 @@ export class Game {
     return (c.r + r - dist) > r * 0.4;
   }
 
+  // Üst açıklığın efektif yarı-genişliği — container form'a göre
+  // Kap formu sınırı içine clamp — capParams ile physics tutarlı
+  _clampToCapBounds(px, py, r) {
+    const { CX, CY, MAIN_R } = state;
+    const cp = state.capParams;
+    if (!cp) return { x: px, y: py };
+    const { juncHW, juncY, topY, wallH, effTWF } = cp;
+    let ox = px, oy = py;
+
+    if (oy >= juncY) {
+      // Yay bölgesi — dairesel sınır
+      const dx = ox - CX, dy = oy - CY;
+      const d  = Math.hypot(dx, dy) || 0.01;
+      const maxD = MAIN_R - r;
+      if (d > maxD) { ox = CX + dx/d*maxD; oy = CY + dy/d*maxD; }
+    } else {
+      // Duvar bölgesi — y'ye göre genişlik (physics _wallHW ile aynı)
+      const t  = Math.max(0, Math.min(1, (juncY - oy) / wallH));
+      const hw = juncHW * (1 + (effTWF - 1) * t) - r;
+      if (ox < CX - hw) ox = CX - hw;
+      if (ox > CX + hw) ox = CX + hw;
+      if (oy < topY + r) oy = topY + r;
+    }
+    return { x: ox, y: oy };
+  }
+
   _topHalfWidth() {
-    // capParams game._draw() başında hesaplanır — tek kaynak
-    if (state.capParams) return state.capParams.topHW;
-    // fallback
-    const { MAIN_R, W } = state;
+    const { MAIN_R } = state;
     const form = state.containerForm || {};
     const openAngle = Math.PI * (form.openFrac ?? 0.50);
-    const juncHW = MAIN_R * Math.abs(Math.cos(-Math.PI/2 + openAngle));
-    return Math.min(juncHW * (form.topWidthFactor ?? 1), W/2 - 8);
+    const topWidthFactor = form.topWidthFactor ?? 1.00;
+    const arcStartAngle = -Math.PI / 2 + openAngle;
+    const juncHW = MAIN_R * Math.cos(arcStartAngle);
+    return juncHW * topWidthFactor;
   }
 
   // Üst açıklık içinde boş yer bul ve topu oraya yerleştir
@@ -956,7 +962,7 @@ export class Game {
     }
     const arenaColor = this._cachedArenaColor;
 
-    // ── Cap parametreleri — fizik ve çizim için ortak tek kaynak ────
+    // ── capParams — fizik, çizim ve input için tek kaynak ───────────
     {
       const form = state.containerForm || {};
       const openAngle      = Math.PI * (form.openFrac ?? 0.50);
@@ -968,15 +974,13 @@ export class Game {
       const lx2 = CX + Math.cos(arcEnd)   * MAIN_R;
       const ly2 = CY + Math.sin(arcEnd)   * MAIN_R;
       const juncHW = Math.abs(lx1 - CX);
-      const juncY  = ly1; // sağ junction y (simetrik)
+      const juncY  = ly1;
       const topY   = CY - MAIN_R;
-      // Kap ağzı 8px marjla sınırlı
+      const wallH  = Math.max(1, juncY - topY);
       const maxHW  = W / 2 - 8;
       const topHW  = Math.min(juncHW * topWidthFactor, maxHW);
-      const tx1 = CX + topHW, tx2 = CX - topHW;
-      const wallH = Math.max(1, juncY - topY);
-      // topWidthFactor efektif (clamp sonrası)
       const effTWF = topHW / Math.max(juncHW, 0.001);
+      const tx1 = CX + topHW, tx2 = CX - topHW;
       state.capParams = { arcStart, arcEnd, lx1, ly1, lx2, ly2,
         juncHW, juncY, topY, topHW, tx1, tx2, wallH, effTWF };
     }
@@ -987,14 +991,28 @@ export class Game {
     {
       const { arcStart, arcEnd, lx1, ly1, lx2, ly2, tx1, tx2, topY } = state.capParams;
 
-      // Rounded köşe vektörleri
+      // Simetrik rounded köşe
       const rDX = tx1-lx1, rDY = topY-ly1, rLen = Math.sqrt(rDX*rDX+rDY*rDY);
       const rNx = rDX/rLen, rNy = rDY/rLen;
       const lDX = tx2-lx2, lDY = topY-ly2, lLen = Math.sqrt(lDX*lDX+lDY*lDY);
       const lNx = lDX/lLen, lNy = lDY/lLen;
-      const cr = Math.min(rLen * 0.10, 16 * S);
+      const cr = Math.min(rLen * 0.14, 22 * S);
 
-      const _path = () => {
+      // Kap iç dolgu
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
+      ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
+      ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
+      ctx.lineTo(tx1-cr, topY);
+      ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
+      ctx.lineTo(lx1, ly1);
+      ctx.closePath();
+      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
+      ctx.fill();
+      ctx.restore();
+
+      const _drawArenaPath = () => {
         ctx.beginPath();
         ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
         ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
@@ -1004,20 +1022,12 @@ export class Game {
         ctx.lineTo(lx1, ly1);
       };
 
-      // Dolgu
-      ctx.save();
-      _path(); ctx.closePath();
-      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
-      ctx.fill();
-      ctx.restore();
-
-      // Stroke
       ctx.save();
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
       ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
-      _path(); ctx.stroke();
-      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _path(); ctx.stroke(); }
+      _drawArenaPath(); ctx.stroke();
+      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _drawArenaPath(); ctx.stroke(); }
 
       const dashLen = 9 * S, gapLen = 6 * S;
       ctx.setLineDash([dashLen, gapLen]);

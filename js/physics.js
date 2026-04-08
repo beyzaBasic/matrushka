@@ -43,27 +43,21 @@ export class PhysicsManager {
 
   // Container parametrelerini hesapla — her _clampToU çağrısında cache'lenir
   _containerParams() {
-    // state.capParams game.js _draw() başında her frame hesaplanır — tek kaynak
     const cp = state.capParams;
-    if (cp) {
-      return {
-        juncHW: cp.juncHW,
-        juncY:  cp.juncY,
-        topY:   cp.topY,
-        wallH:  cp.wallH,
-        topWidthFactor: cp.effTWF,
-      };
-    }
-    // Fallback: capParams henüz yok (ilk frame)
-    const { CY, MAIN_R } = state;
+    if (cp) return {
+      juncHW: cp.juncHW, juncY: cp.juncY, topY: cp.topY,
+      wallH: cp.wallH, topWidthFactor: cp.effTWF,
+    };
+    // Fallback — capParams henüz yok (ilk frame öncesi)
+    const { CY, MAIN_R, W } = state;
     const form = state.containerForm || {};
-    const openAngle = Math.PI * (form.openFrac ?? 0.50);
-    const arcStartAngle = -Math.PI / 2 + openAngle;
-    const juncHW = MAIN_R * Math.abs(Math.cos(arcStartAngle));
-    const juncY  = CY + MAIN_R * Math.sin(arcStartAngle);
+    const ang = Math.PI * (form.openFrac ?? 0.50);
+    const a = -Math.PI/2 + ang;
+    const juncHW = Math.abs(Math.cos(a)) * MAIN_R;
+    const juncY  = CY + Math.sin(a) * MAIN_R;
     const topY   = CY - MAIN_R;
     const wallH  = Math.max(1, juncY - topY);
-    const maxHW  = (state.W || 400) / 2 - 8;
+    const maxHW  = (W||400)/2 - 8;
     const topHW  = Math.min(juncHW * (form.topWidthFactor ?? 1), maxHW);
     return { juncHW, juncY, topY, wallH, topWidthFactor: topHW / Math.max(juncHW, 0.001) };
   }
