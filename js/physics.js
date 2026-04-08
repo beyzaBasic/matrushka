@@ -46,18 +46,17 @@ export class PhysicsManager {
     const cp = state.capParams;
     if (cp) return {
       juncHW: cp.juncHW, juncY: cp.juncY, topY: cp.topY,
-      wallH: cp.wallH, topWidthFactor: cp.effTWF,
+      wallH:  cp.wallH,  topWidthFactor: cp.effTWF,
     };
-    // Fallback — capParams henüz yok (ilk frame öncesi)
+    // Fallback — ilk frame öncesi
     const { CY, MAIN_R, W } = state;
     const form = state.containerForm || {};
-    const ang = Math.PI * (form.openFrac ?? 0.50);
-    const a = -Math.PI/2 + ang;
+    const a = -Math.PI/2 + Math.PI * (form.openFrac ?? 0.5);
     const juncHW = Math.abs(Math.cos(a)) * MAIN_R;
     const juncY  = CY + Math.sin(a) * MAIN_R;
     const topY   = CY - MAIN_R;
     const wallH  = Math.max(1, juncY - topY);
-    const maxHW  = (W||400)/2 - 8;
+    const maxHW  = (W || 400) / 2 - 8;
     const topHW  = Math.min(juncHW * (form.topWidthFactor ?? 1), maxHW);
     return { juncHW, juncY, topY, wallH, topWidthFactor: topHW / Math.max(juncHW, 0.001) };
   }

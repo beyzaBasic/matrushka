@@ -34,23 +34,14 @@ export function buildLayout() {
   // Alt güvenlik payı: safe area + minimum boşluk
   const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
 
-  // MAIN_R: 8px kenar boşluğu + en geniş kap formu da sığsın
-  const SIDE_PAD = 8;
-  const maxHalfW = (W - SIDE_PAD * 2) / 2;
-  // En geniş form goblet (topWidthFactor=1.20) — onu baz al
-  let worstSpread = 1.0;
-  for (const cfg of WORLD_CONFIG) {
-    const f = cfg.containerForm;
-    if (!f) continue;
-    const spread = Math.max(Math.sin((f.openFrac ?? 0.5) * Math.PI), f.topWidthFactor ?? 1.0);
-    if (spread > worstSpread) worstSpread = spread;
-  }
-  const maxRbyW   = Math.floor(maxHalfW / worstSpread);
-  const _R_EST    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
-  const BTN_H_EST = Math.round(_R_EST * 0.62 * 0.42);
+  // MAIN_R: dikey alana göre maksimum — form bazlı scale _applyLayout'ta yapılır
+  const SIDE_PAD   = 8;
+  const maxRbyW    = Math.floor((W - SIDE_PAD * 2) / 2); // yatay üst sınır (form gözetmeden)
+  const _R_EST     = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
+  const BTN_H_EST  = Math.round(_R_EST * 0.62 * 0.42);
   const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
-  const MAIN_R    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
-  const CY        = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
+  const MAIN_R     = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
+  const CY         = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
 
   const safeTop = (() => {
     try {

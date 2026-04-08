@@ -228,14 +228,12 @@ export class Game {
     state.mousePos = { x, y };
 
     if (state.draggedCircle) {
-      const clamped = this._clampToCapBounds(x, y, state.draggedCircle.r);
-      state.mousePos = { x: clamped.x, y: clamped.y };
+      const c = this._clampToCapBounds(x, y, state.draggedCircle.r);
+      state.mousePos = { x: c.x, y: c.y };
     }
-
     if (state.heldBall) {
-      const clamped = this._clampToCapBounds(x, y, state.heldBall.r);
-      state.heldBall.x = clamped.x;
-      state.heldBall.y = clamped.y;
+      const c = this._clampToCapBounds(x, y, state.heldBall.r);
+      state.heldBall.x = c.x; state.heldBall.y = c.y;
     }
 
     if (state.isDraggingWorld) {
@@ -503,39 +501,8 @@ export class Game {
   }
 
   // Üst açıklığın efektif yarı-genişliği — container form'a göre
-  // Kap formu sınırı içine clamp — capParams ile physics tutarlı
-  _clampToCapBounds(px, py, r) {
-    const { CX, CY, MAIN_R } = state;
-    const cp = state.capParams;
-    if (!cp) return { x: px, y: py };
-    const { juncHW, juncY, topY, wallH, effTWF } = cp;
-    let ox = px, oy = py;
-
-    if (oy >= juncY) {
-      // Yay bölgesi — dairesel sınır
-      const dx = ox - CX, dy = oy - CY;
-      const d  = Math.hypot(dx, dy) || 0.01;
-      const maxD = MAIN_R - r;
-      if (d > maxD) { ox = CX + dx/d*maxD; oy = CY + dy/d*maxD; }
-    } else {
-      // Duvar bölgesi — y'ye göre genişlik (physics _wallHW ile aynı)
-      const t  = Math.max(0, Math.min(1, (juncY - oy) / wallH));
-      const hw = juncHW * (1 + (effTWF - 1) * t) - r;
-      if (ox < CX - hw) ox = CX - hw;
-      if (ox > CX + hw) ox = CX + hw;
-      if (oy < topY + r) oy = topY + r;
-    }
-    return { x: ox, y: oy };
-  }
-
   _topHalfWidth() {
-    const { MAIN_R } = state;
-    const form = state.containerForm || {};
-    const openAngle = Math.PI * (form.openFrac ?? 0.50);
-    const topWidthFactor = form.topWidthFactor ?? 1.00;
-    const arcStartAngle = -Math.PI / 2 + openAngle;
-    const juncHW = MAIN_R * Math.cos(arcStartAngle);
-    return juncHW * topWidthFactor;
+    return state.capParams?.topHW ?? (state.MAIN_R * 0.9);
   }
 
   // Üst açıklık içinde boş yer bul ve topu oraya yerleştir
@@ -801,6 +768,9 @@ export class Game {
 
   // ── Update loop ───────────────────────────────────────────────────
   _update() {
+    // capParams her frame physics'ten önce güncellenir — form değişince tutarlı
+    this._computeCapParams();
+
     if (state.isPaused) {
       if (state.autoDropDeadline > 0) state.autoDropDeadline = Date.now() + 1000;
       return;
@@ -962,57 +932,20 @@ export class Game {
     }
     const arenaColor = this._cachedArenaColor;
 
-    // ── capParams — fizik, çizim ve input için tek kaynak ───────────
-    {
-      const form = state.containerForm || {};
-      const openAngle      = Math.PI * (form.openFrac ?? 0.50);
-      const topWidthFactor = form.topWidthFactor ?? 1.00;
-      const arcStart = -Math.PI / 2 + openAngle;
-      const arcEnd   = -Math.PI / 2 - openAngle;
-      const lx1 = CX + Math.cos(arcStart) * MAIN_R;
-      const ly1 = CY + Math.sin(arcStart) * MAIN_R;
-      const lx2 = CX + Math.cos(arcEnd)   * MAIN_R;
-      const ly2 = CY + Math.sin(arcEnd)   * MAIN_R;
-      const juncHW = Math.abs(lx1 - CX);
-      const juncY  = ly1;
-      const topY   = CY - MAIN_R;
-      const wallH  = Math.max(1, juncY - topY);
-      const maxHW  = W / 2 - 8;
-      const topHW  = Math.min(juncHW * topWidthFactor, maxHW);
-      const effTWF = topHW / Math.max(juncHW, 0.001);
-      const tx1 = CX + topHW, tx2 = CX - topHW;
-      state.capParams = { arcStart, arcEnd, lx1, ly1, lx2, ly2,
-        juncHW, juncY, topY, topHW, tx1, tx2, wallH, effTWF };
-    }
-
-    // Arena — Container form'a göre (CP başına farklı kap şekli)
+    // Arena — capParams'tan oku (her frame _update başında hesaplandı)
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
     const mBlur = mFlash > 0 ? 7 + mFlash * 22 : 6;
     {
       const { arcStart, arcEnd, lx1, ly1, lx2, ly2, tx1, tx2, topY } = state.capParams;
 
-      // Simetrik rounded köşe
+      // Rounded köşe vektörleri
       const rDX = tx1-lx1, rDY = topY-ly1, rLen = Math.sqrt(rDX*rDX+rDY*rDY);
       const rNx = rDX/rLen, rNy = rDY/rLen;
       const lDX = tx2-lx2, lDY = topY-ly2, lLen = Math.sqrt(lDX*lDX+lDY*lDY);
       const lNx = lDX/lLen, lNy = lDY/lLen;
-      const cr = Math.min(rLen * 0.14, 22 * S);
+      const cr = Math.min(rLen * 0.10, 16 * S);
 
-      // Kap iç dolgu
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
-      ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
-      ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
-      ctx.lineTo(tx1-cr, topY);
-      ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
-      ctx.lineTo(lx1, ly1);
-      ctx.closePath();
-      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
-      ctx.fill();
-      ctx.restore();
-
-      const _drawArenaPath = () => {
+      const _path = () => {
         ctx.beginPath();
         ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
         ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
@@ -1023,11 +956,17 @@ export class Game {
       };
 
       ctx.save();
+      _path(); ctx.closePath();
+      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
       ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
-      _drawArenaPath(); ctx.stroke();
-      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _drawArenaPath(); ctx.stroke(); }
+      _path(); ctx.stroke();
+      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _path(); ctx.stroke(); }
 
       const dashLen = 9 * S, gapLen = 6 * S;
       ctx.setLineDash([dashLen, gapLen]);
@@ -1173,6 +1112,56 @@ export class Game {
     } else {
       state._resumeBtn = null;
     }
+  }
+
+  // ── capParams — her frame physics öncesi hesaplanır ──────────────
+  // Çizim, fizik ve input tek kaynaktan okur
+  _computeCapParams() {
+    const { CX, CY, MAIN_R, W, containerForm } = state;
+    const form = containerForm || {};
+    const openAngle      = Math.PI * (form.openFrac  ?? 0.50);
+    const topWidthFactor = form.topWidthFactor ?? 1.00;
+    const arcStart = -Math.PI / 2 + openAngle;
+    const arcEnd   = -Math.PI / 2 - openAngle;
+    const lx1 = CX + Math.cos(arcStart) * MAIN_R;
+    const ly1 = CY + Math.sin(arcStart) * MAIN_R;
+    const lx2 = CX + Math.cos(arcEnd)   * MAIN_R;
+    const ly2 = CY + Math.sin(arcEnd)   * MAIN_R;
+    const juncHW = Math.abs(lx1 - CX);
+    const juncY  = ly1;
+    const topY   = CY - MAIN_R;
+    const wallH  = Math.max(1, juncY - topY);
+    // 8px marjla sınırla
+    const maxHW  = W / 2 - 8;
+    const topHW  = Math.min(juncHW * topWidthFactor, maxHW);
+    const effTWF = topHW / Math.max(juncHW, 0.001);
+    const tx1 = CX + topHW, tx2 = CX - topHW;
+    state.capParams = { arcStart, arcEnd, lx1, ly1, lx2, ly2,
+      juncHW, juncY, topY, topHW, tx1, tx2, wallH, effTWF };
+  }
+
+  // Kap formu sınırı içine clamp — capParams ile physics tutarlı
+  _clampToCapBounds(px, py, r) {
+    const { CX, CY, MAIN_R } = state;
+    const cp = state.capParams;
+    if (!cp) return { x: px, y: py };
+    const { juncHW, juncY, topY, wallH, effTWF } = cp;
+    let ox = px, oy = py;
+    if (oy >= juncY) {
+      // Yay bölgesi
+      const dx = ox - CX, dy = oy - CY;
+      const d  = Math.hypot(dx, dy) || 0.01;
+      const maxD = MAIN_R - r;
+      if (d > maxD) { ox = CX + dx/d * maxD; oy = CY + dy/d * maxD; }
+    } else {
+      // Duvar bölgesi — physics _wallHW ile aynı formül
+      const t  = Math.max(0, Math.min(1, (juncY - oy) / wallH));
+      const hw = Math.max(r, juncHW * (1 + (effTWF - 1) * t) - r);
+      if (ox < CX - hw) ox = CX - hw;
+      if (ox > CX + hw) ox = CX + hw;
+      if (oy < topY + r) oy = topY + r;
+    }
+    return { x: ox, y: oy };
   }
 
   // ── Ana döngü ─────────────────────────────────────────────────────
