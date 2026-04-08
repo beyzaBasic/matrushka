@@ -25,6 +25,35 @@ export function buildLayout() {
     } catch (_) { return 0; }
   })();
 
+  // SCORE_AREA: H'a orantılı, küçük ekranlarda daha kompakt
+  const SCORE_AREA = Math.max(Math.round(H * 0.18), Math.min(220, Math.round(H * 0.24)));
+
+  // BTN_PAD: ekran genişliğinin %2.5'i
+  const BTN_PAD = Math.max(8, Math.round(MIN_DIM * 0.025));
+
+  // Alt güvenlik payı: safe area + minimum boşluk
+  const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
+
+  // MAIN_R: 8px kenar boşluğu, en geniş kap formu da sığsın
+  const SIDE_PAD = 8; // telefonda leading/trailing 8px sabit
+  const maxHalfW = (W - SIDE_PAD * 2) / 2;
+
+  // En geniş kap formu: goblet topWidthFactor=1.20
+  // Kap ağzı yarı genişliği = max(sin(openFrac*PI), topWidthFactor) * MAIN_R
+  let worstSpread = 1.0;
+  for (const cfg of WORLD_CONFIG) {
+    const f = cfg.containerForm;
+    if (!f) continue;
+    const spread = Math.max(Math.sin((f.openFrac ?? 0.5) * Math.PI), f.topWidthFactor ?? 1.0);
+    if (spread > worstSpread) worstSpread = spread;
+  }
+  const maxRbyW   = Math.floor(maxHalfW / worstSpread);
+  const _R_EST    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
+  const BTN_H_EST = Math.round(_R_EST * 0.62 * 0.42);
+  const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
+  const MAIN_R    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
+  const CY        = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
+
   const safeTop = (() => {
     try {
       const el = document.createElement('div');
@@ -35,37 +64,6 @@ export function buildLayout() {
       return Math.max(v, 0);
     } catch (_) { return 0; }
   })();
-
-  // SCORE_AREA: H'a orantılı, küçük ekranlarda daha kompakt
-  const SCORE_AREA = Math.max(Math.round(H * 0.18), Math.min(220, Math.round(H * 0.24)));
-
-  // BTN_PAD: ekran genişliğinin %2.5'i
-  const BTN_PAD = Math.max(8, Math.round(MIN_DIM * 0.025));
-
-  // Alt güvenlik payı: safe area + minimum boşluk
-  const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
-
-  // MAIN_R: hem dikey alana hem en geniş kap formuna sığacak şekilde hesapla
-  const SIDE_PAD = Math.max(14, Math.round(W * 0.035)); // sol/sağ minimum boşluk
-  const maxHalfW = (W - SIDE_PAD * 2) / 2;
-
-  // Tüm CP formları arasında en geniş spread'i bul
-  // Kap ağzı yarı genişliği = max(sin(openFrac*PI), topWidthFactor) * MAIN_R
-  let worstSpread = 1.0;
-  for (const cfg of WORLD_CONFIG) {
-    const f = cfg.containerForm;
-    if (!f) continue;
-    const spread = Math.max(Math.sin((f.openFrac ?? 0.5) * Math.PI), f.topWidthFactor ?? 1.0);
-    if (spread > worstSpread) worstSpread = spread;
-  }
-  // MAIN_R'ın yatay sınırı: en geniş form bile sığsın
-  const maxRbyW = Math.floor(maxHalfW / worstSpread);
-
-  const _R_EST    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
-  const BTN_H_EST = Math.round(_R_EST * 0.62 * 0.42);
-  const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
-  const MAIN_R    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
-  const CY        = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
 
   return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD, safeTop };
 }
