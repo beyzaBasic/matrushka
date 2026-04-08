@@ -521,17 +521,15 @@ export class Game {
     return (c.r + r - dist) > r * 0.4;
   }
 
-  // Üst açıklığın efektif yarı-genişliği — container form'a göre, 8px marjla sınırlı
   _topHalfWidth() {
+    // capParams game._draw() başında hesaplanır — tek kaynak
+    if (state.capParams) return state.capParams.topHW;
+    // fallback
     const { MAIN_R, W } = state;
     const form = state.containerForm || {};
     const openAngle = Math.PI * (form.openFrac ?? 0.50);
-    const topWidthFactor = form.topWidthFactor ?? 1.00;
-    const arcStartAngle = -Math.PI / 2 + openAngle;
-    const juncHW = MAIN_R * Math.cos(arcStartAngle);
-    const topHW  = juncHW * topWidthFactor;
-    const maxHW  = W / 2 - 8;
-    return Math.min(topHW, maxHW);
+    const juncHW = MAIN_R * Math.abs(Math.cos(-Math.PI/2 + openAngle));
+    return Math.min(juncHW * (form.topWidthFactor ?? 1), W/2 - 8);
   }
 
   // Üst açıklık içinde boş yer bul ve topu oraya yerleştir
@@ -958,50 +956,45 @@ export class Game {
     }
     const arenaColor = this._cachedArenaColor;
 
+    // ── Cap parametreleri — fizik ve çizim için ortak tek kaynak ────
+    {
+      const form = state.containerForm || {};
+      const openAngle      = Math.PI * (form.openFrac ?? 0.50);
+      const topWidthFactor = form.topWidthFactor ?? 1.00;
+      const arcStart = -Math.PI / 2 + openAngle;
+      const arcEnd   = -Math.PI / 2 - openAngle;
+      const lx1 = CX + Math.cos(arcStart) * MAIN_R;
+      const ly1 = CY + Math.sin(arcStart) * MAIN_R;
+      const lx2 = CX + Math.cos(arcEnd)   * MAIN_R;
+      const ly2 = CY + Math.sin(arcEnd)   * MAIN_R;
+      const juncHW = Math.abs(lx1 - CX);
+      const juncY  = ly1; // sağ junction y (simetrik)
+      const topY   = CY - MAIN_R;
+      // Kap ağzı 8px marjla sınırlı
+      const maxHW  = W / 2 - 8;
+      const topHW  = Math.min(juncHW * topWidthFactor, maxHW);
+      const tx1 = CX + topHW, tx2 = CX - topHW;
+      const wallH = Math.max(1, juncY - topY);
+      // topWidthFactor efektif (clamp sonrası)
+      const effTWF = topHW / Math.max(juncHW, 0.001);
+      state.capParams = { arcStart, arcEnd, lx1, ly1, lx2, ly2,
+        juncHW, juncY, topY, topHW, tx1, tx2, wallH, effTWF };
+    }
+
     // Arena — Container form'a göre (CP başına farklı kap şekli)
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
     const mBlur = mFlash > 0 ? 7 + mFlash * 22 : 6;
     {
-      const form = state.containerForm || {};
-      const openAngle     = Math.PI * (form.openFrac ?? 0.50);
-      const topWidthFactor = form.topWidthFactor ?? 1.00;
-      const arcStart = -Math.PI / 2 + openAngle;
-      const arcEnd   = -Math.PI / 2 - openAngle;
-      // Yay–duvar kesişim noktaları
-      const lx1 = CX + Math.cos(arcStart) * MAIN_R, ly1 = CY + Math.sin(arcStart) * MAIN_R;
-      const lx2 = CX + Math.cos(arcEnd)   * MAIN_R, ly2 = CY + Math.sin(arcEnd)   * MAIN_R;
-      // Üst kenar genişliği — topWidthFactor ile junction genişliği ölçeklenir
-      const juncHW = Math.abs(lx1 - CX);
-      const topHW  = juncHW * topWidthFactor;
-      const topY   = CY - MAIN_R;
-      // Kap ağzı 8px marjla ekrana sığdır
-      const PAD = 8;
-      const maxHW = W / 2 - PAD;
-      const scale = topHW > maxHW ? maxHW / topHW : 1;
-      const tx1 = CX + topHW * scale, tx2 = CX - topHW * scale;
+      const { arcStart, arcEnd, lx1, ly1, lx2, ly2, tx1, tx2, topY } = state.capParams;
 
-      // Simetrik rounded köşe
+      // Rounded köşe vektörleri
       const rDX = tx1-lx1, rDY = topY-ly1, rLen = Math.sqrt(rDX*rDX+rDY*rDY);
       const rNx = rDX/rLen, rNy = rDY/rLen;
       const lDX = tx2-lx2, lDY = topY-ly2, lLen = Math.sqrt(lDX*lDX+lDY*lDY);
       const lNx = lDX/lLen, lNy = lDY/lLen;
-      const cr = Math.min(rLen * 0.14, 22 * S);
+      const cr = Math.min(rLen * 0.10, 16 * S);
 
-      // Kap iç dolgu
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
-      ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
-      ctx.quadraticCurveTo(tx2, topY, tx2+cr, topY);
-      ctx.lineTo(tx1-cr, topY);
-      ctx.quadraticCurveTo(tx1, topY, tx1-rNx*cr, topY-rNy*cr);
-      ctx.lineTo(lx1, ly1);
-      ctx.closePath();
-      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
-      ctx.fill();
-      ctx.restore();
-
-      const _drawArenaPath = () => {
+      const _path = () => {
         ctx.beginPath();
         ctx.arc(CX, CY, MAIN_R, arcStart, arcEnd + Math.PI * 2);
         ctx.lineTo(lx2 + lNx*(lLen-cr), ly2 + lNy*(lLen-cr));
@@ -1011,12 +1004,20 @@ export class Game {
         ctx.lineTo(lx1, ly1);
       };
 
+      // Dolgu
+      ctx.save();
+      _path(); ctx.closePath();
+      ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
+      ctx.fill();
+      ctx.restore();
+
+      // Stroke
       ctx.save();
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.shadowColor = arenaColor; ctx.shadowBlur = mBlur;
       ctx.strokeStyle = arenaColor; ctx.lineWidth = Math.round(4 * S); ctx.globalAlpha = 1;
-      _drawArenaPath(); ctx.stroke();
-      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _drawArenaPath(); ctx.stroke(); }
+      _path(); ctx.stroke();
+      if (mFlash > 0) { ctx.shadowBlur = mBlur * 1.5; _path(); ctx.stroke(); }
 
       const dashLen = 9 * S, gapLen = 6 * S;
       ctx.setLineDash([dashLen, gapLen]);

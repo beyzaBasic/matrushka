@@ -34,12 +34,10 @@ export function buildLayout() {
   // Alt güvenlik payı: safe area + minimum boşluk
   const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
 
-  // MAIN_R: 8px kenar boşluğu, en geniş kap formu da sığsın
-  const SIDE_PAD = 8; // telefonda leading/trailing 8px sabit
+  // MAIN_R: 8px kenar boşluğu + en geniş kap formu da sığsın
+  const SIDE_PAD = 8;
   const maxHalfW = (W - SIDE_PAD * 2) / 2;
-
-  // En geniş kap formu: goblet topWidthFactor=1.20
-  // Kap ağzı yarı genişliği = max(sin(openFrac*PI), topWidthFactor) * MAIN_R
+  // En geniş form goblet (topWidthFactor=1.20) — onu baz al
   let worstSpread = 1.0;
   for (const cfg of WORLD_CONFIG) {
     const f = cfg.containerForm;
@@ -62,7 +60,7 @@ export function buildLayout() {
       const v = parseInt(getComputedStyle(el).height) || 0;
       document.body.removeChild(el);
       return Math.max(v, 0);
-    } catch (_) { return 0; }
+    } catch(_) { return 0; }
   })();
 
   return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD, safeTop };

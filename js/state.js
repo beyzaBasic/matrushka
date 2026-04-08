@@ -7,7 +7,7 @@ export const state = {
   // Layout (game.js her resize'da günceller)
   W: 0, H: 0, CX: 0, CY: 0, MAIN_R: 0, S: 1,
   MIN_DIM: 0, DPR: 1, CSS_W: 0, CSS_H: 0,
-  SCORE_AREA: 230, BTN_PAD: 12, BTN_BOTTOM_PAD: 12, safeTop: 0,
+  SCORE_AREA: 230, BTN_PAD: 12, BTN_BOTTOM_PAD: 12,
   LEVELS: [],
   theme: null,
   // Oyun nesneleri
@@ -42,4 +42,5 @@ export const state = {
   // Kap formu ve yerçekimi (theme.js her CP geçişinde günceller)
   containerForm: { openFrac: 0.50, topWidthFactor: 1.00 },
   gravity: 0.35,
+  capParams: null, // game._draw() başında her frame hesaplanır — fizik ve çizim ortak kullanır
 };
