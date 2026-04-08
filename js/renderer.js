@@ -1299,83 +1299,65 @@ export class Renderer {
   }
 
   drawPauseBtn() {
-    const ctx = state.ctx, { W, SCORE_AREA, safeTop, isPaused, levelSuccess } = state;
+    const ctx = state.ctx, { W, isPaused, levelSuccess } = state;
     if (levelSuccess) { state._pauseBtn=null; return; }
-    const ICON_PX=44, iconPad=10;
-    const pcx=W-iconPad-ICON_PX/2;
-    const pcy=safeTop + ICON_PX/2 + 10; // safe area'dan hemen sonra, en üst
-    ctx.save(); ctx.globalAlpha=0.75; ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=6; ctx.fillStyle='#fff';
+    const ICON=30, GAP=6, PAD=12, pcy=22;
+    const pcx = W - PAD - ICON/2;
+    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4; ctx.fillStyle='#fff';
     if (isPaused) {
-      const bh=ICON_PX*(1/3);
+      const bh=ICON*(1/3);
       ctx.beginPath(); ctx.moveTo(pcx-bh*0.5,pcy-bh); ctx.lineTo(pcx+bh,pcy); ctx.lineTo(pcx-bh*0.5,pcy+bh); ctx.closePath(); ctx.fill();
     } else {
-      const bw=ICON_PX*0.13, bh=ICON_PX*(2/3), gap=ICON_PX*0.20;
+      const bw=ICON*0.13, bh=ICON*(2/3), gap=ICON*0.20;
       const bx1=pcx-gap/2-bw, bx2=pcx+gap/2, by=pcy-bh/2;
       this.rrect(bx1,by,bw,bh,bw*0.5); ctx.fill();
       this.rrect(bx2,by,bw,bh,bw*0.5); ctx.fill();
     }
     ctx.restore();
-    state._pauseBtn = { x:pcx-ICON_PX, y:pcy-ICON_PX, w:ICON_PX*2, h:ICON_PX*2 };
+    state._pauseBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
   }
 
   drawSoundBtn() {
-    const ctx = state.ctx, { W, safeTop, isMuted, levelSuccess } = state;
-    if (levelSuccess) { state._soundBtn = null; return; }
-    const ICON_PX = 44, iconPad = 10;
-    const pcx = W - iconPad - ICON_PX / 2;
-    const pcy = safeTop + ICON_PX/2 + 10 + (ICON_PX + 6);
+    const ctx = state.ctx, { W, isMuted, levelSuccess } = state;
+    if (levelSuccess) { state._soundBtn=null; return; }
+    const ICON=30, GAP=6, PAD=12, pcy=22;
+    const pcx = W - PAD - ICON/2 - (ICON+GAP);
+    const s = ICON * 0.38;
     ctx.save();
-    ctx.globalAlpha = 0.75;
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = 6;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = ICON_PX * 0.12;
-    ctx.lineCap = 'round';
-    const s = ICON_PX * 0.38;
-    // Hoparlör gövdesi
+    ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4;
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#fff';
+    ctx.lineWidth=ICON*0.12; ctx.lineCap='round';
     ctx.beginPath();
-    ctx.moveTo(pcx - s * 0.55, pcy - s * 0.38);
-    ctx.lineTo(pcx - s * 0.18, pcy - s * 0.38);
-    ctx.lineTo(pcx + s * 0.18, pcy - s * 0.72);
-    ctx.lineTo(pcx + s * 0.18, pcy + s * 0.72);
-    ctx.lineTo(pcx - s * 0.18, pcy + s * 0.38);
-    ctx.lineTo(pcx - s * 0.55, pcy + s * 0.38);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(pcx-s*0.55,pcy-s*0.38); ctx.lineTo(pcx-s*0.18,pcy-s*0.38);
+    ctx.lineTo(pcx+s*0.18,pcy-s*0.72); ctx.lineTo(pcx+s*0.18,pcy+s*0.72);
+    ctx.lineTo(pcx-s*0.18,pcy+s*0.38); ctx.lineTo(pcx-s*0.55,pcy+s*0.38);
+    ctx.closePath(); ctx.fill();
     if (!isMuted) {
-      // Ses dalgaları
-      ctx.shadowBlur = 0;
-      ctx.beginPath(); ctx.arc(pcx + s * 0.18, pcy, s * 0.55, -Math.PI * 0.38, Math.PI * 0.38); ctx.stroke();
-      ctx.beginPath(); ctx.arc(pcx + s * 0.18, pcy, s * 0.90, -Math.PI * 0.30, Math.PI * 0.30); ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.arc(pcx+s*0.18,pcy,s*0.55,-Math.PI*0.38,Math.PI*0.38); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pcx+s*0.18,pcy,s*0.90,-Math.PI*0.30,Math.PI*0.30); ctx.stroke();
     } else {
-      // X işareti
-      ctx.shadowBlur = 0;
-      ctx.lineWidth = ICON_PX * 0.13;
-      const x1 = pcx + s * 0.28, y1 = pcy - s * 0.52;
-      const x2 = pcx + s * 0.80, y2 = pcy + s * 0.52;
-      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x2, y1); ctx.lineTo(x1, y2); ctx.stroke();
+      ctx.shadowBlur=0; ctx.lineWidth=ICON*0.13;
+      ctx.beginPath(); ctx.moveTo(pcx+s*0.28,pcy-s*0.52); ctx.lineTo(pcx+s*0.80,pcy+s*0.52); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pcx+s*0.80,pcy-s*0.52); ctx.lineTo(pcx+s*0.28,pcy+s*0.52); ctx.stroke();
     }
     ctx.restore();
-    state._soundBtn = { x: pcx - ICON_PX, y: pcy - ICON_PX, w: ICON_PX * 2, h: ICON_PX * 2 };
+    state._soundBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
   }
 
   drawDarkModeBtn() {
-    const ctx = state.ctx, { W, safeTop, isDarkMode, levelSuccess } = state;
-    if (levelSuccess) { state._darkModeBtn = null; return; }
-    const ICON_PX = 44, iconPad = 10;
-    const pcx = W - iconPad - ICON_PX / 2;
-    const pcy = safeTop + ICON_PX/2 + 10 + (ICON_PX + 6) * 2;
-    const s = ICON_PX * 0.40;
+    const ctx = state.ctx, { W, isDarkMode, levelSuccess } = state;
+    if (levelSuccess) { state._darkModeBtn=null; return; }
+    const ICON=30, GAP=6, PAD=12, pcy=22;
+    const pcx = W - PAD - ICON/2 - (ICON+GAP)*2;
+    const s = ICON * 0.42;
 
     ctx.save();
-    ctx.globalAlpha = 0.80;
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 5;
+    ctx.globalAlpha = 0.72;
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 4;
 
     if (isDarkMode) {
-      // Ay hilali
       ctx.fillStyle = '#FFD966';
       ctx.beginPath();
       ctx.arc(pcx, pcy, s * 0.72, 0, Math.PI * 2);
@@ -1386,7 +1368,6 @@ export class Renderer {
       ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     } else {
-      // Güneş
       ctx.fillStyle = '#FF9800';
       ctx.beginPath();
       ctx.arc(pcx, pcy, s * 0.38, 0, Math.PI * 2);
@@ -1404,7 +1385,7 @@ export class Renderer {
       }
     }
     ctx.restore();
-    state._darkModeBtn = { x: pcx - ICON_PX, y: pcy - ICON_PX, w: ICON_PX * 2, h: ICON_PX * 2 };
+    state._darkModeBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
   }
 
   drawPauseOverlay() {

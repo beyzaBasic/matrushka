@@ -45,12 +45,27 @@ export function buildLayout() {
   // Alt güvenlik payı: safe area + minimum boşluk
   const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
 
-  // MAIN_R: mevcut alanı blast button için yer bırakarak hesapla
-  const _R_EST       = Math.floor(Math.min(W * 0.46, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
-  const BTN_H_EST    = Math.round(_R_EST * 0.62 * 0.42);
-  const BOTTOM_PAD   = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
-  const MAIN_R       = Math.floor(Math.min(W * 0.46, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
-  const CY           = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
+  // MAIN_R: hem dikey alana hem en geniş kap formuna sığacak şekilde hesapla
+  const SIDE_PAD = Math.max(14, Math.round(W * 0.035)); // sol/sağ minimum boşluk
+  const maxHalfW = (W - SIDE_PAD * 2) / 2;
+
+  // Tüm CP formları arasında en geniş spread'i bul
+  // Kap ağzı yarı genişliği = max(sin(openFrac*PI), topWidthFactor) * MAIN_R
+  let worstSpread = 1.0;
+  for (const cfg of WORLD_CONFIG) {
+    const f = cfg.containerForm;
+    if (!f) continue;
+    const spread = Math.max(Math.sin((f.openFrac ?? 0.5) * Math.PI), f.topWidthFactor ?? 1.0);
+    if (spread > worstSpread) worstSpread = spread;
+  }
+  // MAIN_R'ın yatay sınırı: en geniş form bile sığsın
+  const maxRbyW = Math.floor(maxHalfW / worstSpread);
+
+  const _R_EST    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
+  const BTN_H_EST = Math.round(_R_EST * 0.62 * 0.42);
+  const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
+  const MAIN_R    = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
+  const CY        = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
 
   return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD, safeTop };
 }
