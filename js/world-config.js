@@ -24,7 +24,7 @@ export const CONTAINER_FORMS = {
   classicU:  { openFrac: 0.50, topWidthFactor: 1.00 }, // CP0 – standart U
   roundBowl: { openFrac: 0.32, topWidthFactor: 1.00 }, // CP1 – geniş yuvarlak kase
   tallNarrow:{ openFrac: 0.68, topWidthFactor: 1.00 }, // CP2 – dar uzun tüp
-  goblet:    { openFrac: 0.62, topWidthFactor: 1.20 }, // CP3 – kadeh (dışa açılır)
+  goblet:    { openFrac: 0.667, topWidthFactor: 1.40 }, // CP3 – üçgen kadeh, ~120° alt açı
   vase:      { openFrac: 0.50, topWidthFactor: 0.65 }, // CP4 – vazo (içe kapanır)
 };
 

@@ -9,13 +9,15 @@ export class PhysicsManager {
   _circles(c) {
     const r = c.r;
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
-    // Tek bounding circle — compound yerine stabil ve titremesiz
     switch (shape) {
       case 'jellybear':
       case 'bear':      return [{ x: c.x,          y: c.y + r*0.05, r: r*0.90 }];
       case 'matrushka': return [{ x: c.x,          y: c.y + r*0.05, r: r*0.82 }];
       case 'duck':      return [{ x: c.x + r*0.10, y: c.y - r*0.10, r: r*0.88 }];
-      case 'fish':      return [{ x: c.x - r*0.10, y: c.y,          r: r*0.88 }];
+      // Fish: tek circle, merkez gövde+kuyruk arasında, yarıçap her iki tarafı kapsar
+      // Gövde merkezi x+0.05r, kuyruk ucu x-1.42r, gaga ucu x+1.20r
+      // Collision merkezi x-0.11r (ağırlık merkezi), r=1.00r tüm gövdeyi kapsar
+      case 'fish':      return [{ x: c.x - r*0.10, y: c.y, r: r*1.00 }];
       default:          return [{ x: c.x,          y: c.y,          r: r      }];
     }
   }
@@ -43,22 +45,17 @@ export class PhysicsManager {
 
   // Container parametrelerini hesapla — her _clampToU çağrısında cache'lenir
   _containerParams() {
-    const cp = state.capParams;
-    if (cp) return {
-      juncHW: cp.juncHW, juncY: cp.juncY, topY: cp.topY,
-      wallH:  cp.wallH,  topWidthFactor: cp.effTWF,
-    };
-    // Fallback — ilk frame öncesi
-    const { CY, MAIN_R, W } = state;
+    const { CY, MAIN_R } = state;
     const form = state.containerForm || {};
-    const a = -Math.PI/2 + Math.PI * (form.openFrac ?? 0.5);
-    const juncHW = Math.abs(Math.cos(a)) * MAIN_R;
-    const juncY  = CY + Math.sin(a) * MAIN_R;
+    const openAngle = Math.PI * (form.openFrac ?? 0.50);
+    const topWidthFactor = form.topWidthFactor ?? 1.00;
+    const arcStartAngle = -Math.PI / 2 + openAngle;
+    // Yay ile duvar kesişim noktası
+    const juncHW = MAIN_R * Math.cos(arcStartAngle);   // junction yarı-genişliği (≥0)
+    const juncY  = CY + MAIN_R * Math.sin(arcStartAngle); // junction y koordinatı
     const topY   = CY - MAIN_R;
     const wallH  = Math.max(1, juncY - topY);
-    const maxHW  = (W || 400) / 2 - 8;
-    const topHW  = Math.min(juncHW * (form.topWidthFactor ?? 1), maxHW);
-    return { juncHW, juncY, topY, wallH, topWidthFactor: topHW / Math.max(juncHW, 0.001) };
+    return { juncHW, juncY, topY, wallH, topWidthFactor };
   }
 
   // Belirli y'de efektif duvar yarı-genişliği

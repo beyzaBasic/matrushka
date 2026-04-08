@@ -1372,6 +1372,7 @@ export class Renderer {
     state._darkModeBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
   }
 
+
   drawPauseOverlay() {
     const ctx = state.ctx, { W, H, CX, CY } = state;
     ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,W,H);
@@ -1519,34 +1520,47 @@ export class Renderer {
     const { ctx, LEVELS, S, W, CX, safeTop } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    const n        = LEVELS.length;
-    const PAD_L    = 8 * S;
-    const GAP      = 6 * S; // toplar arası boşluk (ok yok)
-    const titleFs  = Math.round(28 * S);
-    const titleY   = (safeTop || 0) + 22;
+    const n       = LEVELS.length;
+    const PAD_L   = 8 * S;
+    const GAP     = 5 * S;
+    const titleFs = Math.round(28 * S);
+    const titleY  = (safeTop || 0) + 22;
     const titleTop = titleY - titleFs * 0.5;
 
-    // Title genişliği → en büyük top çapı buna eşit
     ctx.save();
     ctx.font = `bold ${titleFs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
     const titleW = ctx.measureText(goalManager?.displayLevelText?.() || 'Level 1').width;
     ctx.restore();
 
-    // Büyükten küçüğe
+    const _shapeSlop = (shape) => {
+      switch (shape) {
+        case 'fish':      return { left: 0.22, right: 0.10 };
+        case 'duck':      return { left: 0.05, right: 0.20 };
+        case 'jellybear':
+        case 'bear':      return { left: 0.10, right: 0.10 };
+        case 'matrushka': return { left: 0.05, right: 0.05 };
+        default:          return { left: 0,    right: 0    };
+      }
+    };
+
     const levelsRev = [...LEVELS].reverse();
     const maxRraw   = levelsRev[0].r;
     const scByTitle = titleW / (maxRraw * 2);
 
-    // Toplam genişlik: çaplar + boşluklar
-    const totalW = levelsRev.reduce((s, lv) => s + lv.r * 2 * scByTitle, 0) + (n - 1) * GAP;
+    const slotW = (lv, sc) => {
+      const slop = _shapeSlop(lv.shape || 'sphere');
+      return lv.r * sc * (2 + slop.left + slop.right);
+    };
+
+    const totalW = levelsRev.reduce((s, lv) => s + slotW(lv, scByTitle), 0) + (n - 1) * GAP;
     const availW = CX - titleW / 2 - PAD_L - 4;
     const sc     = totalW > availW ? scByTitle * (availW / totalW) : scByTitle;
     if (sc <= 0) return;
 
-    const gapSc  = totalW > availW ? GAP * (availW / totalW) : GAP;
-    const maxR   = maxRraw * sc;
-    const logH   = Math.ceil(maxR * 2 + 2);
-    const logW   = Math.ceil(levelsRev.reduce((s, lv) => s + lv.r * 2 * sc, 0) + (n - 1) * gapSc + PAD_L + 2);
+    const gapSc = totalW > availW ? GAP * (availW / totalW) : GAP;
+    const maxR  = maxRraw * sc;
+    const logH  = Math.ceil(maxR * 2 + 4);
+    const logW  = Math.ceil(levelsRev.reduce((s, lv) => s + slotW(lv, sc), 0) + (n - 1) * gapSc + PAD_L + 4);
 
     const themeKey = (state.theme?.cpIdx ?? 0) + '|' + sc.toFixed(4) + '|' + Math.round(titleTop);
 
@@ -1556,13 +1570,15 @@ export class Renderer {
       const octx = oc.getContext('2d');
       octx.scale(DPR, DPR);
 
-      let curX = levelsRev[0].r * sc + PAD_L;
+      const firstSlop = _shapeSlop(levelsRev[0].shape || 'sphere');
+      let curX = PAD_L + levelsRev[0].r * sc * (1 + firstSlop.left);
 
       for (let i = 0; i < n; i++) {
         const lv    = levelsRev[i];
         const origI = n - 1 - i;
         const r     = lv.r * sc;
-        const cy    = r + 1; // üst hiza
+        const cy    = r + 1;
+        const slop  = _shapeSlop(lv.shape || 'sphere');
 
         const saved = state.ctx;
         state.ctx   = octx;
@@ -1574,7 +1590,10 @@ export class Renderer {
         state.ctx = saved;
 
         if (i < n - 1) {
-          curX += r + gapSc + levelsRev[i + 1].r * sc;
+          const nextLv   = levelsRev[i + 1];
+          const nextSlop = _shapeSlop(nextLv.shape || 'sphere');
+          const nextR    = nextLv.r * sc;
+          curX += r * (1 + slop.right) + gapSc + nextR * (1 + nextSlop.left);
         }
       }
 
@@ -1591,3 +1610,4 @@ export class Renderer {
 
 
 }
+
