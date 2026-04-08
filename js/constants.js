@@ -35,7 +35,7 @@ export function buildLayout() {
   const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
 
   // MAIN_R: dikey alana göre maksimum — form bazlı scale _applyLayout'ta yapılır
-  const SIDE_PAD   = 8;
+  const SIDE_PAD   = 16;
   const maxRbyW    = Math.floor((W - SIDE_PAD * 2) / 2); // yatay üst sınır (form gözetmeden)
   const _R_EST     = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
   const BTN_H_EST  = Math.round(_R_EST * 0.62 * 0.42);
