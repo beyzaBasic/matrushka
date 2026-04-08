@@ -1299,10 +1299,11 @@ export class Renderer {
   }
 
   drawPauseBtn() {
-    const ctx = state.ctx, { W, SCORE_AREA, isPaused, levelSuccess } = state;
+    const ctx = state.ctx, { W, SCORE_AREA, safeTop, isPaused, levelSuccess } = state;
     if (levelSuccess) { state._pauseBtn=null; return; }
     const ICON_PX=44, iconPad=10;
-    const pcx=W-iconPad-ICON_PX/2, pcy=SCORE_AREA/2;
+    const pcx=W-iconPad-ICON_PX/2;
+    const pcy=safeTop + ICON_PX/2 + 10; // safe area'dan hemen sonra, en üst
     ctx.save(); ctx.globalAlpha=0.75; ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=6; ctx.fillStyle='#fff';
     if (isPaused) {
       const bh=ICON_PX*(1/3);
@@ -1318,12 +1319,11 @@ export class Renderer {
   }
 
   drawSoundBtn() {
-    const ctx = state.ctx, { W, SCORE_AREA, isMuted, levelSuccess } = state;
+    const ctx = state.ctx, { W, safeTop, isMuted, levelSuccess } = state;
     if (levelSuccess) { state._soundBtn = null; return; }
     const ICON_PX = 44, iconPad = 10;
-    // Pause ile aynı X, onun altında
     const pcx = W - iconPad - ICON_PX / 2;
-    const pcy = SCORE_AREA / 2 + ICON_PX + 4;
+    const pcy = safeTop + ICON_PX/2 + 10 + (ICON_PX + 6);
     ctx.save();
     ctx.globalAlpha = 0.75;
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
@@ -1362,11 +1362,11 @@ export class Renderer {
   }
 
   drawDarkModeBtn() {
-    const ctx = state.ctx, { W, SCORE_AREA, isDarkMode, levelSuccess } = state;
+    const ctx = state.ctx, { W, safeTop, isDarkMode, levelSuccess } = state;
     if (levelSuccess) { state._darkModeBtn = null; return; }
     const ICON_PX = 44, iconPad = 10;
     const pcx = W - iconPad - ICON_PX / 2;
-    const pcy = SCORE_AREA / 2 + (ICON_PX + 4) * 2;
+    const pcy = safeTop + ICON_PX/2 + 10 + (ICON_PX + 6) * 2;
     const s = ICON_PX * 0.40;
 
     ctx.save();

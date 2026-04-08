@@ -28,6 +28,7 @@ export class ThemeManager {
       name:      cfg.name,
       bgColor:   cfg.bgColor,
       lightBg:   cfg.lightBg || ['#F0E8D8', '#E8DCCA', '#DDD0B8', '#D9CAAB'],
+      darkBg:    cfg.darkBg  || ['#0D1B4B', '#091540', '#060F2E', '#030A1C'],
       palette,
       arenaBase: palette[6],
       accentMid: palette[3],

@@ -25,6 +25,17 @@ export function buildLayout() {
     } catch (_) { return 0; }
   })();
 
+  const safeTop = (() => {
+    try {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden';
+      document.body.appendChild(el);
+      const v = parseInt(getComputedStyle(el).height) || 0;
+      document.body.removeChild(el);
+      return Math.max(v, 0);
+    } catch (_) { return 0; }
+  })();
+
   // SCORE_AREA: H'a orantılı, küçük ekranlarda daha kompakt
   const SCORE_AREA = Math.max(Math.round(H * 0.18), Math.min(220, Math.round(H * 0.24)));
 
@@ -41,7 +52,7 @@ export function buildLayout() {
   const MAIN_R       = Math.floor(Math.min(W * 0.46, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
   const CY           = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
 
-  return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD };
+  return { DPR, CSS_W, CSS_H, W, H, MIN_DIM, CX, CY, MAIN_R, S, SCORE_AREA, BTN_PAD, BTN_BOTTOM_PAD, safeTop };
 }
 
 // Boyut oranları — renkten bağımsız

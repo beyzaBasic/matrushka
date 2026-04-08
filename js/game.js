@@ -61,6 +61,29 @@ export class Game {
   _applyLayout() {
     const L = buildLayout();
     Object.assign(state, L);
+
+    // Kap formu biliniyorsa MAIN_R'ı sığacak şekilde ölçekle
+    // Gerçek kap genişliği = 2 * sin(openFrac*PI) * MAIN_R * topWidthFactor
+    // Bu değer (W - SIDE_PAD*2) içinde kalmalı
+    const form = state.containerForm;
+    if (form) {
+      const SIDE_PAD   = Math.max(16, Math.round(L.W * 0.04));
+      const maxHalfW   = (L.W - SIDE_PAD * 2) / 2;
+      const openFrac   = form.openFrac ?? 0.50;
+      const twf        = form.topWidthFactor ?? 1.00;
+      // Kap yarı genişliği = max(sin(openFrac*PI), twf) * MAIN_R
+      // (junction veya üst kenar hangisi genişse)
+      const halfSpread = Math.max(Math.sin(openFrac * Math.PI), twf);
+      const maxRbyForm = Math.floor(maxHalfW / halfSpread);
+      if (maxRbyForm < state.MAIN_R) {
+        const ratio     = maxRbyForm / state.MAIN_R;
+        state.MAIN_R    = maxRbyForm;
+        // CY'yi de orantılı kaydır — kap aşağı inmemeli
+        state.CY        = Math.round(state.SCORE_AREA + state.MAIN_R +
+          (L.H - state.SCORE_AREA - (L.H - L.CY - L.MAIN_R) - state.MAIN_R * 2) / 2);
+      }
+    }
+
     this.theme?.reapplyAfterResize();
     // canvas boyutlandır
     const { canvas, ctx } = state;
@@ -69,7 +92,6 @@ export class Game {
     canvas.style.width  = L.CSS_W + 'px';
     canvas.style.height = L.CSS_H + 'px';
     ctx.setTransform(L.DPR, 0, 0, L.DPR, 0, 0);
-    // mousePos varsayılanı
     state.mousePos     = { x: L.CX, y: L.CY };
     state.prevMousePos = { x: L.CX, y: L.CY };
   }
@@ -353,7 +375,7 @@ export class Game {
     state._nextLevelBtn     = null;
     state._gameOverBtn      = null;
     this.theme.applyForLevel(internalLevel);
-    this.renderer.clearShapeCache();
+    this._applyLayout(); // form değişince MAIN_R yeniden hesapla
     this.goals.initLevelGoals();
     this._preloadArena();
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
@@ -426,7 +448,7 @@ export class Game {
     state.lastSpawn      = 0;
     state.blastUsedThisLevel = 0;
     this.theme.applyForLevel(nextLevel);
-    this.renderer.clearShapeCache();
+    this._applyLayout(); // form değişince MAIN_R yeniden hesapla
     this.goals.initLevelGoals();
     this._preloadArena();
     // İlk topu üret (tutorial değilse)
