@@ -43,17 +43,20 @@ export class PhysicsManager {
 
   // Container parametrelerini hesapla — her _clampToU çağrısında cache'lenir
   _containerParams() {
-    const { CY, MAIN_R } = state;
+    const { CY, MAIN_R, W } = state;
     const form = state.containerForm || {};
     const openAngle = Math.PI * (form.openFrac ?? 0.50);
     const topWidthFactor = form.topWidthFactor ?? 1.00;
     const arcStartAngle = -Math.PI / 2 + openAngle;
-    // Yay ile duvar kesişim noktası
-    const juncHW = MAIN_R * Math.cos(arcStartAngle);   // junction yarı-genişliği (≥0)
-    const juncY  = CY + MAIN_R * Math.sin(arcStartAngle); // junction y koordinatı
+    const juncHW = MAIN_R * Math.cos(arcStartAngle);
+    const juncY  = CY + MAIN_R * Math.sin(arcStartAngle);
     const topY   = CY - MAIN_R;
     const wallH  = Math.max(1, juncY - topY);
-    return { juncHW, juncY, topY, wallH, topWidthFactor };
+    // Kap ağzı 8px marjla sınırlı — taşmayı önle
+    const maxHW  = W / 2 - 8;
+    const topHW  = Math.min(juncHW * topWidthFactor, maxHW);
+    const clampedTopWidthFactor = topHW / Math.max(juncHW, 0.001);
+    return { juncHW, juncY, topY, wallH, topWidthFactor: clampedTopWidthFactor };
   }
 
   // Belirli y'de efektif duvar yarı-genişliği

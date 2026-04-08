@@ -37,7 +37,7 @@ export class Game {
     if (typeof Howler !== 'undefined') Howler.mute(false);
 
     // Dark mode — localStorage'dan oku, varsayılan: dark
-    state.isDarkMode = localStorage.getItem('matrushka_darkMode') === 'true';
+    state.isDarkMode = localStorage.getItem('matrushka_darkMode') !== 'false';
 
     // Arka plana geçince pause, öne gelince devam
     document.addEventListener('visibilitychange', () => {
@@ -521,15 +521,17 @@ export class Game {
     return (c.r + r - dist) > r * 0.4;
   }
 
-  // Üst açıklığın efektif yarı-genişliği — container form'a göre
+  // Üst açıklığın efektif yarı-genişliği — container form'a göre, 8px marjla sınırlı
   _topHalfWidth() {
-    const { MAIN_R } = state;
+    const { MAIN_R, W } = state;
     const form = state.containerForm || {};
     const openAngle = Math.PI * (form.openFrac ?? 0.50);
     const topWidthFactor = form.topWidthFactor ?? 1.00;
     const arcStartAngle = -Math.PI / 2 + openAngle;
     const juncHW = MAIN_R * Math.cos(arcStartAngle);
-    return juncHW * topWidthFactor;
+    const topHW  = juncHW * topWidthFactor;
+    const maxHW  = W / 2 - 8;
+    return Math.min(topHW, maxHW);
   }
 
   // Üst açıklık içinde boş yer bul ve topu oraya yerleştir
@@ -972,7 +974,11 @@ export class Game {
       const juncHW = Math.abs(lx1 - CX);
       const topHW  = juncHW * topWidthFactor;
       const topY   = CY - MAIN_R;
-      const tx1 = CX + topHW, tx2 = CX - topHW;
+      // Kap ağzı 8px marjla ekrana sığdır
+      const PAD = 8;
+      const maxHW = W / 2 - PAD;
+      const scale = topHW > maxHW ? maxHW / topHW : 1;
+      const tx1 = CX + topHW * scale, tx2 = CX - topHW * scale;
 
       // Simetrik rounded köşe
       const rDX = tx1-lx1, rDY = topY-ly1, rLen = Math.sqrt(rDX*rDX+rDY*rDY);
