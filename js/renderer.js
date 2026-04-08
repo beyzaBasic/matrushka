@@ -1299,10 +1299,10 @@ export class Renderer {
   }
 
   drawPauseBtn() {
-    const ctx = state.ctx, { W, isPaused, levelSuccess } = state;
+    const ctx = state.ctx, { W, safeTop, isPaused, levelSuccess } = state;
     if (levelSuccess) { state._pauseBtn=null; return; }
-    const ICON=30, GAP=6, PAD=12, pcy=22;
-    const pcx = W - PAD - ICON/2;
+    const ICON=30, GAP=6, PAD=12;
+    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2;
     ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4; ctx.fillStyle='#fff';
     if (isPaused) {
       const bh=ICON*(1/3);
@@ -1318,15 +1318,13 @@ export class Renderer {
   }
 
   drawSoundBtn() {
-    const ctx = state.ctx, { W, isMuted, levelSuccess } = state;
+    const ctx = state.ctx, { W, safeTop, isMuted, levelSuccess } = state;
     if (levelSuccess) { state._soundBtn=null; return; }
-    const ICON=30, GAP=6, PAD=12, pcy=22;
-    const pcx = W - PAD - ICON/2 - (ICON+GAP);
+    const ICON=30, GAP=6, PAD=12;
+    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2 - (ICON+GAP);
     const s = ICON * 0.38;
-    ctx.save();
-    ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4;
-    ctx.fillStyle='#fff'; ctx.strokeStyle='#fff';
-    ctx.lineWidth=ICON*0.12; ctx.lineCap='round';
+    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4;
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#fff'; ctx.lineWidth=ICON*0.12; ctx.lineCap='round';
     ctx.beginPath();
     ctx.moveTo(pcx-s*0.55,pcy-s*0.38); ctx.lineTo(pcx-s*0.18,pcy-s*0.38);
     ctx.lineTo(pcx+s*0.18,pcy-s*0.72); ctx.lineTo(pcx+s*0.18,pcy+s*0.72);
@@ -1346,41 +1344,27 @@ export class Renderer {
   }
 
   drawDarkModeBtn() {
-    const ctx = state.ctx, { W, isDarkMode, levelSuccess } = state;
+    const ctx = state.ctx, { W, safeTop, isDarkMode, levelSuccess } = state;
     if (levelSuccess) { state._darkModeBtn=null; return; }
-    const ICON=30, GAP=6, PAD=12, pcy=22;
-    const pcx = W - PAD - ICON/2 - (ICON+GAP)*2;
+    const ICON=30, GAP=6, PAD=12;
+    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2 - (ICON+GAP)*2;
     const s = ICON * 0.42;
-
-    ctx.save();
-    ctx.globalAlpha = 0.72;
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = 4;
-
+    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4;
     if (isDarkMode) {
-      ctx.fillStyle = '#FFD966';
-      ctx.beginPath();
-      ctx.arc(pcx, pcy, s * 0.72, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.arc(pcx + s * 0.32, pcy - s * 0.18, s * 0.58, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle='#FFD966';
+      ctx.beginPath(); ctx.arc(pcx,pcy,s*0.72,0,Math.PI*2); ctx.fill();
+      ctx.globalCompositeOperation='destination-out';
+      ctx.beginPath(); ctx.arc(pcx+s*0.32,pcy-s*0.18,s*0.58,0,Math.PI*2); ctx.fill();
+      ctx.globalCompositeOperation='source-over';
     } else {
-      ctx.fillStyle = '#FF9800';
-      ctx.beginPath();
-      ctx.arc(pcx, pcy, s * 0.38, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#FF9800';
-      ctx.lineWidth = s * 0.15;
-      ctx.lineCap = 'round';
-      ctx.shadowBlur = 0;
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
+      ctx.fillStyle='#FF9800';
+      ctx.beginPath(); ctx.arc(pcx,pcy,s*0.38,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#FF9800'; ctx.lineWidth=s*0.15; ctx.lineCap='round'; ctx.shadowBlur=0;
+      for (let i=0;i<8;i++) {
+        const a=(i/8)*Math.PI*2;
         ctx.beginPath();
-        ctx.moveTo(pcx + Math.cos(a) * s * 0.50, pcy + Math.sin(a) * s * 0.50);
-        ctx.lineTo(pcx + Math.cos(a) * s * 0.72, pcy + Math.sin(a) * s * 0.72);
+        ctx.moveTo(pcx+Math.cos(a)*s*0.50,pcy+Math.sin(a)*s*0.50);
+        ctx.lineTo(pcx+Math.cos(a)*s*0.72,pcy+Math.sin(a)*s*0.72);
         ctx.stroke();
       }
     }
@@ -1532,46 +1516,39 @@ export class Renderer {
   _invalidatePaletteGuide() { this._paletteGuideCache = null; }
 
   drawPaletteGuide(goalManager) {
-    const { ctx, LEVELS, S, CY, MAIN_R } = state;
+    const { ctx, LEVELS, S, W, CX, safeTop } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    // 1) Çizim alanı: ilk slotun üstü → son slotun altı
-    let topY = 20, botY = CY - MAIN_R;
-    if (goalManager) {
-      try {
-        const def    = goalManager.getLevelDef();
-        const sp0    = goalManager.goalSlotPos(0);
-        const spLast = goalManager.goalSlotPos((def?.goals?.length || 1) - 1);
-        if (sp0?.cy != null) {
-          topY = sp0.cy   - sp0.gemR;
-          botY = spLast.cy + spLast.gemR;
-        }
-      } catch (_) {}
-    }
-    const availH = botY - topY;
-    if (availH < 10) return;
+    const n        = LEVELS.length;
+    const PAD_L    = 8 * S;
+    const GAP      = 6 * S; // toplar arası boşluk (ok yok)
+    const titleFs  = Math.round(28 * S);
+    const titleY   = (safeTop || 0) + 22;
+    const titleTop = titleY - titleFs * 0.5;
 
-    // 2) Scale: 7 top + 6 ok birlikte availH'a sığacak
-    //    ok yüksekliği = en küçük top çapının %60'ı (sabit oran)
-    //    sc * (sumR2 + 6 * 2*r0*0.6) = availH  →  sc = availH / (sumR2 + 6*1.2*r0)
-    const n      = LEVELS.length;                                   // 7
-    const sumR2  = LEVELS.reduce((s, lv) => s + lv.r * 2, 0);
-    const r0raw  = LEVELS[0].r;
-    const arrowPerSlot = r0raw * 1.2;                              // ok + boşluk = küçük top çapının %60'ı
-    const sc     = availH / (sumR2 + (n - 1) * arrowPerSlot);
+    // Title genişliği → en büyük top çapı buna eşit
+    ctx.save();
+    ctx.font = `bold ${titleFs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
+    const titleW = ctx.measureText(goalManager?.displayLevelText?.() || 'Level 1').width;
+    ctx.restore();
+
+    // Büyükten küçüğe
+    const levelsRev = [...LEVELS].reverse();
+    const maxRraw   = levelsRev[0].r;
+    const scByTitle = titleW / (maxRraw * 2);
+
+    // Toplam genişlik: çaplar + boşluklar
+    const totalW = levelsRev.reduce((s, lv) => s + lv.r * 2 * scByTitle, 0) + (n - 1) * GAP;
+    const availW = CX - titleW / 2 - PAD_L - 4;
+    const sc     = totalW > availW ? scByTitle * (availW / totalW) : scByTitle;
     if (sc <= 0) return;
 
-    const aH     = r0raw * sc * 0.5;   // ok üçgeninin yüksekliği
-    const gp     = r0raw * sc * 0.1;   // ok üstü/altı boşluk
+    const gapSc  = totalW > availW ? GAP * (availW / totalW) : GAP;
+    const maxR   = maxRraw * sc;
+    const logH   = Math.ceil(maxR * 2 + 2);
+    const logW   = Math.ceil(levelsRev.reduce((s, lv) => s + lv.r * 2 * sc, 0) + (n - 1) * gapSc + PAD_L + 2);
 
-    // 3) Canvas genişliği: en büyük top sığacak kadar
-    const maxR   = LEVELS[n - 1].r * sc;
-    const padL   = 4 * S;
-    const guideX = padL + maxR;
-    const logW   = Math.ceil(padL + maxR * 2 + 4 * S);
-    const logH   = Math.ceil(availH);
-
-    const themeKey = (state.theme?.cpIdx ?? 0) + '|' + sc.toFixed(4) + '|' + logW + '|' + Math.round(topY) + '|' + Math.round(botY);
+    const themeKey = (state.theme?.cpIdx ?? 0) + '|' + sc.toFixed(4) + '|' + Math.round(titleTop);
 
     if (!this._paletteGuideCache || this._paletteGuideCache.themeKey !== themeKey) {
       const DPR  = Math.min(window.devicePixelRatio || 1, 2);
@@ -1579,46 +1556,36 @@ export class Renderer {
       const octx = oc.getContext('2d');
       octx.scale(DPR, DPR);
 
-      let curY = 0;
+      let curX = levelsRev[0].r * sc + PAD_L;
+
       for (let i = 0; i < n; i++) {
-        const lv    = LEVELS[i];
-        const shape = lv.shape || 'sphere';
+        const lv    = levelsRev[i];
+        const origI = n - 1 - i;
         const r     = lv.r * sc;
-        const cx    = guideX, cy = curY + r;
+        const cy    = r + 1; // üst hiza
 
         const saved = state.ctx;
         state.ctx   = octx;
         octx.shadowBlur = 0;
-        this.drawSphere({ x: cx, y: cy, r, level: i, color: lv.color, shape,
-          contains: [], boing: 0, absorbAnim: 0, squish: null, absorbGlow: 0, isBeingDragged: false });
+        this.drawSphere({ x: curX, y: cy, r, level: origI, color: lv.color,
+          shape: lv.shape || 'sphere',
+          contains: [], boing: 0, absorbAnim: 0, squish: null,
+          absorbGlow: 0, isBeingDragged: false });
         state.ctx = saved;
 
         if (i < n - 1) {
-          // ok: küçük aşağı üçgen
-          const aw     = Math.max(1.5, aH * 0.7);
-          const lineT  = cy + r + gp;
-          const arrowY = lineT + aH * 0.5;
-          octx.globalAlpha = 0.5;
-          octx.fillStyle   = 'rgba(200,200,200,0.7)';
-          octx.beginPath();
-          octx.moveTo(cx - aw, arrowY - aH * 0.4);
-          octx.lineTo(cx + aw, arrowY - aH * 0.4);
-          octx.lineTo(cx,      arrowY + aH * 0.6);
-          octx.closePath();
-          octx.fill();
-          octx.globalAlpha = 1;
+          curX += r + gapSc + levelsRev[i + 1].r * sc;
         }
-        curY += r * 2 + aH + gp * 2;
       }
 
-      this._paletteGuideCache = { oc, themeKey, topY, logW, logH };
+      this._paletteGuideCache = { oc, themeKey, logW, logH };
     }
 
     const c = this._paletteGuideCache;
     ctx.save();
     ctx.globalAlpha = 0.9;
     ctx.shadowBlur  = 0;
-    ctx.drawImage(c.oc, 0, c.topY, c.logW, c.logH);
+    ctx.drawImage(c.oc, 0, titleTop - 1, c.logW, c.logH);
     ctx.restore();
   }
 

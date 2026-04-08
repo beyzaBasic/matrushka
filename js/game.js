@@ -61,17 +61,33 @@ export class Game {
   _applyLayout() {
     const L = buildLayout();
     Object.assign(state, L);
+
+    // Forma göre MAIN_R scale — her form 8px marjla tam sığsın
+    const form = state.containerForm;
+    if (form) {
+      const maxHalfW = (L.W - 8 * 2) / 2;
+      const spread   = Math.max(Math.sin((form.openFrac ?? 0.5) * Math.PI), form.topWidthFactor ?? 1);
+      const maxRbyForm = Math.floor(maxHalfW / spread);
+      if (maxRbyForm < state.MAIN_R) {
+        state.MAIN_R = maxRbyForm;
+        const bottomRoom = L.H - L.CY - L.MAIN_R;
+        state.CY = Math.round(L.SCORE_AREA + state.MAIN_R +
+          (L.H - L.SCORE_AREA - bottomRoom - state.MAIN_R * 2) / 2);
+      }
+    }
+
+    // capParams'ı hemen güncelle — physics ilk frame'de doğru okusun
+    this._computeCapParams?.();
+
     this.theme?.reapplyAfterResize();
-    // canvas boyutlandır
     const { canvas, ctx } = state;
     canvas.width  = Math.round(L.CSS_W * L.DPR);
     canvas.height = Math.round(L.CSS_H * L.DPR);
     canvas.style.width  = L.CSS_W + 'px';
     canvas.style.height = L.CSS_H + 'px';
     ctx.setTransform(L.DPR, 0, 0, L.DPR, 0, 0);
-    // mousePos varsayılanı
-    state.mousePos     = { x: L.CX, y: L.CY };
-    state.prevMousePos = { x: L.CX, y: L.CY };
+    state.mousePos     = { x: state.CX, y: state.CY };
+    state.prevMousePos = { x: state.CX, y: state.CY };
   }
 
   // ── Input ─────────────────────────────────────────────────────────
@@ -226,7 +242,6 @@ export class Game {
     state.mouseVel.y = y - state.mousePos.y;
     state.prevMousePos = { x: state.mousePos.x, y: state.mousePos.y };
     state.mousePos = { x, y };
-
     if (state.draggedCircle) {
       const c = this._clampToCapBounds(x, y, state.draggedCircle.r);
       state.mousePos = { x: c.x, y: c.y };
@@ -332,7 +347,7 @@ export class Game {
     state._nextLevelBtn     = null;
     state._gameOverBtn      = null;
     this.theme.applyForLevel(internalLevel);
-    this.renderer.clearShapeCache();
+    this._applyLayout();
     this.goals.initLevelGoals();
     this._preloadArena();
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
@@ -405,7 +420,7 @@ export class Game {
     state.lastSpawn      = 0;
     state.blastUsedThisLevel = 0;
     this.theme.applyForLevel(nextLevel);
-    this.renderer.clearShapeCache();
+    this._applyLayout();
     this.goals.initLevelGoals();
     this._preloadArena();
     // İlk topu üret (tutorial değilse)
@@ -768,9 +783,7 @@ export class Game {
 
   // ── Update loop ───────────────────────────────────────────────────
   _update() {
-    // capParams her frame physics'ten önce güncellenir — form değişince tutarlı
-    this._computeCapParams();
-
+    this._computeCapParams(); // physics öncesi capParams güncelle
     if (state.isPaused) {
       if (state.autoDropDeadline > 0) state.autoDropDeadline = Date.now() + 1000;
       return;
@@ -934,11 +947,9 @@ export class Game {
 
     // Arena — capParams'tan oku (her frame _update başında hesaplandı)
     const mFlash = state.mainBorderFlash > 0 ? state.mainBorderFlash / 40 : 0;
-    const mBlur = mFlash > 0 ? 7 + mFlash * 22 : 6;
+    const mBlur  = mFlash > 0 ? 7 + mFlash * 22 : 6;
     {
       const { arcStart, arcEnd, lx1, ly1, lx2, ly2, tx1, tx2, topY } = state.capParams;
-
-      // Rounded köşe vektörleri
       const rDX = tx1-lx1, rDY = topY-ly1, rLen = Math.sqrt(rDX*rDX+rDY*rDY);
       const rNx = rDX/rLen, rNy = rDY/rLen;
       const lDX = tx2-lx2, lDY = topY-ly2, lLen = Math.sqrt(lDX*lDX+lDY*lDY);
@@ -955,11 +966,9 @@ export class Game {
         ctx.lineTo(lx1, ly1);
       };
 
-      ctx.save();
-      _path(); ctx.closePath();
+      ctx.save(); _path(); ctx.closePath();
       ctx.fillStyle = state.isDarkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
-      ctx.fill();
-      ctx.restore();
+      ctx.fill(); ctx.restore();
 
       ctx.save();
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -1115,14 +1124,13 @@ export class Game {
   }
 
   // ── capParams — her frame physics öncesi hesaplanır ──────────────
-  // Çizim, fizik ve input tek kaynaktan okur
   _computeCapParams() {
     const { CX, CY, MAIN_R, W, containerForm } = state;
-    const form = containerForm || {};
-    const openAngle      = Math.PI * (form.openFrac  ?? 0.50);
-    const topWidthFactor = form.topWidthFactor ?? 1.00;
-    const arcStart = -Math.PI / 2 + openAngle;
-    const arcEnd   = -Math.PI / 2 - openAngle;
+    const form         = containerForm || {};
+    const openAngle    = Math.PI * (form.openFrac  ?? 0.50);
+    const twf          = form.topWidthFactor ?? 1.00;
+    const arcStart     = -Math.PI / 2 + openAngle;
+    const arcEnd       = -Math.PI / 2 - openAngle;
     const lx1 = CX + Math.cos(arcStart) * MAIN_R;
     const ly1 = CY + Math.sin(arcStart) * MAIN_R;
     const lx2 = CX + Math.cos(arcEnd)   * MAIN_R;
@@ -1131,16 +1139,17 @@ export class Game {
     const juncY  = ly1;
     const topY   = CY - MAIN_R;
     const wallH  = Math.max(1, juncY - topY);
-    // 8px marjla sınırla
     const maxHW  = W / 2 - 8;
-    const topHW  = Math.min(juncHW * topWidthFactor, maxHW);
+    const topHW  = Math.min(juncHW * twf, maxHW);
     const effTWF = topHW / Math.max(juncHW, 0.001);
-    const tx1 = CX + topHW, tx2 = CX - topHW;
-    state.capParams = { arcStart, arcEnd, lx1, ly1, lx2, ly2,
-      juncHW, juncY, topY, topHW, tx1, tx2, wallH, effTWF };
+    state.capParams = {
+      arcStart, arcEnd, lx1, ly1, lx2, ly2,
+      juncHW, juncY, topY, topHW, wallH, effTWF,
+      tx1: CX + topHW, tx2: CX - topHW,
+    };
   }
 
-  // Kap formu sınırı içine clamp — capParams ile physics tutarlı
+  // Kap formu sınırı içine clamp — physics _wallHW ile aynı formül
   _clampToCapBounds(px, py, r) {
     const { CX, CY, MAIN_R } = state;
     const cp = state.capParams;
@@ -1148,13 +1157,10 @@ export class Game {
     const { juncHW, juncY, topY, wallH, effTWF } = cp;
     let ox = px, oy = py;
     if (oy >= juncY) {
-      // Yay bölgesi
-      const dx = ox - CX, dy = oy - CY;
-      const d  = Math.hypot(dx, dy) || 0.01;
+      const dx = ox - CX, dy = oy - CY, d = Math.hypot(dx, dy) || 0.01;
       const maxD = MAIN_R - r;
-      if (d > maxD) { ox = CX + dx/d * maxD; oy = CY + dy/d * maxD; }
+      if (d > maxD) { ox = CX + dx/d*maxD; oy = CY + dy/d*maxD; }
     } else {
-      // Duvar bölgesi — physics _wallHW ile aynı formül
       const t  = Math.max(0, Math.min(1, (juncY - oy) / wallH));
       const hw = Math.max(r, juncHW * (1 + (effTWF - 1) * t) - r);
       if (ox < CX - hw) ox = CX - hw;
