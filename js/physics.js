@@ -119,8 +119,10 @@ export class PhysicsManager {
   canAbsorb(big, small) {
     if (big === small) return false;
     if (big.level <= small.level) return false;
-    if (big.contains.length > 0) return false;
-    if (small.level !== big.level - 1) return false;
+    // big içi doluysa small içi boş olmalı; big içi boşsa small içi dolu olabilir
+    if (big.contains.length > 0 && small.contains.length > 0) return false;
+    const innermost = big.contains.length > 0 ? Math.min(...big.contains) : big.level;
+    if (small.level !== innermost - 1) return false;
     return true;
   }
 
@@ -292,8 +294,9 @@ export class PhysicsManager {
         // Seviye farkı yoksa absorb olamaz — erken çık
         if (a.level === b.level) continue;
         const big = a.level > b.level ? a : b, small = a.level > b.level ? b : a;
-        if (big.contains.length > 0) continue;
-        if (small.level !== big.level - 1) continue;
+        if (big.contains.length > 0 && small.contains.length > 0) continue;
+        const innermost = big.contains.length > 0 ? Math.min(...big.contains) : big.level;
+        if (small.level !== innermost - 1) continue;
         const triggerDist = (big.r + small.r) * 2.0;
         const adx = big.x - small.x, ady = big.y - small.y;
         if (Math.abs(adx) > triggerDist || Math.abs(ady) > triggerDist) continue;
