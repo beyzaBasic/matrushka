@@ -48,12 +48,23 @@ canvas { display: block; touch-action: none; }
     }
   });
 
-  // Map başlangıçta canvas'ı gizler, node tıklanınca game.startFromLevel() çağırır
   canvas.style.display = 'none';
 
+  // Map her zaman oluştur
   const map = new MapScreen(game);
   window._matrushkaMap = map;
-  map.show();
+
+  const tutDone = localStorage.getItem('matrushka_tutDone') === '1';
+  console.log('tutDone:', tutDone, 'map:', map, '_div:', map._div);
+
+  if (!tutDone) {
+    canvas.style.display = 'block';
+    game.startFromCheckpoint(0);
+  } else {
+    console.log('calling map.show()');
+    map.show();
+    console.log('map._div after show:', map._div);
+  }
 </script>
 </body>
 </html>

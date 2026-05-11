@@ -5,6 +5,9 @@ import { getWorldConfig, cpIdxFromLevel } from './world-config.js';
 
 export class GoalManager {
   getLevelDef() {
+    if (state.isTutorial) {
+      return { goals: [{ level: 2, contains: [1, 0] }] };
+    }
     return LEVEL_DEFS[Math.min(state.currentLevel, LEVEL_DEFS.length - 1)];
   }
 
@@ -46,6 +49,8 @@ export class GoalManager {
   }
 
   checkGoal(c) {
+    // Tutorial: levelSuccess'i tetiklemesin — TutorialManager kendi akışını yönetir
+    if (state.isTutorial) return false;
     const def = this.getLevelDef();
     for (let i = 0; i < def.goals.length; i++) {
       if (state.goalSlots[i] !== null) continue;

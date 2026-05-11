@@ -221,7 +221,8 @@ export class PhysicsManager {
       const cp2 = this._containerParams();
       for (const c of circles) {
         if (c.isBeingDragged) continue;
-        const er = this._circles(c)[0].r;
+        const cols2 = this._circles(c);
+        const er = cols2.reduce((max, cc) => Math.max(max, Math.hypot(cc.x - c.x, cc.y - c.y) + cc.r), cols2[0].r);
         const dx = c.x - CX, dy2 = c.y - CY;
         if (c.y >= cp2.juncY) {
           // Yay bölgesi — dairesel sınır

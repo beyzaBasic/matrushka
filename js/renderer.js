@@ -1188,6 +1188,8 @@ export class Renderer {
   drawSuccessOverlay(goalManager) {
     const { levelSuccess, levelSuccessAlpha, currentLevel, levelStars, W, H, CX, CY, S } = state;
     if (!levelSuccess || levelSuccessAlpha <= 0) { state._nextLevelBtn = null; return; }
+    // Tutorial'da başarı ekranı gösterme — popup zaten var
+    if (state.isTutorial) { state._nextLevelBtn = null; return; }
 
     const ctx = state.ctx;
     ctx.save();
@@ -1286,8 +1288,8 @@ export class Renderer {
     if (isLast)          lbl='▶  Start Game';
     else if (isTutorial) lbl='Next  ▶';
     else {
-      const n=(currentLevel+1)<TUTORIAL_LEVELS ? 'How to Play '+(currentLevel+2) : 'Level '+(currentLevel+2-TUTORIAL_LEVELS);
-      lbl=`${n}  ▶`;
+      const n = 'Level ' + (currentLevel + 1 - TUTORIAL_LEVELS);
+      lbl = `${n}  ▶`;
     }
     const fs=Math.round(Math.max(22,26*S));
     ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -1372,6 +1374,27 @@ export class Renderer {
     state._darkModeBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
   }
 
+  drawTutorialBtn() {
+    const ctx = state.ctx, { W, safeTop, levelSuccess } = state;
+    if (levelSuccess) { state._tutorialBtn = null; return; }
+    const ICON=30, GAP=6, PAD=12;
+    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2 - (ICON+GAP)*3;
+    const s = ICON * 0.38;
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 4;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = ICON * 0.12;
+    ctx.lineCap = 'round';
+    // Soru işareti (?)
+    ctx.font = `bold ${Math.round(ICON * 0.85)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', pcx, pcy + ICON * 0.04);
+    ctx.restore();
+    state._tutorialBtn = { x: pcx - ICON, y: pcy - ICON, w: ICON * 2, h: ICON * 2 };
+  }
 
   drawPauseOverlay() {
     const ctx = state.ctx, { W, H, CX, CY } = state;

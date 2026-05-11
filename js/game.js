@@ -143,6 +143,27 @@ export class Game {
       localStorage.setItem('matrushka_darkMode', state.isDarkMode);
       return;
     }
+    // Tutorial popup butonu
+    const tpb = state._tutPopupBtn;
+    if (tpb && x >= tpb.x && x <= tpb.x + tpb.w && y >= tpb.y && y <= tpb.y + tpb.h) {
+      state.tutShowPopup = false;
+      state.isTutorial   = false;
+      state.tutDone      = true;
+      localStorage.setItem('matrushka_tutDone', '1');
+      if (window._matrushkaMap) {
+        state.canvas.style.display = 'none';
+        window._matrushkaMap.show();
+      } else {
+        this.startFromLevel(1);
+      }
+      return;
+    }
+    // Tutorial butonu
+    const tb = state._tutorialBtn;
+    if (tb && x >= tb.x && x <= tb.x + tb.w && y >= tb.y && y <= tb.y + tb.h) {
+      this._startFromLevel(0);
+      return;
+    }
     const pb = state._pauseBtn;
     if (pb && x >= pb.x && x <= pb.x + pb.w && y >= pb.y && y <= pb.y + pb.h) {
       state.isPaused = !state.isPaused;
@@ -341,9 +362,9 @@ export class Game {
     state.lastSpawn         = 0;
     state.introDropsDone    = false;
     state.blastUsedThisLevel = 0;
-    state.tut0Step          = -1;  // _preloadArena set eder
-    state.tut0Transitioning = false;
-    state._tut1done         = false;
+    state.isTutorial        = (state.currentLevel === 0);
+    state.tutStep           = 0;
+    state.tutDone           = false;
     state._nextLevelBtn     = null;
     state._gameOverBtn      = null;
     this.theme.applyForLevel(internalLevel);
@@ -351,9 +372,11 @@ export class Game {
     this.goals.initLevelGoals();
     this._preloadArena();
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
-    setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
-    }, 600);
+    if (!state.isTutorial) {
+      setTimeout(() => {
+        if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
+      }, 600);
+    }
   }
 
   _restartCurrentLevel() {
@@ -378,8 +401,9 @@ export class Game {
     state.lastSpawn      = 0;
     state.introDropsDone = false;
     state.blastUsedThisLevel = 0;
-    state.tut0Step         = -1;
-    state.tut0Transitioning = false;
+    state.isTutorial        = false;
+    state.tutStep           = 0;
+    state.tutDone           = false;
     state._nextLevelBtn  = null;
     state._gameOverBtn   = null;
     // _preloadArena ve goals.init _startFromLevel tarafından çağrılır
@@ -425,7 +449,7 @@ export class Game {
     this._preloadArena();
     // İlk topu üret (tutorial değilse)
     state.nextBall = null; state.heldBall = null;
-    if (state.currentLevel >= TUTORIAL_LEVELS) {
+    if (!state.isTutorial) {
       setTimeout(() => this._generateNextBall(), 600);
     }
   }
@@ -453,11 +477,12 @@ export class Game {
   }
 
   _preloadArena() {
-    const { CX, CY, MAIN_R } = state;
     state.circles = []; state.introDropsDone = false;
     if (state.currentLevel === 0) {
-      state.tut0Step = 0;
-      this.tutorial.spawnStep();
+      state.isTutorial = true;
+      state.tutStep    = 0;
+      state.tutDone    = false;
+      this.tutorial.startStep(0);
       return;
     }
     state.introDropsDone = true;
@@ -850,9 +875,9 @@ export class Game {
     for (let i = state.chainWaves.length - 1; i >= 0; i--) { const w = state.chainWaves[i]; w.t++; w.r += (w.maxR - w.r) * 0.18; if (w.t >= w.maxT) state.chainWaves.splice(i, 1); }
     for (let i = state.absorbingInto.length - 1; i >= 0; i--) { const a = state.absorbingInto[i]; a.t++; if (a.t >= a.maxT) state.absorbingInto.splice(i, 1); }
 
-    // Tutorial + Hints (2 framede bir yeterli — görsel fark yok)
+    // Tutorial güncelle
     this.tutorial.update();
-    if (state.currentLevel < TUTORIAL_LEVELS && state.frameCount % 3 === 0) {
+    if (state.currentLevel >= TUTORIAL_LEVELS && state.frameCount % 3 === 0) {
       this.hints.update(this.physics.canAbsorb.bind(this.physics));
     }
 
@@ -1087,10 +1112,13 @@ export class Game {
     // Absorb animasyonu
     R.drawAbsorbAnims();
 
-    // Tutorial ipuçları (sadece tutorial'da)
-    if (state.currentLevel < TUTORIAL_LEVELS) {
-      this.hints.draw();
-      if (state.currentLevel === 0) this.tutorial.drawHint();
+    // Tutorial hint
+    if (state.isTutorial && !state.tutDone) {
+      this.tutorial.drawHint();
+    }
+    // Tutorial popup
+    if (state.tutShowPopup) {
+      this.tutorial.drawPopup();
     }
 
     // Hint zincirleri — her levelda göster
@@ -1115,6 +1143,7 @@ export class Game {
     // Pause butonu + sound (her zaman en üstte)
     R.drawSoundBtn();
     R.drawDarkModeBtn();
+    R.drawTutorialBtn();
     R.drawPauseBtn();
     if (state.isPaused) {
       R.drawPauseOverlay();
