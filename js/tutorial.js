@@ -138,7 +138,7 @@ export class TutorialManager {
     // Animasyon state cache (her panel kendi t/confetti'sini taşır)
     if (!this._cards) this._cards = {};
     if (!this._cards[key]) {
-      this._cards[key] = { t: 0, confetti: this._makeConfetti(), sparkles: null };
+      this._cards[key] = { t: 0, confetti: this._makeConfetti() };
     }
     const cardState = this._cards[key];
     cardState.t++;
@@ -327,33 +327,6 @@ export class TutorialManager {
       }
       ctx.restore();
     }
-  }
-
-  _makeCardSparkles() {
-    const arr = [];
-    for (let i = 0; i < 8; i++) {
-      arr.push({
-        rx: 0.1 + Math.random() * 0.8,
-        ry: 0.1 + Math.random() * 0.8,
-        phase: Math.random() * Math.PI * 2,
-        size: 1.5 + Math.random() * 2,
-      });
-    }
-    return arr;
-  }
-
-  _drawCardSparklesInto(sparkles, cx, cy, cw, ch, t) {
-    const ctx = state.ctx;
-    const { S } = state;
-    ctx.save();
-    for (const s of sparkles) {
-      const px = cx + s.rx * cw;
-      const py = cy + s.ry * ch;
-      const alpha = (Math.sin(t / 20 + s.phase) * 0.5 + 0.5) * 0.6;
-      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-      this._drawSparkle(ctx, px, py, s.size * S);
-    }
-    ctx.restore();
   }
 
   _drawConfettiInto(confetti, t) {
