@@ -100,7 +100,7 @@ export class HintManager {
   }
 
   _drawChain(sp, goal) {
-    const { ctx, LEVELS } = state;
+    const { ctx, LEVELS, CY, MAIN_R } = state;
     const chain = [goal.level, ...goal.contains].filter(lv => lv >= 0 && lv < LEVELS.length).reverse();
     if (chain.length === 0) return;
     const n = chain.length, R_BIG = 14, R_SMALL = 6, ARROW = 7, GAP = 3;
@@ -109,7 +109,9 @@ export class HintManager {
     const maxW = sp.gemR * 2, sc = totalW > maxW ? maxW / totalW : 1;
     const rr = radii.map(r => Math.max(3, Math.round(r * sc)));
     const aw = Math.max(4, Math.round(ARROW * sc)), gw = Math.max(2, Math.round(GAP * sc));
-    const midY = sp.cy + sp.gemR + 10 + rr[n - 1];
+    const poolTop = CY - MAIN_R;
+    const rawMidY = sp.cy + sp.gemR + 10 + rr[n - 1];
+    const midY = Math.min(rawMidY, poolTop - rr[n - 1] - 12);
     const tw2 = rr.reduce((s, r) => s + r * 2, 0) + (n - 1) * (gw * 2 + aw);
     let curX = sp.cx - tw2 / 2;
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.001 * 2.2);

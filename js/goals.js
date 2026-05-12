@@ -26,16 +26,22 @@ export class GoalManager {
     state.flyingGoals = [];
     state.levelSuccess = false;
     state.levelSuccessAlpha = 0;
+    state.slotAnimStart = Date.now();
   }
 
   goalSlotPos(idx) {
-    const { CX, MIN_DIM } = state;
+    const { CX, MIN_DIM, CY, MAIN_R } = state;
     const n = this.getLevelDef().goals.length;
-    const GEM_R = n <= 1 ? 64 : n === 2 ? 54 : 44;
     const TOP = 10, TTL = Math.round(28 * MIN_DIM / 800) + 8, MID = 4;
-    const gemTop = TOP + TTL + MID, gap = Math.round(GEM_R * 0.42);
-    const totalW = n * GEM_R * 2 + (n - 1) * gap, startX = CX - totalW / 2 + GEM_R;
-    const ballR = Math.round(GEM_R * 0.72);
+    const gemTop = TOP + TTL + MID;
+    // Hint satırı için yer bırak: 10 gap + 28 (hint daireler) + 12 pool padding = 50px
+    const HINT_RESERVE = 50;
+    const availH   = (CY - MAIN_R) - gemTop;
+    const GEM_R_base = n <= 1 ? 64 : n === 2 ? 54 : 44;
+    const GEM_R    = Math.min(GEM_R_base, Math.max(20, Math.floor((availH - HINT_RESERVE) / 2)));
+    const gap      = Math.round(GEM_R * 0.42);
+    const totalW   = n * GEM_R * 2 + (n - 1) * gap, startX = CX - totalW / 2 + GEM_R;
+    const ballR    = Math.round(GEM_R * 0.72);
     return {
       cx: startX + idx * (GEM_R * 2 + gap), cy: gemTop + GEM_R, gemR: GEM_R, ballR,
       x: startX + idx * (GEM_R * 2 + gap) - GEM_R, y: gemTop, w: GEM_R * 2, h: GEM_R * 2, r: ballR

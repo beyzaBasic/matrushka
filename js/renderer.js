@@ -948,15 +948,42 @@ export class Renderer {
   _drawGoalSlots(goalManager) {
     const ctx = state.ctx, { goalSlots, LEVELS } = state;
     const def = goalManager.getLevelDef(), t = Date.now() * 0.001;
+
+    const SLOT_DUR  = 420; // ms — tek slotun animasyon süresi
+    const SLOT_STG  = 110; // ms — stagger
+    const elapsed   = Date.now() - (state.slotAnimStart ?? 0);
+
     for (let i = 0; i < def.goals.length; i++) {
       const sp     = goalManager.goalSlotPos(i), goal = def.goals[i];
       const done   = goalSlots[i] === 'done', flying = goalSlots[i] === 'flying';
       const acc    = LEVELS[goal.level]?.color || '#fff';
       const pulse  = 0.85 + 0.15 * Math.sin(t * 2 + i * 1.1);
+
+      // easeOutBack: 0'dan başlar, ~1.25'e kadar fırlar, 1'de oturur
+      const tp  = Math.min(1, Math.max(0, (elapsed - i * SLOT_STG) / SLOT_DUR));
+      const c1  = 1.70158, c3 = c1 + 1;
+      const sc  = tp < 1
+        ? (1 + c3 * Math.pow(tp - 1, 3) + c1 * Math.pow(tp - 1, 2))
+        : 1;
+      const alpha = Math.min(1, tp * 2); // hızlı fade-in
+
       ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(sp.cx, sp.cy);
+      ctx.scale(sc, sc);
+      ctx.translate(-sp.cx, -sp.cy);
       done ? this._drawSlotDone(sp, acc, pulse) : this._drawSlotEmpty(sp, acc, t, i);
       ctx.restore();
-      if (!flying) this.drawGoalMatrushka(sp.cx, sp.cy, sp.ballR, goal.level, goal.contains, done ? 1 : 0.85, done);
+
+      if (!flying) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(sp.cx, sp.cy);
+        ctx.scale(sc, sc);
+        ctx.translate(-sp.cx, -sp.cy);
+        this.drawGoalMatrushka(sp.cx, sp.cy, sp.ballR, goal.level, goal.contains, done ? 1 : 0.85, done);
+        ctx.restore();
+      }
     }
   }
 
