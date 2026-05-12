@@ -1193,7 +1193,8 @@ export class Renderer {
 
     const ctx = state.ctx;
     ctx.save();
-    ctx.fillStyle = `rgba(0,0,0,${levelSuccessAlpha*0.78})`; ctx.fillRect(0, 0, W, H);
+    // Karartma hafifletildi (0.78 → 0.42) — arena/toplar success ekranı arkasında görünür kalır
+    ctx.fillStyle = `rgba(0,0,0,${levelSuccessAlpha*0.42})`; ctx.fillRect(0, 0, W, H);
 
     if (levelSuccessAlpha > 0.25) {
       const a          = Math.min(1, (levelSuccessAlpha-0.1)/0.6);

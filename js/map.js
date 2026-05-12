@@ -158,11 +158,16 @@ export class MapScreen {
     this._refreshNodes();
     this._div.style.display = 'block';
     requestAnimationFrame(() => { this._div.style.opacity = '1'; });
+    // Pixi ticker'ı başlat — map görünürken animasyon aksın
+    if (this._app && this._app.ticker && !this._app.ticker.started) this._app.ticker.start();
   }
 
   hide() {
     if (!this._div) return;
     this._div.style.opacity = '0';
+    // Pixi ticker'ı durdur — map gizliyken CPU/GPU yemesin
+    // (aksi halde gameplay loop frame drop yaşar, toplar yavaş düşer)
+    if (this._app && this._app.ticker && this._app.ticker.started) this._app.ticker.stop();
     setTimeout(() => { if (this._div) this._div.style.display = 'none'; }, 400);
   }
 
@@ -172,6 +177,8 @@ export class MapScreen {
     this._refreshNodes();
     this._div.style.display = 'block';
     requestAnimationFrame(() => { this._div.style.opacity = '1'; });
+    // Map ticker'ı başlat — checkpoint sırasında konfeti/walkers aksın
+    if (this._app && this._app.ticker && !this._app.ticker.started) this._app.ticker.start();
     const H = this._app.screen.height;
     const lastNode = this._nodes[(cpIdx + 1) * LEVELS_PER_CP - 1];
     if (lastNode) this._targetY = Math.max(0, Math.min(this._worldH - H, lastNode.worldY - H * 0.5));
@@ -189,7 +196,13 @@ export class MapScreen {
       this._div.style.transition = 'none';
       this._div.style.opacity = '0';
       this._div.style.display = 'none';
+      // Bir sonraki show() fade-in animasyonu için transition'ı geri ver
+      requestAnimationFrame(() => {
+        if (this._div) this._div.style.transition = 'opacity 0.4s';
+      });
     }
+    // Pixi ticker'ı durdur — gameplay sırasında CPU yemesin (toplar yavaşlamasın)
+    if (this._app && this._app.ticker && this._app.ticker.started) this._app.ticker.stop();
     const game = this._game || window._matrushkaGame;
     if (!game) { console.error('MapScreen: game referansı yok'); return; }
     game.startFromLevel(internalLevel);

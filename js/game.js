@@ -143,19 +143,20 @@ export class Game {
       localStorage.setItem('matrushka_darkMode', state.isDarkMode);
       return;
     }
-    // Tutorial popup butonu
+    // Tutorial popup butonu — PLAY! → direkt Level 1 (map atlanır)
+    // Map sadece "her 10 levelda kutlama" ve "uygulama açılışı" için açılır.
     const tpb = state._tutPopupBtn;
     if (tpb && x >= tpb.x && x <= tpb.x + tpb.w && y >= tpb.y && y <= tpb.y + tpb.h) {
       state.tutShowPopup = false;
       state.isTutorial   = false;
       state.tutDone      = true;
       localStorage.setItem('matrushka_tutDone', '1');
-      if (window._matrushkaMap) {
-        state.canvas.style.display = 'none';
-        window._matrushkaMap.show();
-      } else {
-        this.startFromLevel(1);
+      // Map açıksa kapat — gameplay'e geç
+      if (window._matrushkaMap && typeof window._matrushkaMap.hide === 'function') {
+        window._matrushkaMap.hide();
       }
+      if (state.canvas) state.canvas.style.display = 'block';
+      this.startFromLevel(TUTORIAL_LEVELS); // ilk gerçek level
       return;
     }
     // Tutorial butonu
@@ -318,17 +319,24 @@ export class Game {
     const internalLevel = cpIdx === 0
       ? 0
       : levelFromCpIdx(cpIdx, TUTORIAL_LEVELS);
+    this._loopId = (this._loopId || 0) + 1;
+    const myId = this._loopId;
     this._startFromLevel(internalLevel);
-    requestAnimationFrame(() => this._loop());
+    requestAnimationFrame(() => this._loop(myId));
   }
 
   // Map'ten çağrılır — li+1 gelir (li=0 → internalLevel=1)
+  // Ayrıca PLAY! butonundan da çağrılır (tutorial → Level 1 geçişi).
+  // ÇİFT LOOP FIX: Önceki implementasyon `_loopStopped = true; ... = false;`
+  // ile race oluşturuyordu — eski rAF kuyruğa girmiş kalıyor, yeni rAF da ekleniyordu
+  // → iki paralel loop her frame _update'i çift çağırıyor → toplar 2x hızlı.
+  // Çözüm: monotonic _loopId — sadece güncel ID'ye sahip loop devam eder.
   startFromLevel(internalLevel) {
     if (state.canvas) state.canvas.style.display = 'block';
-    this._loopStopped = true;
+    this._loopId = (this._loopId || 0) + 1; // eski loop'ları geçersizleştir
+    const myId = this._loopId;
     this._startFromLevel(internalLevel);
-    this._loopStopped = false;
-    requestAnimationFrame(() => this._loop());
+    requestAnimationFrame(() => this._loop(myId));
   }
 
   // Eski start() — geriye dönük uyumluluk
@@ -443,12 +451,23 @@ export class Game {
     state.comboTimer     = 0;
     state.lastSpawn      = 0;
     state.blastUsedThisLevel = 0;
+    // Overlay state'lerini tam sıfırla — level geçişinde stale overlay kalmasın
+    state.levelSuccess      = false;
+    state.levelSuccessAlpha = 0;
+    state.levelStars        = 0;
+    state.gameOver          = false;
+    state.gameOverAlpha     = 0;
+    state.isPaused          = false;
+    state._nextLevelBtn     = null;
+    state._gameOverBtn      = null;
+    // currentLevel artık tutorial değilse isTutorial false olmalı
+    state.isTutorial        = (state.currentLevel === 0);
     this.theme.applyForLevel(nextLevel);
     this._applyLayout();
     this.goals.initLevelGoals();
     this._preloadArena();
     // İlk topu üret (tutorial değilse)
-    state.nextBall = null; state.heldBall = null;
+    state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
     if (!state.isTutorial) {
       setTimeout(() => this._generateNextBall(), 600);
     }
@@ -1200,8 +1219,10 @@ export class Game {
   }
 
   // ── Ana döngü ─────────────────────────────────────────────────────
-  _loop() {
-    if (this._loopStopped) return;
+  // id parametresi: çift loop oluşmasını engeller. Sadece son startFromLevel/
+  // startFromCheckpoint çağrısının verdiği ID ile gelen loop devam eder.
+  _loop(id) {
+    if (id !== undefined && id !== this._loopId) return; // eski loop — sessizce öl
     try {
       this._update();
       this._draw();
@@ -1218,6 +1239,6 @@ export class Game {
       console.error(e);
       return; // döngüyü durdur, hata ekranda görünür
     }
-    requestAnimationFrame(() => this._loop());
+    requestAnimationFrame(() => this._loop(id));
   }
 }

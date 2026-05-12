@@ -39,9 +39,10 @@ export class TutorialManager {
     this._showHint  = false;
     this._hintAlpha = 0;
     this._arrow     = null;
-    this._popupT    = undefined;   // popup animasyon state reset
-    this._confetti  = null;
-    this._cardSparkles = null;
+    // Popup/success kart animasyon cache'i sıfırla — temiz başlasın
+    if (this._cards) {
+      delete this._cards['tut'];
+    }
     state.nextBall         = null;
     state.heldBall         = null;
     state._nextBallBlocked = false;
@@ -84,31 +85,66 @@ export class TutorialManager {
     if (this._arrow) this._drawArrow();
   }
 
-  // "How to Play" popup — hypercasual stil: scale-in, animated demo, confetti, pulse CTA
+  // "How to Play" popup — drawCelebrationCard ile çizilir
   drawPopup() {
     if (!state.tutShowPopup) return;
+    this.drawCelebrationCard({
+      key:        'tut',
+      title:      'READY?',
+      ctaLabel:   'PLAY!',
+      showDemo:   true,
+      btnRectKey: '_tutPopupBtn',
+    });
+  }
 
-    // İlk frame: animasyon state'i başlat
-    if (this._popupT === undefined) {
-      this._popupT = 0;
-      this._confetti = this._makeConfetti();
+  // ─────────────────────────────────────────────────────────────────────────
+  // PAYLAŞILAN ŞENLİK KARTI — hem tutorial popup hem level success kullanır
+  // opts:
+  //   key        : animasyon state için unique anahtar ('tut' | 'success')
+  //   title      : büyük üst yazı (örn. 'READY?', 'LEVEL CLEAR!')
+  //   subtitle   : opsiyonel alt başlık (örn. 'You got it!')
+  //   ctaLabel   : buton metni (örn. 'PLAY!', 'NEXT!')
+  //   showDemo   : true → merge/absorb demo, false → ortada stars
+  //   stars      : 0–3, showDemo=false ise gösterilir
+  //   btnRectKey : tıklama hit-area için state anahtarı
+  //   alpha      : fade-in animasyonu için (0–1, default 1)
+  // ─────────────────────────────────────────────────────────────────────────
+  drawCelebrationCard(opts) {
+    const {
+      key, title, subtitle, ctaLabel,
+      showDemo = false, stars = 0,
+      btnRectKey = '_tutPopupBtn',
+      alpha = 1,
+    } = opts;
+
+    // Animasyon state cache (her panel kendi t/confetti'sini taşır)
+    if (!this._cards) this._cards = {};
+    if (!this._cards[key]) {
+      this._cards[key] = { t: 0, confetti: this._makeConfetti(), sparkles: null };
     }
-    this._popupT++;
+    const cardState = this._cards[key];
+    cardState.t++;
+    const t = cardState.t;
 
     const ctx = state.ctx;
-    const { W, H, CX, CY, S, isDarkMode, LEVELS } = state;
-    const t = this._popupT;
+    const { W, H, CX, CY, S } = state;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
 
-    // ── Dimmed backdrop with vignette ─────────────────────────────────
-    const dimAlpha = Math.min(0.78, t * 0.04);
+    // ── Backdrop + radial vignette (arkada gameplay yarı görünür kalsın) ────
+    // Önceki: 0.88 — tam karartma. Yeni: 0.42 — hafif overlay, arena/toplar seçilir.
+    const dimAlpha = Math.min(0.42, t * 0.025) * alpha;
     ctx.fillStyle = `rgba(0,0,0,${dimAlpha})`;
     ctx.fillRect(0, 0, W, H);
+    const vGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * 0.7);
+    vGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vGrad.addColorStop(1, `rgba(0,0,0,${dimAlpha * 0.6})`);
+    ctx.fillStyle = vGrad;
+    ctx.fillRect(0, 0, W, H);
 
-    // ── Confetti behind card ──────────────────────────────────────────
-    this._drawConfetti(t);
+    // Confetti
+    this._drawConfettiInto(cardState.confetti, t);
 
-    // ── Card scale-in animation (elastic ease-out) ────────────────────
+    // Elastic scale-in
     const ep = Math.min(1, t / 22);
     const elastic = ep < 1
       ? 1 + Math.pow(2, -10 * ep) * Math.sin((ep - 0.075) * (2 * Math.PI / 0.3))
@@ -117,16 +153,17 @@ export class TutorialManager {
 
     // Card boyutu
     const cw = Math.min(W * 0.88, 340 * S);
-    const ch = 380 * S;
+    const ch = (showDemo ? 340 : 320) * S;
     const cx = CX - cw / 2;
     const cy = CY - ch / 2;
 
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.translate(CX, CY);
     ctx.scale(cardScale, cardScale);
     ctx.translate(-CX, -CY);
 
-    // ── Card glow (behind card) ───────────────────────────────────────
+    // Card glow
     const glowPulse = 0.6 + 0.4 * Math.sin(t / 18);
     ctx.save();
     ctx.shadowColor = `rgba(91, 76, 255, ${0.5 * glowPulse})`;
@@ -136,106 +173,209 @@ export class TutorialManager {
     ctx.fill();
     ctx.restore();
 
-    // ── Card body — vertical gradient ─────────────────────────────────
-    const grad = ctx.createLinearGradient(0, cy, 0, cy + ch);
-    if (isDarkMode) {
-      grad.addColorStop(0, '#2a1f5c');
-      grad.addColorStop(1, '#15102e');
-    } else {
-      grad.addColorStop(0, '#ffffff');
-      grad.addColorStop(1, '#f0ebff');
-    }
+    // Card body — vibrant gradient (turuncu→pembe→mor)
+    const cardGrad = ctx.createLinearGradient(0, cy, 0, cy + ch);
+    cardGrad.addColorStop(0,    '#FFB347');
+    cardGrad.addColorStop(0.5,  '#FF6B9D');
+    cardGrad.addColorStop(1,    '#8B5FFF');
     ctx.beginPath(); this._rr(ctx, cx, cy, cw, ch, 28 * S);
-    ctx.fillStyle = grad; ctx.fill();
+    ctx.fillStyle = cardGrad; ctx.fill();
 
-    // İnce kenarlık — soft purple
-    ctx.strokeStyle = isDarkMode ? 'rgba(180,160,255,0.25)' : 'rgba(91,76,255,0.18)';
-    ctx.lineWidth = 2 * S;
+    // Beyaz iç çerçeve
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 2.5 * S;
     ctx.stroke();
 
-    // ── Floating sparkles inside card (decorative) ────────────────────
-    this._drawCardSparkles(cx, cy, cw, ch, t);
+    // Sparkles (kart içi)
+    if (!cardState.sparkles) cardState.sparkles = this._makeCardSparkles();
+    this._drawCardSparklesInto(cardState.sparkles, cx, cy, cw, ch, t);
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-    // ── Header: "Ready to Play?" — bouncy ─────────────────────────────
-    const headerBounce = Math.sin(t / 22) * 2 * S;
-    ctx.font = `900 ${Math.round(26 * S)}px ${font}`;
-    // Drop shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.fillText('Ready to Play?', CX, cy + 44 * S + headerBounce + 2 * S);
-    // Main text — gradient
-    const headerGrad = ctx.createLinearGradient(0, cy + 30 * S, 0, cy + 60 * S);
-    headerGrad.addColorStop(0, '#FFD93D');
-    headerGrad.addColorStop(1, '#FF9F1C');
-    ctx.fillStyle = headerGrad;
-    ctx.fillText('Ready to Play?', CX, cy + 44 * S + headerBounce);
+    // Başlık — büyük, beyaz, bouncing
+    const headerBounce = Math.sin(t / 22) * 3 * S;
+    const titleFs = Math.round(42 * S);
+    ctx.font = `900 ${titleFs}px ${font}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.fillText(title, CX, cy + 62 * S + headerBounce + 3 * S);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(title, CX, cy + 62 * S + headerBounce);
 
-    // Subtitle
-    ctx.font = `600 ${Math.round(13 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.5)';
-    ctx.fillText("You've got the moves!", CX, cy + 72 * S);
+    // Alt başlık
+    if (subtitle) {
+      ctx.font = `600 ${Math.round(14 * S)}px ${font}`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText(subtitle, CX, cy + 95 * S);
+    }
 
-    // ── Animated demo row — Merge & Absorb mini demo ──────────────────
-    this._drawDemoRow(cx, cy + 100 * S, cw, t);
+    // Demo veya stars
+    if (showDemo) {
+      this._drawDemoRow(cx, cy + 110 * S, cw, t);
+    } else {
+      this._drawCardStars(cx, cy + 140 * S, cw, stars, t);
+    }
 
-    // ── Goal explainer ────────────────────────────────────────────────
-    const goalY = cy + 252 * S;
-    ctx.font = `700 ${Math.round(15 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? '#fff' : '#222';
-    ctx.fillText('🎯 Fill the slot to win!', CX, goalY);
-
-    ctx.font = `500 ${Math.round(11 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
-    ctx.fillText('Match the goal shape at the top', CX, goalY + 18 * S);
-
-    // ── CTA Button — pulsing, gradient, with shadow ───────────────────
-    const btnPulse = 1 + Math.sin(t / 9) * 0.035;
+    // CTA buton
+    const btnPulse = 1 + Math.sin(t / 9) * 0.045;
+    const btnRot   = Math.sin(t / 14) * 0.025;
     const bw = cw * 0.78;
-    const bh = 54 * S;
+    const bh = 62 * S;
     const bx = CX - bw / 2;
-    const by = cy + ch - 76 * S;
+    const by = cy + ch - 84 * S;
     const bcx = CX, bcy = by + bh / 2;
 
     ctx.save();
     ctx.translate(bcx, bcy);
+    ctx.rotate(btnRot);
     ctx.scale(btnPulse, btnPulse);
     ctx.translate(-bcx, -bcy);
 
-    // Button shadow
-    ctx.fillStyle = 'rgba(91, 76, 255, 0.55)';
-    ctx.beginPath(); this._rr(ctx, bx, by + 5 * S, bw, bh, bh * 0.45);
+    // Shadow
+    ctx.fillStyle = 'rgba(180, 40, 60, 0.55)';
+    ctx.beginPath(); this._rr(ctx, bx, by + 6 * S, bw, bh, bh * 0.45);
     ctx.fill();
 
-    // Button body — gradient
+    // Body — sarı→turuncu
     const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
-    btnGrad.addColorStop(0, '#7B6CFF');
-    btnGrad.addColorStop(1, '#5B4CFF');
+    btnGrad.addColorStop(0, '#FFE74C');
+    btnGrad.addColorStop(0.5, '#FFD93D');
+    btnGrad.addColorStop(1, '#FF9F1C');
     ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
     ctx.fillStyle = btnGrad; ctx.fill();
 
-    // Button shine — top highlight
-    ctx.beginPath(); this._rr(ctx, bx + 8 * S, by + 4 * S, bw - 16 * S, bh * 0.45, bh * 0.3);
-    ctx.fillStyle = 'rgba(255,255,255,0.20)'; ctx.fill();
+    // Shine
+    ctx.beginPath(); this._rr(ctx, bx + 10 * S, by + 5 * S, bw - 20 * S, bh * 0.42, bh * 0.3);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fill();
 
-    // Button text
-    ctx.font = `900 ${Math.round(18 * S)}px ${font}`;
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.fillText("Let's Play!", CX, bcy + 2 * S);
+    // Border
+    ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3 * S;
+    ctx.stroke();
+
+    // Text — koyu pembe
+    ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.20)';
+    ctx.fillText(ctaLabel, CX, bcy + 3 * S);
+    ctx.fillStyle = '#C2185B';
+    ctx.fillText(ctaLabel, CX, bcy);
+
+    // İki dans eden yıldız
+    const starPhase = t / 22;
+    const star1X = bx + 22 * S + Math.sin(starPhase) * 3 * S;
+    const star2X = bx + bw - 22 * S + Math.sin(starPhase + 1) * 3 * S;
     ctx.fillStyle = '#fff';
-    ctx.fillText("Let's Play!", CX, bcy);
-
-    // Sparkle on button
-    const sparkX = bx + bw * (0.15 + (Math.sin(t / 30) * 0.5 + 0.5) * 0.7);
-    const sparkSize = (2 + Math.sin(t / 7) * 1.5) * S;
-    ctx.fillStyle = `rgba(255,255,255,${0.5 + Math.sin(t / 7) * 0.4})`;
-    this._drawSparkle(ctx, sparkX, by + bh * 0.35, sparkSize);
+    this._drawSparkle(ctx, star1X, bcy, 3 * S);
+    this._drawSparkle(ctx, star2X, bcy, 3 * S);
 
     ctx.restore();
 
-    // Hit area — pulse-aware ama base rect
-    state._tutPopupBtn = { x: bx, y: by, w: bw, h: bh };
+    // Hit area (transform öncesi rect — input handler bunu kullanır)
+    state[btnRectKey] = { x: bx, y: by, w: bw, h: bh, a: alpha };
 
+    ctx.restore();
+  }
+
+  // Animasyon state'ini sıfırla (level değişince çağrılır)
+  resetCardState(key) {
+    if (this._cards && this._cards[key]) delete this._cards[key];
+  }
+
+  // Stars çizimi — 3 yıldız, kazanılanlar dolu, sallanan
+  _drawCardStars(cx, cy, cw, stars, t) {
+    const ctx = state.ctx;
+    const { S } = state;
+    const starR = 24 * S;
+    const gap = starR * 2.4;
+    const totalW = starR * 2 + gap * 2;
+    const startX = cx + cw / 2 - totalW / 2 + starR;
+    for (let i = 0; i < 3; i++) {
+      const sx = startX + i * gap;
+      const filled = i < stars;
+      const appearAt = i * 12; // sırayla görün
+      const localT = Math.max(0, t - appearAt);
+      if (localT === 0) continue;
+      const popScale = localT < 18 ? 0.3 + (localT / 18) * 0.85 : 1 + Math.sin(t / 12 + i) * 0.08;
+      ctx.save();
+      ctx.translate(sx, cy);
+      ctx.scale(popScale, popScale);
+      // Yıldız path
+      ctx.beginPath();
+      for (let pt = 0; pt < 5; pt++) {
+        const a1 = (pt * 4 * Math.PI / 5) - Math.PI / 2, a2 = a1 + 2 * Math.PI / 5;
+        const ox = Math.cos(a1) * starR, oy = Math.sin(a1) * starR;
+        const ix = Math.cos(a2) * starR * 0.42, iy = Math.sin(a2) * starR * 0.42;
+        pt === 0 ? ctx.moveTo(ox, oy) : ctx.lineTo(ox, oy);
+        ctx.lineTo(ix, iy);
+      }
+      ctx.closePath();
+      if (filled) {
+        const sg = ctx.createRadialGradient(-starR * 0.2, -starR * 0.2, 0, 0, 0, starR);
+        sg.addColorStop(0, '#FFF8B0');
+        sg.addColorStop(0.5, '#FFD93D');
+        sg.addColorStop(1, '#FF9F1C');
+        ctx.fillStyle = sg; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * S; ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5 * S; ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  _makeCardSparkles() {
+    const arr = [];
+    for (let i = 0; i < 8; i++) {
+      arr.push({
+        rx: 0.1 + Math.random() * 0.8,
+        ry: 0.1 + Math.random() * 0.8,
+        phase: Math.random() * Math.PI * 2,
+        size: 1.5 + Math.random() * 2,
+      });
+    }
+    return arr;
+  }
+
+  _drawCardSparklesInto(sparkles, cx, cy, cw, ch, t) {
+    const ctx = state.ctx;
+    const { S } = state;
+    ctx.save();
+    for (const s of sparkles) {
+      const px = cx + s.rx * cw;
+      const py = cy + s.ry * ch;
+      const alpha = (Math.sin(t / 20 + s.phase) * 0.5 + 0.5) * 0.6;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      this._drawSparkle(ctx, px, py, s.size * S);
+    }
+    ctx.restore();
+  }
+
+  _drawConfettiInto(confetti, t) {
+    if (!confetti) return;
+    const ctx = state.ctx;
+    const { H, W, S } = state;
+    ctx.save();
+    for (const p of confetti) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vrot;
+      if (p.y > H + 20) { p.y = -20; p.x = Math.random() * W; }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = 0.85;
+      if (p.shape === 'rect') {
+        const w = p.size * S, h = p.size * 0.5 * S;
+        ctx.fillRect(-w/2, -h/2, w, h);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 0.4 * S, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -260,59 +400,6 @@ export class TutorialManager {
       });
     }
     return arr;
-  }
-
-  _drawConfetti(t) {
-    if (!this._confetti) return;
-    const ctx = state.ctx;
-    const { H, W, S } = state;
-    ctx.save();
-    for (const p of this._confetti) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.rot += p.vrot;
-      if (p.y > H + 20) { p.y = -20; p.x = Math.random() * W; }
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.fillStyle = p.color;
-      ctx.globalAlpha = 0.85;
-      if (p.shape === 'rect') {
-        const w = p.size * S, h = p.size * 0.5 * S;
-        ctx.fillRect(-w/2, -h/2, w, h);
-      } else {
-        ctx.beginPath();
-        ctx.arc(0, 0, p.size * 0.4 * S, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    }
-    ctx.restore();
-  }
-
-  _drawCardSparkles(cx, cy, cw, ch, t) {
-    const ctx = state.ctx;
-    const { S } = state;
-    if (!this._cardSparkles) {
-      this._cardSparkles = [];
-      for (let i = 0; i < 8; i++) {
-        this._cardSparkles.push({
-          rx: 0.1 + Math.random() * 0.8,
-          ry: 0.1 + Math.random() * 0.8,
-          phase: Math.random() * Math.PI * 2,
-          size: 1.5 + Math.random() * 2,
-        });
-      }
-    }
-    ctx.save();
-    for (const s of this._cardSparkles) {
-      const px = cx + s.rx * cw;
-      const py = cy + s.ry * ch;
-      const alpha = (Math.sin(t / 20 + s.phase) * 0.5 + 0.5) * 0.6;
-      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-      this._drawSparkle(ctx, px, py, s.size * S);
-    }
-    ctx.restore();
   }
 
   _drawSparkle(ctx, x, y, r) {
@@ -343,18 +430,20 @@ export class TutorialManager {
     const demoH = 130 * S;
     const cycleT = 90; // her loop 90 frame
 
-    // Renkler — LEVELS varsa kullan
-    const c0 = LEVELS?.[0]?.color || '#FF6B9D';
-    const c1 = LEVELS?.[1]?.color || '#FFD93D';
-    const c2 = LEVELS?.[2]?.color || '#5B4CFF';
+    // Renkler — demo için sabit hypercasual paleti
+    // Merge: SARI + SARI → TURUNCU
+    // Absorb: dış PEMBE içi TURUNCU (turuncu pembeye giriyor)
+    const cYellow = '#FFD93D';  // sarı — merge başlangıç
+    const cOrange = '#FF9F1C';  // turuncu — merge sonucu + absorb küçük
+    const cPink   = '#FF6B9D';  // pembe — absorb büyük top
 
-    // Ortak: divider çizgi
+    // Ortak: divider çizgi — beyaz transparan
     ctx.save();
-    ctx.strokeStyle = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    ctx.lineWidth = 1 * S;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5 * S;
     ctx.beginPath();
-    ctx.moveTo(cx + colW, cy + 10 * S);
-    ctx.lineTo(cx + colW, cy + demoH - 10 * S);
+    ctx.moveTo(cx + colW, cy + 15 * S);
+    ctx.lineTo(cx + colW, cy + demoH - 15 * S);
     ctx.stroke();
     ctx.restore();
 
@@ -383,9 +472,9 @@ export class TutorialManager {
 
     ctx.save();
     if (!merged) {
-      // İki lv0 top
-      this._drawDemoBall(ctx, leftX, animY, ballR, c0);
-      this._drawDemoBall(ctx, rightX, animY, ballR, c0);
+      // İki sarı top
+      this._drawDemoBall(ctx, leftX, animY, ballR, cYellow);
+      this._drawDemoBall(ctx, rightX, animY, ballR, cYellow);
       // Yaklaşma çizgisi (faint)
       if (phase < 0.4) {
         ctx.strokeStyle = `rgba(255,255,255,${0.2 + phase * 0.5})`;
@@ -409,18 +498,21 @@ export class TutorialManager {
         ctx.arc(merge_cx, animY, r + (1 - ringAlpha) * 18 * S, 0, Math.PI * 2);
         ctx.stroke();
       }
-      this._drawDemoBall(ctx, merge_cx, animY, r, c1);
+      this._drawDemoBall(ctx, merge_cx, animY, r, cOrange);
     }
     ctx.restore();
 
-    // Merge label
+    // Merge label — başlık + alt başlık, beyaz
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `800 ${Math.round(12 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? '#fff' : '#222';
-    ctx.fillText('MERGE', merge_cx, cy + 96 * S);
-    ctx.font = `500 ${Math.round(9.5 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
-    ctx.fillText('same + same', merge_cx, cy + 113 * S);
+    ctx.font = `900 ${Math.round(14 * S)}px ${font}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.fillText('MERGE', merge_cx, cy + 102 * S + 2 * S);
+    ctx.fillStyle = '#fff';
+    ctx.fillText('MERGE', merge_cx, cy + 102 * S);
+    // Alt başlık
+    ctx.font = `600 ${Math.round(10 * S)}px ${font}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText('same + same', merge_cx, cy + 118 * S);
 
     // ── ABSORB animation ─────────────────────────────────────────────
     // Büyük top sabit, küçük top yaklaşıp içine giriyor
@@ -441,38 +533,41 @@ export class TutorialManager {
     }
 
     ctx.save();
-    // Büyük top
+    // Büyük top — PEMBE
     const bigPulse = phase > 0.45 && phase < 0.75 ? 1 + Math.sin((phase - 0.45) / 0.3 * Math.PI) * 0.12 : 1;
-    this._drawDemoBall(ctx, absorb_cx, animY, bigR * bigPulse, c2);
-    // İç halka (nested görünüm) — absorb tamamlanınca
+    this._drawDemoBall(ctx, absorb_cx, animY, bigR * bigPulse, cPink);
+    // İç halka (nested görünüm) — absorb tamamlanınca, içi TURUNCU
     if (phase > 0.65) {
       const innerAlpha = Math.min(1, (phase - 0.65) / 0.15);
       ctx.fillStyle = `rgba(255,255,255,${innerAlpha * 0.35})`;
       ctx.beginPath();
       ctx.arc(absorb_cx, animY, bigR * 0.55, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = c0;
+      ctx.fillStyle = cOrange;
       ctx.globalAlpha = innerAlpha;
       ctx.beginPath();
       ctx.arc(absorb_cx, animY, bigR * 0.45, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // Küçük top (yaklaşan)
+    // Küçük top (yaklaşan) — TURUNCU
     if (smallAlpha > 0) {
       ctx.globalAlpha = smallAlpha;
-      this._drawDemoBall(ctx, smallX, animY, ballR * smallScale, c0);
+      this._drawDemoBall(ctx, smallX, animY, ballR * smallScale, cOrange);
       ctx.globalAlpha = 1;
     }
     ctx.restore();
 
-    // Absorb label
-    ctx.font = `800 ${Math.round(12 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? '#fff' : '#222';
-    ctx.fillText('ABSORB', absorb_cx, cy + 96 * S);
-    ctx.font = `500 ${Math.round(9.5 * S)}px ${font}`;
-    ctx.fillStyle = isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
-    ctx.fillText('big eats small', absorb_cx, cy + 113 * S);
+    // Absorb label — başlık + alt başlık, beyaz
+    ctx.font = `900 ${Math.round(14 * S)}px ${font}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.fillText('ABSORB', absorb_cx, cy + 102 * S + 2 * S);
+    ctx.fillStyle = '#fff';
+    ctx.fillText('ABSORB', absorb_cx, cy + 102 * S);
+    // Alt başlık
+    ctx.font = `600 ${Math.round(10 * S)}px ${font}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText('big eats small', absorb_cx, cy + 118 * S);
   }
 
   _drawDemoBall(ctx, x, y, r, color) {
@@ -613,13 +708,42 @@ export class TutorialManager {
       if (!this._byLv(0) && this._byLv(2)) {
         this._showHint = false; this._arrow = null;
         this._phase = 'ABSORBED2'; this._timer = 0;
+        // Slot animasyonunu manuel tetikle — checkGoal tutorial'da erken döndüğü için
+        // normal flying goal akışı çalışmaz. Burada elle başlatıyoruz.
+        this._spawnTutFlyingGoal();
       }
     }
 
-    if (this._phase === 'ABSORBED2' && this._timer > 45) {
+    if (this._phase === 'ABSORBED2' && this._timer > 90) {
+      // 90 frame (~1.5s): flying goal animasyonu (~72 frame) + done-pulse görünür
+      // Süre sonunda startStep slot'ları sıfırlar; popup _s3'te açılır.
       state.circles = [];
       this.startStep(3);
     }
+  }
+
+  // Tutorial son adımda slot dolma animasyonunu manuel tetikler.
+  // goals.checkGoal tutorial'da false döndüğü için flying goal kendiliğinden
+  // başlamaz; bu helper aynı veri yapısını elle oluşturur.
+  _spawnTutFlyingGoal() {
+    const lv2 = this._byLv(2);
+    if (!lv2) return;
+    const { LEVELS } = state;
+    // Slot pozisyonunu hesapla — goals.js:goalSlotPos ile uyumlu
+    const { CX, MIN_DIM } = state;
+    const GEM_R = 64; // tek slot için (TUT_GOALS tek goal'lu)
+    const TOP = 10, TTL = Math.round(28 * MIN_DIM / 800) + 8, MID = 4;
+    const gemTop = TOP + TTL + MID;
+    const cx = CX, cy = gemTop + GEM_R;
+    const ballR = Math.round(GEM_R * 0.72);
+    // Flying goal entry'sini ekle
+    state.flyingGoals.push({
+      slotIdx: 0,
+      x: lv2.x, y: lv2.y, tx: cx, ty: cy,
+      r: ballR, level: 2, contains: [1, 0],
+      t: 0, maxT: 72
+    });
+    state.goalSlots[0] = 'flying';
   }
 
   // ── Step 3: popup ────────────────────────────────────────────────────────

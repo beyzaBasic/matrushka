@@ -49,7 +49,8 @@ export class GoalManager {
   }
 
   checkGoal(c) {
-    // Tutorial: levelSuccess'i tetiklemesin — TutorialManager kendi akışını yönetir
+    // Tutorial'da erken dön — eski davranış. Slot animasyonu tutorial.js'in
+    // kendi flow'unda (_s2 ABSORBED2'de) manuel tetiklenir.
     if (state.isTutorial) return false;
     const def = this.getLevelDef();
     for (let i = 0; i < def.goals.length; i++) {
@@ -96,9 +97,17 @@ export class GoalManager {
         state.mainBorderFlash = 45;
         audio.goalDone();
         if (goalSlots.every(s => s === 'done')) {
-          state.levelSuccess = true;
-          state.levelStars = state.blastUsedThisLevel === 0 ? 3 : state.blastUsedThisLevel <= 1 ? 2 : 1;
-          audio.levelComplete();
+          // Tutorial'da levelSuccess set edilmez — popup akışını TutorialManager yönetir.
+          // checkGoal tutorial'da false döner; buraya sadece tutorial.js'in manuel
+          // tetiklediği flying goal'un slot'a varmasıyla girilebilir.
+          if (state.isTutorial) {
+            audio.goalDone();
+            // Konfeti efektleri tutorial'da da görünsün — kutlama hissi
+          } else {
+            state.levelSuccess = true;
+            state.levelStars = state.blastUsedThisLevel === 0 ? 3 : state.blastUsedThisLevel <= 1 ? 2 : 1;
+            audio.levelComplete();
+          }
           const cpIdx = cpIdxFromLevel(state.currentLevel, TUTORIAL_LEVELS);
           const palette = getWorldConfig(cpIdx).palette;
           const cols = [...palette, '#fff', '#FFD700'];
