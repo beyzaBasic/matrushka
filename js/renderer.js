@@ -1185,28 +1185,30 @@ export class Renderer {
   // OVERLAY'LER: SUCCESS / PAUSE / GAMEOVER
   // ════════════════════════════════════════════════════════════════
 
-  drawSuccessOverlay(goalManager) {
-    const { levelSuccess, levelSuccessAlpha, currentLevel, levelStars, W, H, CX, CY, S } = state;
+  // Success overlay — paylaşılan şenlik kartını kullanır (tutorial.drawCelebrationCard).
+  // Eski özel başlık/yıldız/buton çizimleri kaldırıldı; tek bir kart tasarımı altında birleşti.
+  drawSuccessOverlay(goalManager, tutorial) {
+    const { levelSuccess, levelSuccessAlpha, currentLevel, levelStars } = state;
     if (!levelSuccess || levelSuccessAlpha <= 0) { state._nextLevelBtn = null; return; }
     // Tutorial'da başarı ekranı gösterme — popup zaten var
     if (state.isTutorial) { state._nextLevelBtn = null; return; }
+    if (!tutorial || typeof tutorial.drawSuccess !== 'function') return;
 
-    const ctx = state.ctx;
-    ctx.save();
-    // Karartma hafifletildi (0.78 → 0.42) — arena/toplar success ekranı arkasında görünür kalır
-    ctx.fillStyle = `rgba(0,0,0,${levelSuccessAlpha*0.42})`; ctx.fillRect(0, 0, W, H);
-
-    if (levelSuccessAlpha > 0.25) {
-      const a          = Math.min(1, (levelSuccessAlpha-0.1)/0.6);
-      const tt         = Date.now() * 0.001;
-      const isTutorial = currentLevel < TUTORIAL_LEVELS;
-
-      this._drawSuccessTitle(a, tt, isTutorial, currentLevel, CX, CY, S);
-      if (isTutorial)  this._drawTutorialDemo(a, tt, currentLevel);
-      if (!isTutorial) this._drawStars(a, tt, levelStars, CX, CY, S);
-      this._drawNextLevelBtn(a, tt, isTutorial, currentLevel, W, CX, CY, S);
+    // Buton metni dinamik — bir SONRAKİ level'ın numarası
+    let ctaLabel;
+    const nextDisplayLevel = (currentLevel + 1) - TUTORIAL_LEVELS + 1; // 1-indexed
+    if (currentLevel < TUTORIAL_LEVELS) {
+      // Tutorial içi (şu an kullanılmıyor — isTutorial guard yukarıda)
+      ctaLabel = 'NEXT  ▶';
+    } else {
+      ctaLabel = `LEVEL ${nextDisplayLevel}  ▶`;
     }
-    ctx.restore();
+
+    tutorial.drawSuccess({
+      alpha:   levelSuccessAlpha,
+      stars:   levelStars,
+      ctaLabel,
+    });
   }
 
   _drawSuccessTitle(a, tt, isTutorial, currentLevel, CX, CY, S) {

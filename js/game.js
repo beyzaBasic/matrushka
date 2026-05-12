@@ -462,6 +462,11 @@ export class Game {
     state._gameOverBtn      = null;
     // currentLevel artık tutorial değilse isTutorial false olmalı
     state.isTutorial        = (state.currentLevel === 0);
+    // Success kartı animasyon state'ini sıfırla — sonraki level success ekranı
+    // baştan elastic scale-in ile açılsın
+    if (this.tutorial && typeof this.tutorial.resetCardState === 'function') {
+      this.tutorial.resetCardState('success');
+    }
     this.theme.applyForLevel(nextLevel);
     this._applyLayout();
     this.goals.initLevelGoals();
@@ -1156,7 +1161,7 @@ export class Game {
     if (!state.gameOver && !state.levelSuccess) R.drawPaletteGuide();
 
     // Success / Game over overlay'leri
-    R.drawSuccessOverlay(this.goals);
+    R.drawSuccessOverlay(this.goals, this.tutorial);
     if (state.gameOver) R.drawGameOver(this.goals);
 
     // Pause butonu + sound (her zaman en üstte)

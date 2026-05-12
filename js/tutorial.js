@@ -97,6 +97,22 @@ export class TutorialManager {
     });
   }
 
+  // Level success ekranı — aynı şenlik kartını kullanır.
+  // alpha: state.levelSuccessAlpha (0–1) — fade-in için
+  // stars: state.levelStars (0–3)
+  // ctaLabel: dinamik — "Level X ▶" veya "Start Game ▶"
+  drawSuccess({ alpha, stars, ctaLabel }) {
+    this.drawCelebrationCard({
+      key:        'success',
+      title:      'SUCCESS!',
+      ctaLabel,
+      showDemo:   false,
+      stars,
+      btnRectKey: '_nextLevelBtn',
+      alpha,
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // PAYLAŞILAN ŞENLİK KARTI — hem tutorial popup hem level success kullanır
   // opts:
@@ -108,6 +124,8 @@ export class TutorialManager {
   //   stars      : 0–3, showDemo=false ise gösterilir
   //   btnRectKey : tıklama hit-area için state anahtarı
   //   alpha      : fade-in animasyonu için (0–1, default 1)
+  // TASARIM NOTU: Kart arka planı sade (soft koyu blur), buton parlak/canlı kalır
+  // → buton ön plana çıkar.
   // ─────────────────────────────────────────────────────────────────────────
   drawCelebrationCard(opts) {
     const {
@@ -130,14 +148,14 @@ export class TutorialManager {
     const { W, H, CX, CY, S } = state;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
 
-    // ── Backdrop + radial vignette (arkada gameplay yarı görünür kalsın) ────
-    // Önceki: 0.88 — tam karartma. Yeni: 0.42 — hafif overlay, arena/toplar seçilir.
-    const dimAlpha = Math.min(0.42, t * 0.025) * alpha;
+    // ── Backdrop (arkada gameplay yarı görünür kalsın) ──────────────────────
+    const dimAlpha = Math.min(0.55, t * 0.03) * alpha;
     ctx.fillStyle = `rgba(0,0,0,${dimAlpha})`;
     ctx.fillRect(0, 0, W, H);
+    // Hafif radial koyulaşma — kartın etrafı için ek vurgu
     const vGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * 0.7);
     vGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    vGrad.addColorStop(1, `rgba(0,0,0,${dimAlpha * 0.6})`);
+    vGrad.addColorStop(1, `rgba(0,0,0,${dimAlpha * 0.5})`);
     ctx.fillStyle = vGrad;
     ctx.fillRect(0, 0, W, H);
 
@@ -163,40 +181,27 @@ export class TutorialManager {
     ctx.scale(cardScale, cardScale);
     ctx.translate(-CX, -CY);
 
-    // Card glow
-    const glowPulse = 0.6 + 0.4 * Math.sin(t / 18);
-    ctx.save();
-    ctx.shadowColor = `rgba(91, 76, 255, ${0.5 * glowPulse})`;
-    ctx.shadowBlur = 40 * S;
-    ctx.fillStyle = 'rgba(0,0,0,0)';
+    // ── Card body — SADE (koyu yarı saydam, glassmorphism hissi) ─────────────
+    // Eski canlı turuncu→pembe→mor gradient kaldırıldı.
+    // Yeni: ince koyu kart → buton parlak sarısı ön plana çıkıyor.
     ctx.beginPath(); this._rr(ctx, cx, cy, cw, ch, 28 * S);
+    ctx.fillStyle = 'rgba(20, 18, 40, 0.72)';
     ctx.fill();
-    ctx.restore();
 
-    // Card body — vibrant gradient (turuncu→pembe→mor)
-    const cardGrad = ctx.createLinearGradient(0, cy, 0, cy + ch);
-    cardGrad.addColorStop(0,    '#FFB347');
-    cardGrad.addColorStop(0.5,  '#FF6B9D');
-    cardGrad.addColorStop(1,    '#8B5FFF');
-    ctx.beginPath(); this._rr(ctx, cx, cy, cw, ch, 28 * S);
-    ctx.fillStyle = cardGrad; ctx.fill();
-
-    // Beyaz iç çerçeve
-    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-    ctx.lineWidth = 2.5 * S;
+    // İnce beyaz iç çerçeve (subtle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1.5 * S;
     ctx.stroke();
 
-    // Sparkles (kart içi)
-    if (!cardState.sparkles) cardState.sparkles = this._makeCardSparkles();
-    this._drawCardSparklesInto(cardState.sparkles, cx, cy, cw, ch, t);
+    // Sparkles kaldırıldı (kart sade)
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-    // Başlık — büyük, beyaz, bouncing
-    const headerBounce = Math.sin(t / 22) * 3 * S;
+    // Başlık — büyük, beyaz, hafif bouncing
+    const headerBounce = Math.sin(t / 22) * 2 * S;
     const titleFs = Math.round(42 * S);
     ctx.font = `900 ${titleFs}px ${font}`;
-    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.fillStyle = 'rgba(0,0,0,0.40)';
     ctx.fillText(title, CX, cy + 62 * S + headerBounce + 3 * S);
     ctx.fillStyle = '#fff';
     ctx.fillText(title, CX, cy + 62 * S + headerBounce);
@@ -204,7 +209,7 @@ export class TutorialManager {
     // Alt başlık
     if (subtitle) {
       ctx.font = `600 ${Math.round(14 * S)}px ${font}`;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
       ctx.fillText(subtitle, CX, cy + 95 * S);
     }
 
@@ -215,7 +220,7 @@ export class TutorialManager {
       this._drawCardStars(cx, cy + 140 * S, cw, stars, t);
     }
 
-    // CTA buton
+    // CTA buton — parlak/canlı (ön planda)
     const btnPulse = 1 + Math.sin(t / 9) * 0.045;
     const btnRot   = Math.sin(t / 14) * 0.025;
     const bw = cw * 0.78;
@@ -230,12 +235,12 @@ export class TutorialManager {
     ctx.scale(btnPulse, btnPulse);
     ctx.translate(-bcx, -bcy);
 
-    // Shadow
-    ctx.fillStyle = 'rgba(180, 40, 60, 0.55)';
+    // Shadow (buton altına derinlik — koyu kartta daha belirgin)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
     ctx.beginPath(); this._rr(ctx, bx, by + 6 * S, bw, bh, bh * 0.45);
     ctx.fill();
 
-    // Body — sarı→turuncu
+    // Body — sarı→turuncu (parlak, canlı — ön planda)
     const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
     btnGrad.addColorStop(0, '#FFE74C');
     btnGrad.addColorStop(0.5, '#FFD93D');
@@ -243,9 +248,9 @@ export class TutorialManager {
     ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
     ctx.fillStyle = btnGrad; ctx.fill();
 
-    // Shine
+    // Shine (üst yarı parlama)
     ctx.beginPath(); this._rr(ctx, bx + 10 * S, by + 5 * S, bw - 20 * S, bh * 0.42, bh * 0.3);
-    ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.50)'; ctx.fill();
 
     // Border
     ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
@@ -255,7 +260,7 @@ export class TutorialManager {
 
     // Text — koyu pembe
     ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
-    ctx.fillStyle = 'rgba(0,0,0,0.20)';
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillText(ctaLabel, CX, bcy + 3 * S);
     ctx.fillStyle = '#C2185B';
     ctx.fillText(ctaLabel, CX, bcy);
