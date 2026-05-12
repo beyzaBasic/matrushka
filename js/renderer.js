@@ -940,7 +940,7 @@ export class Renderer {
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font      = `bold ${Math.round(28 * S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle = titleColor; ctx.shadowColor = titleColor; ctx.shadowBlur = 10;
+    ctx.fillStyle = titleColor; ctx.shadowBlur = 0;
     ctx.fillText(goalManager.displayLevelText(), CX, 22);
     ctx.restore();
   }
@@ -1413,95 +1413,74 @@ export class Renderer {
 
   _invalidatePaletteGuide() { this._paletteGuideCache = null; }
 
-  drawPaletteGuide(goalManager) {
-    const { ctx, LEVELS, S, W, CX, safeTop } = state;
+  drawPaletteGuide() {
+    const { ctx, LEVELS, S, CX, CY, MAIN_R, MIN_DIM } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
-    const n       = LEVELS.length;
-    const PAD_L   = 8 * S;
-    const GAP     = 5 * S;
-    const titleFs = Math.round(28 * S);
-    const titleY  = (safeTop || 0) + 22;
-    const titleTop = titleY - titleFs * 0.5;
+    const n   = LEVELS.length;
+    const PAD = 8 * S;
+    const GAP = 5 * S;
 
-    ctx.save();
-    ctx.font = `bold ${titleFs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    const titleW = ctx.measureText(goalManager?.displayLevelText?.() || 'Level 1').width;
-    ctx.restore();
+    // Sol boşluk: havuzun sol kenarı ile ekran solu arası
+    const poolLeft = CX - MAIN_R;
+    const availW   = poolLeft - PAD * 2;
+    if (availW < 8 * S) return;
 
-    const _shapeSlop = (shape) => {
-      switch (shape) {
-        case 'fish':      return { left: 0.22, right: 0.10 };
-        case 'duck':      return { left: 0.05, right: 0.20 };
-        case 'jellybear':
-        case 'bear':      return { left: 0.10, right: 0.10 };
-        case 'matrushka': return { left: 0.05, right: 0.05 };
-        default:          return { left: 0,    right: 0    };
-      }
-    };
+    // Slot sınırları
+    const ng       = state.goalSlots?.length || 1;
+    const GEM_R_px = ng <= 1 ? 64 : ng === 2 ? 54 : 44;
+    const TTL      = Math.round(28 * MIN_DIM / 800) + 8;
+    const gemTop   = 10 + TTL + 4;          // slot üst noktası
+    const slotBot  = gemTop + GEM_R_px * 2; // slot alt noktası
 
-    const levelsRev = [...LEVELS].reverse();
-    const maxRraw   = levelsRev[0].r;
-    const scByTitle = titleW / (maxRraw * 2);
+    // Stripe sınırları
+    // Üst: her zaman gemTop
+    // Alt: geniş ekranda havuz bottom, dar ekranda slot bottom
+    const hasSpace     = availW >= 32 * S;
+    const stripeTop    = gemTop;
+    const stripeBottom = hasSpace ? (CY + MAIN_R) : slotBot;
+    const stripeHeight = stripeBottom - stripeTop;
+    if (stripeHeight <= 0) return;
 
-    const slotW = (lv, sc) => {
-      const slop = _shapeSlop(lv.shape || 'sphere');
-      return lv.r * sc * (2 + slop.left + slop.right);
-    };
-
-    const totalW = levelsRev.reduce((s, lv) => s + slotW(lv, scByTitle), 0) + (n - 1) * GAP;
-    const availW = CX - titleW / 2 - PAD_L - 4;
-    const sc     = totalW > availW ? scByTitle * (availW / totalW) : scByTitle;
+    // Orijinal top yarıçaplarını kullan — oranları koru
+    const maxRraw  = LEVELS[n - 1].r;
+    const totalHraw = LEVELS.reduce((s, lv) => s + lv.r * 2, 0) + (n - 1) * GAP;
+    const scByW = availW / (maxRraw * 2);
+    const scByH = stripeHeight / totalHraw;
+    const sc    = Math.min(scByW, scByH, 1);
     if (sc <= 0) return;
 
-    const gapSc = totalW > availW ? GAP * (availW / totalW) : GAP;
-    const maxR  = maxRraw * sc;
-    const logH  = Math.ceil(maxR * 2 + 4);
-    const logW  = Math.ceil(levelsRev.reduce((s, lv) => s + slotW(lv, sc), 0) + (n - 1) * gapSc + PAD_L + 4);
+    const maxR = maxRraw * sc;
+    const cx   = PAD + maxR; // en geniş topa göre hizala
 
-    const themeKey = (state.theme?.cpIdx ?? 0) + '|' + sc.toFixed(4) + '|' + Math.round(titleTop);
+    ctx.save();
+    ctx.shadowBlur = 0;
 
-    if (!this._paletteGuideCache || this._paletteGuideCache.themeKey !== themeKey) {
-      const DPR  = Math.min(window.devicePixelRatio || 1, 2);
-      const oc   = new OffscreenCanvas(Math.ceil(logW * DPR), Math.ceil(logH * DPR));
-      const octx = oc.getContext('2d');
-      octx.scale(DPR, DPR);
+    // lv0 en altta, en yüksek level en üstte
+    let curY = stripeBottom;
+    for (let i = 0; i < n; i++) {
+      const lv = LEVELS[i];
+      const cr = lv.r * sc;
+      curY -= cr;
+      const cy = curY;
+      curY -= cr + GAP;
 
-      const firstSlop = _shapeSlop(levelsRev[0].shape || 'sphere');
-      let curX = PAD_L + levelsRev[0].r * sc * (1 + firstSlop.left);
+      // Gövde
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.fillStyle = lv.color;
+      ctx.fill();
 
-      for (let i = 0; i < n; i++) {
-        const lv    = levelsRev[i];
-        const origI = n - 1 - i;
-        const r     = lv.r * sc;
-        const cy    = r + 1;
-        const slop  = _shapeSlop(lv.shape || 'sphere');
-
-        const saved = state.ctx;
-        state.ctx   = octx;
-        octx.shadowBlur = 0;
-        this.drawSphere({ x: curX, y: cy, r, level: origI, color: lv.color,
-          shape: lv.shape || 'sphere',
-          contains: [], boing: 0, absorbAnim: 0, squish: null,
-          absorbGlow: 0, isBeingDragged: false });
-        state.ctx = saved;
-
-        if (i < n - 1) {
-          const nextLv   = levelsRev[i + 1];
-          const nextSlop = _shapeSlop(nextLv.shape || 'sphere');
-          const nextR    = nextLv.r * sc;
-          curX += r * (1 + slop.right) + gapSc + nextR * (1 + nextSlop.left);
-        }
-      }
-
-      this._paletteGuideCache = { oc, themeKey, logW, logH };
+      // Highlight
+      const hl = ctx.createRadialGradient(cx - cr * 0.3, cy - cr * 0.35, 0, cx, cy, cr);
+      hl.addColorStop(0, 'rgba(255,255,255,0.50)');
+      hl.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = hl;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    const c = this._paletteGuideCache;
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.shadowBlur  = 0;
-    ctx.drawImage(c.oc, 0, titleTop - 1, c.logW, c.logH);
     ctx.restore();
   }
 

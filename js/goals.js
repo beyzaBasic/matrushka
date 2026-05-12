@@ -17,7 +17,7 @@ export class GoalManager {
 
   displayLevelText() {
     return state.currentLevel < TUTORIAL_LEVELS
-      ? 'How to Play ' + (state.currentLevel + 1)
+      ? 'How to Play'
       : 'Level ' + this.displayLevel();
   }
 
