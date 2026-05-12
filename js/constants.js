@@ -247,6 +247,32 @@ function _buildLevelDefs() {
 
 export const LEVEL_DEFS = _buildLevelDefs();
 
+// ── Magic Numbers ────────────────────────────────────────────────────
+export const PHYSICS_CONSTANTS = {
+  SPAWN_PADDING: 4,                    // spawn top padding
+  BEAR_RADIUS_FACTOR: 0.90,           // bear collision radius
+  JELLYBEAR_RADIUS_FACTOR: 0.90,      // jellybear collision radius
+  MATRUSHKA_RADIUS_FACTOR: 0.82,      // matrushka collision radius
+  DUCK_RADIUS_FACTOR: 0.88,           // duck collision radius
+  DUCK_OFFSET_X: 0.10,                // duck x offset
+  DUCK_OFFSET_Y: -0.10,               // duck y offset
+  FISH_RADIUS_FACTOR: 1.00,           // fish collision radius
+  FISH_COLLISION_OFFSET_X: -0.10,     // fish x offset
+  BEAR_OFFSET_Y: 0.05,                // bear y offset
+  ZERO_DIVISION_GUARD: 0.001,         // guard for hypot zero
+};
+
+export const RENDER_CONSTANTS = {
+  COLOR_SHADE_CACHE_LIMIT: 512,       // max cached color shades
+  CACHE_PADDING_RATIO: 0.25,          // shape cache padding factor
+  ELLIPSE_CONSTANT: 0.5523,           // bezier constant for ellipse
+  DPR_MAX: 2,                         // max device pixel ratio
+  SQUISH_THRESHOLD: 0.01,             // squish animation threshold
+  BOING_THRESHOLD: 0.05,              // boing animation threshold
+  SHAPE_CACHE_LIMIT: 200,             // max cached shapes
+  CACHE_LRU_REMOVE_COUNT: 1,          // shapes to remove when cache full
+};
+
 export const BLAST_BTNS_TEMPLATE = [
   { id: 'yellow', levels: [1], color: '#FFD700', maxCharges: 4 },
   { id: 'orange', levels: [2], color: '#FF9500', maxCharges: 3 },

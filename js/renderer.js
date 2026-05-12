@@ -1,6 +1,6 @@
 // ── renderer.js ───────────────────────────────────────────────────
 import { state } from './state.js';
-import { TUTORIAL_LEVELS, SHAPE_DEFS } from './constants.js';
+import { TUTORIAL_LEVELS, SHAPE_DEFS, RENDER_CONSTANTS, PHYSICS_CONSTANTS } from './constants.js';
 
 export class Renderer {
 
@@ -32,14 +32,14 @@ export class Renderer {
     const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + amt));
     const b = Math.min(255, Math.max(0, (n & 0xff) + amt));
     v = `rgb(${r},${g},${b})`;
-    if (this._shadeCache.size > 512) this._shadeCache.clear();
+    if (this._shadeCache.size > RENDER_CONSTANTS.COLOR_SHADE_CACHE_LIMIT) this._shadeCache.clear();
     this._shadeCache.set(k, v);
     return v;
   }
 
   _ellipsePath(cx, cy, rx, ry, ax, ay) {
     const ctx = state.ctx;
-    const K = 0.5523, tx = -ay, ty = ax;
+    const K = RENDER_CONSTANTS.ELLIPSE_CONSTANT, tx = -ay, ty = ax;
     ctx.beginPath();
     ctx.moveTo(cx + ax*rx, cy + ay*rx);
     ctx.bezierCurveTo(cx+ax*rx+tx*K*ry, cy+ay*rx+ty*K*ry, cx+tx*ry+ax*K*rx, cy+ty*ry+ay*K*rx, cx+tx*ry, cy+ty*ry);
@@ -77,13 +77,13 @@ export class Renderer {
     if (!key) { drawFn(c); return; }
 
     // Squish/boing varsa cache kullanma — deformasyon anlık
-    if ((c.boing > 0.01) || (c.squish && c.squish.t > 0.05)) {
+    if ((c.boing > RENDER_CONSTANTS.BOING_THRESHOLD) || (c.squish && c.squish.t > RENDER_CONSTANTS.SQUISH_THRESHOLD)) {
       drawFn(c); return;
     }
 
     if (!this._shapeCache.has(key)) {
-      const DPR  = Math.min(window.devicePixelRatio || 1, 2);
-      const pad  = Math.ceil(c.r * 0.25); // gölge için pay — 0.35→0.25 küçüldü
+      const DPR  = Math.min(window.devicePixelRatio || 1, RENDER_CONSTANTS.DPR_MAX);
+      const pad  = Math.ceil(c.r * RENDER_CONSTANTS.CACHE_PADDING_RATIO);
       const size = Math.ceil((c.r * 2 + pad * 2) * DPR);
       const cx0  = size / 2, cy0 = size / 2;
       const oc   = new OffscreenCanvas(size, size);
@@ -95,11 +95,14 @@ export class Renderer {
         r: c.r,
         boing: 0, squish: null, absorbAnim: 0 };
       const savedCtx = state.ctx;
-      state.ctx = octx;
-      drawFn(fake);
-      state.ctx = savedCtx;
+      try {
+        state.ctx = octx;
+        drawFn(fake);
+      } finally {
+        state.ctx = savedCtx;
+      }
       this._shapeCache.set(key, { oc, logicalSize });
-      if (this._shapeCache.size > 200) {
+      if (this._shapeCache.size > RENDER_CONSTANTS.SHAPE_CACHE_LIMIT) {
         this._shapeCache.delete(this._shapeCache.keys().next().value);
       }
     }

@@ -1,11 +1,12 @@
 import { state } from './state.js';
+import { PHYSICS_CONSTANTS } from './constants.js';
 
 // ── Yardımcılar ───────────────────────────────────────────────────────────────
 
 function spawnBall(lv, xOff = 0) {
   const { CX, CY, MAIN_R, LEVELS } = state;
   const r = LEVELS[lv].r, sx = CX + xOff, dx = sx - CX;
-  const sy = CY - Math.sqrt(Math.max(0, (MAIN_R - r - 4) ** 2 - dx * dx));
+  const sy = CY - Math.sqrt(Math.max(0, (MAIN_R - r - PHYSICS_CONSTANTS.SPAWN_PADDING) ** 2 - dx * dx));
   return {
     id: Math.random(), x: sx, y: sy, r, level: lv,
     color: LEVELS[lv].color, vx: 0, vy: LEVELS[lv].vy ?? 4,

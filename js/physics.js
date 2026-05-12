@@ -1,6 +1,15 @@
 // ── physics.js ────────────────────────────────────────────────────
 import { state } from './state.js';
-import { SHAPE_DEFS } from './constants.js';
+import { SHAPE_DEFS, PHYSICS_CONSTANTS } from './constants.js';
+
+/**
+ * @typedef {Object} Circle
+ * @property {number} x - X position
+ * @property {number} y - Y position
+ * @property {number} r - Radius
+ * @property {number} level - Level index
+ * @property {string} [shape] - Shape type (sphere, bear, fish, etc.)
+ */
 
 export class PhysicsManager {
 
@@ -9,21 +18,26 @@ export class PhysicsManager {
   _circles(c) {
     const r = c.r;
     const shape = c.shape || state.LEVELS[c.level]?.shape || 'sphere';
+    const PC = PHYSICS_CONSTANTS;
     switch (shape) {
       case 'jellybear':
-      case 'bear':      return [{ x: c.x,          y: c.y + r*0.05, r: r*0.90 }];
-      case 'matrushka': return [{ x: c.x,          y: c.y + r*0.05, r: r*0.82 }];
-      case 'duck':      return [{ x: c.x + r*0.10, y: c.y - r*0.10, r: r*0.88 }];
+      case 'bear':      return [{ x: c.x, y: c.y + r * PC.BEAR_OFFSET_Y, r: r * PC.BEAR_RADIUS_FACTOR }];
+      case 'matrushka': return [{ x: c.x, y: c.y + r * PC.BEAR_OFFSET_Y, r: r * PC.MATRUSHKA_RADIUS_FACTOR }];
+      case 'duck':      return [{ x: c.x + r * PC.DUCK_OFFSET_X, y: c.y + r * PC.DUCK_OFFSET_Y, r: r * PC.DUCK_RADIUS_FACTOR }];
       // Fish: tek circle, merkez gövde+kuyruk arasında, yarıçap her iki tarafı kapsar
       // Gövde merkezi x+0.05r, kuyruk ucu x-1.42r, gaga ucu x+1.20r
       // Collision merkezi x-0.11r (ağırlık merkezi), r=1.00r tüm gövdeyi kapsar
-      case 'fish':      return [{ x: c.x - r*0.10, y: c.y, r: r*1.00 }];
-      default:          return [{ x: c.x,          y: c.y,          r: r      }];
+      case 'fish':      return [{ x: c.x + r * PC.FISH_COLLISION_OFFSET_X, y: c.y, r: r * PC.FISH_RADIUS_FACTOR }];
+      default:          return [{ x: c.x, y: c.y, r: r }];
     }
   }
 
-  // İki nesne arasındaki en derin compound çakışma
-  // Döner: { ov (>0 = çakışma), nx, ny } — itme yönü c1→c2
+  /**
+   * İki nesne arasındaki en derin compound çakışma
+   * @param {Circle} c1 - First circle
+   * @param {Circle} c2 - Second circle
+   * @returns {{ov: number, nx: number, ny: number}} ov > 0 = collision
+   */
   _overlap(c1, c2) {
     const circles1 = this._circles(c1);
     const circles2 = this._circles(c2);
@@ -31,7 +45,7 @@ export class PhysicsManager {
     for (const a of circles1) {
       for (const b of circles2) {
         const dx = b.x - a.x, dy = b.y - a.y;
-        const d  = Math.hypot(dx, dy) || 0.001;
+        const d  = Math.hypot(dx, dy) || PHYSICS_CONSTANTS.ZERO_DIVISION_GUARD;
         const ov = (a.r + b.r) - d;
         if (ov > bestOv) {
           bestOv = ov;
