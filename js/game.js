@@ -159,10 +159,19 @@ export class Game {
       this.startFromLevel(TUTORIAL_LEVELS); // ilk gerçek level
       return;
     }
-    // Tutorial butonu
+    // Tutorial butonu — toggle: ilk basışta tutorial aç, ikinci basışta önceki level'a dön
     const tb = state._tutorialBtn;
     if (tb && x >= tb.x && x <= tb.x + tb.w && y >= tb.y && y <= tb.y + tb.h) {
-      this._startFromLevel(0);
+      if (state.currentLevel === 0 && state._savedLevel != null) {
+        // Tutorial içinde → kaldığı level'a dön
+        const saved = state._savedLevel;
+        state._savedLevel = null;
+        this._startFromLevel(saved);
+      } else {
+        // Mevcut level'ı kaydet, tutorial baştan
+        state._savedLevel = state.currentLevel;
+        this._startFromLevel(0);
+      }
       return;
     }
     const pb = state._pauseBtn;
@@ -210,18 +219,13 @@ export class Game {
     if (state.nextBall && !state.heldBall) {
       const nb = state.nextBall;
       if (Math.hypot(x - nb.x, y - nb.y) < Math.max(nb.r * 1.8, 44 * S)) {
-        // Pick edilenin kalan timer süresi kadar bekleyip yeni nextBall üret
-        const remaining = state.autoDropDeadline > 0
-          ? Math.max(0, state.autoDropDeadline - Date.now())
-          : 0;
         state.heldBall = { ...nb, x, y };
         state.nextBall = null;
         state._nextBallBlocked = false;
         state.autoDropDeadline = 0;
         this.audio.pick();
-        setTimeout(() => {
-          if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-        }, remaining);
+        // Beklemesiz: yeni nextBall ANINDA üretilsin (eski: remaining ms beklerdi)
+        if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
         return;
       }
     }
@@ -243,9 +247,8 @@ export class Game {
         this._checkSpawnCollision(ball);
         state._lastDropX = dropX;
         this.audio.spawn();
-        setTimeout(() => {
-          if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-        }, 300);
+        // Beklemesiz: yeni nextBall ANINDA üretilsin (eski: 300ms beklerdi)
+        if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
         return;
       }
     }
@@ -381,9 +384,8 @@ export class Game {
     this._preloadArena();
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
     if (!state.isTutorial) {
-      setTimeout(() => {
-        if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
-      }, 600);
+      // Beklemesiz: ilk top ANINDA üretilsin (eski: 600ms beklerdi)
+      if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
     }
   }
 
@@ -471,10 +473,10 @@ export class Game {
     this._applyLayout();
     this.goals.initLevelGoals();
     this._preloadArena();
-    // İlk topu üret (tutorial değilse)
+    // İlk topu üret (tutorial değilse) — beklemesiz (eski: 600ms beklerdi)
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
     if (!state.isTutorial) {
-      setTimeout(() => this._generateNextBall(), 600);
+      this._generateNextBall();
     }
   }
 
@@ -619,26 +621,6 @@ export class Game {
     }
   }
 
-  // Oyuncu topu aldı — heldBall oluştur
-  _pickUpBall(touchX, touchY) {
-    if (!state.nextBall || state.heldBall || state.levelSuccess || state.gameOver) return false;
-    const nb = state.nextBall;
-    const dist = Math.hypot(touchX - nb.x, touchY - nb.y);
-    if (dist > nb.r * 1.8) return false; // Sadece top üzerine gelince al
-    const remaining = state.autoDropDeadline > 0
-      ? Math.max(0, state.autoDropDeadline - Date.now())
-      : 0;
-    state.heldBall = { ...nb, x: touchX, y: touchY };
-    state.nextBall = null;
-    state._nextBallBlocked = false;
-    state.autoDropDeadline = 0;
-    this.audio.pick();
-    setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-    }, remaining);
-    return true;
-  }
-
   // Boş alana tıklama: tıklanan X hizasından U'nun tepesinden düşür
   _dropBallFromTop(clickX) {
     if (!state.heldBall) return;
@@ -654,9 +636,8 @@ export class Game {
     state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
-    setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-    }, 300);
+    // Beklemesiz: yeni nextBall ANINDA üretilsin
+    if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
   }
 
   // Pick + bırak: sürüklenip bırakılan pozisyondan serbest düşüş
@@ -673,14 +654,8 @@ export class Game {
     state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
-    setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-    }, 300);
-  }
-
-  // (Eski _dropBall — artık kullanılmıyor, geriye dönük uyumluluk için bırakıldı)
-  _dropBall(x, y) {
-    this._dropBallAtPos(x, y);
+    // Beklemesiz: yeni nextBall ANINDA üretilsin
+    if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
   }
 
   // ── Absorb / Merge ────────────────────────────────────────────────
@@ -871,9 +846,8 @@ export class Game {
       ball.vy = 2;
       state.circles.push(ball);
       this.audio.spawn();
-      setTimeout(() => {
-        if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
-      }, 500);
+      // Beklemesiz: yeni nextBall ANINDA üretilsin (eski: 500ms beklerdi)
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
     }
 
     // Hedef animasyonları

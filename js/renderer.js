@@ -1356,26 +1356,56 @@ export class Renderer {
   }
 
   _drawPlayAgainBtn(a, tt, W, CX, CY, S) {
-    const ctx=state.ctx;
-    const bw=Math.min(260,W*0.68), bh=Math.round(58*S), bx=CX-bw/2, by=CY+48*S;
-    const pulse=1+0.04*Math.sin(tt*3.2);
-    ctx.globalAlpha=a; ctx.save();
-    ctx.translate(CX,by+bh/2); ctx.scale(pulse,pulse); ctx.translate(-CX,-(by+bh/2));
-    this.rrect(bx-5,by-5,bw+10,bh+10,bh*0.55+5);
-    ctx.strokeStyle='rgba(0,230,118,0.3)'; ctx.lineWidth=6; ctx.shadowColor='#00E676'; ctx.shadowBlur=20; ctx.stroke(); ctx.shadowBlur=0;
-    const grad=ctx.createLinearGradient(bx,by,bx,by+bh);
-    grad.addColorStop(0,'#00E676'); grad.addColorStop(0.5,'#00C853'); grad.addColorStop(1,'#00952e');
-    this.rrect(bx,by,bw,bh,bh*0.45); ctx.fillStyle=grad; ctx.shadowColor='#00E676'; ctx.shadowBlur=24; ctx.fill(); ctx.shadowBlur=0;
-    const shine=ctx.createLinearGradient(bx,by,bx,by+bh*0.5);
-    shine.addColorStop(0,'rgba(255,255,255,0.32)'); shine.addColorStop(1,'rgba(255,255,255,0)');
-    this.rrect(bx+4,by+3,bw-8,bh*0.48,bh*0.38); ctx.fillStyle=shine; ctx.fill();
-    this.rrect(bx,by,bw,bh,bh*0.45); ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1.5; ctx.stroke();
-    const fs=Math.round(22*S);
-    ctx.font=`bold ${fs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fillText('▶  Play Again',CX+1.5,by+bh*0.52+2);
-    ctx.fillStyle='#fff'; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=4; ctx.fillText('▶  Play Again',CX,by+bh*0.5);
+    const ctx = state.ctx;
+    const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
+    const bw = Math.min(260, W * 0.68), bh = Math.round(58 * S);
+    const bx = CX - bw / 2, by = CY + 48 * S;
+    // Pulse + hafif salınım (success butonuyla aynı animasyon)
+    const t = tt * 9; // sin frekansını success ile uyumla
+    const pulse = 1 + Math.sin(t / 9) * 0.045;
+    const rot   = Math.sin(t / 14) * 0.025;
+    const bcx = CX, bcy = by + bh / 2;
+
+    ctx.globalAlpha = a;
+    ctx.save();
+    ctx.translate(bcx, bcy);
+    ctx.rotate(rot);
+    ctx.scale(pulse, pulse);
+    ctx.translate(-bcx, -bcy);
+
+    // Shadow — derinlik (success ile aynı koyu)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    this.rrect(bx, by + 6 * S, bw, bh, bh * 0.45);
+    ctx.fill();
+
+    // Body — sarı→turuncu (success ile aynı)
+    const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
+    btnGrad.addColorStop(0, '#FFE74C');
+    btnGrad.addColorStop(0.5, '#FFD93D');
+    btnGrad.addColorStop(1, '#FF9F1C');
+    this.rrect(bx, by, bw, bh, bh * 0.45);
+    ctx.fillStyle = btnGrad; ctx.fill();
+
+    // Shine
+    this.rrect(bx + 10 * S, by + 5 * S, bw - 20 * S, bh * 0.42, bh * 0.3);
+    ctx.fillStyle = 'rgba(255,255,255,0.50)'; ctx.fill();
+
+    // Border
+    this.rrect(bx, by, bw, bh, bh * 0.45);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3 * S;
+    ctx.stroke();
+
+    // Text — koyu pembe (success ile aynı)
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillText('▶  Play Again', CX, bcy + 3 * S);
+    ctx.fillStyle = '#C2185B';
+    ctx.fillText('▶  Play Again', CX, bcy);
+
     ctx.restore();
-    state._gameOverBtn = { x:bx, y:by, w:bw, h:bh };
+    state._gameOverBtn = { x: bx, y: by, w: bw, h: bh };
   }
 
   // ── Palet rehberi ──────────────────────────────────────────────────

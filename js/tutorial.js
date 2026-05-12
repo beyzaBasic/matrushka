@@ -13,8 +13,6 @@ function spawnBall(lv, xOff = 0) {
   };
 }
 
-function settled(b) { return b && Math.abs(b.vy) < 2.5; }
-
 // Tutorial için sabit 3 slot: lv2, lv1, lv0
 const TUT_GOALS = [{ level: 2, contains: [1, 0] }];
 
@@ -576,21 +574,18 @@ export class TutorialManager {
 
     // İkinci top kısa süre sonra — ard arda
     if (this._phase === 'DROP1' && this._timer > 28) {
-      state.circles.push(spawnBall(0, +xOff));
-      this._phase = 'WAIT_SETTLE'; this._timer = 0;
-    }
-
-    // Her ikisi duraksayınca hint + ok göster
-    if (this._phase === 'WAIT_SETTLE') {
-      const bs = state.circles.filter(c => c.level === 0);
-      if (bs.length >= 2 && (bs.every(settled) || this._timer > 90) && this._timer > 15) {
-        const right = bs.reduce((a, b) => a.x > b.x ? a : b);
-        const left  = bs.reduce((a, b) => a.x < b.x ? a : b);
-        this._showHint  = true;
-        this._hintAlpha = 0; // pop animasyonu başlat
-        this._arrow = { sx: right.x, sy: right.y, tx: left.x, ty: left.y };
-        this._phase = 'WAIT_MERGE'; this._timer = 0;
+      const right = spawnBall(0, +xOff);
+      state.circles.push(right);
+      // Hint + ok ANINDA görünsün — toplar settle olmasını bekleme
+      const left = state.circles.find(c => c.level === 0 && c !== right);
+      this._showHint  = true;
+      this._hintAlpha = 0; // pop animasyonu için (drawHint'te ramp olur)
+      if (left) {
+        const r = right.x > left.x ? right : left;
+        const l = right.x > left.x ? left : right;
+        this._arrow = { sx: r.x, sy: r.y, tx: l.x, ty: l.y };
       }
+      this._phase = 'WAIT_MERGE'; this._timer = 0;
     }
 
     if (this._phase === 'WAIT_MERGE') {
@@ -608,8 +603,8 @@ export class TutorialManager {
       }
     }
 
-    if (this._phase === 'MERGED' && this._timer > 45) {
-      // lv1 topu koru, step 1'e geç
+    if (this._phase === 'MERGED' && this._timer > 5) {
+      // lv1 topu koru, step 1'e hemen geç
       const lv1 = state.circles.find(c => c.level === 1);
       state.circles = lv1 ? [lv1] : [];
       this.startStep(1, 'SPAWN_LV2');
@@ -620,19 +615,14 @@ export class TutorialManager {
 
   _s1() {
     if (this._phase === 'SPAWN_LV2' || (this._phase === 'INIT' && this._timer > 10)) {
-      state.circles.push(spawnBall(2, 0));
-      this._phase = 'WAIT_SETTLE2'; this._timer = 0;
-    }
-
-    if (this._phase === 'WAIT_SETTLE2') {
-      const lv2 = this._byLv(2);
-      if (lv2 && (settled(lv2) || this._timer > 80) && this._timer > 15) {
-        const lv1 = this._byLv(1);
-        this._showHint  = true;
-        this._hintAlpha = 0;
-        if (lv1 && lv2) this._arrow = { sx: lv1.x, sy: lv1.y, tx: lv2.x, ty: lv2.y };
-        this._phase = 'WAIT_ABSORB'; this._timer = 0;
-      }
+      const lv2 = spawnBall(2, 0);
+      state.circles.push(lv2);
+      // Hint + ok ANINDA görünsün
+      const lv1 = this._byLv(1);
+      this._showHint  = true;
+      this._hintAlpha = 0;
+      if (lv1) this._arrow = { sx: lv1.x, sy: lv1.y, tx: lv2.x, ty: lv2.y };
+      this._phase = 'WAIT_ABSORB'; this._timer = 0;
     }
 
     if (this._phase === 'WAIT_ABSORB') {
@@ -647,7 +637,7 @@ export class TutorialManager {
       }
     }
 
-    if (this._phase === 'ABSORBED' && this._timer > 45) {
+    if (this._phase === 'ABSORBED' && this._timer > 5) {
       const lv2 = state.circles.find(c => c.level === 2);
       state.circles = lv2 ? [lv2] : [];
       this.startStep(2, 'SPAWN_LV0');
@@ -662,19 +652,13 @@ export class TutorialManager {
       const xOff = lv2
         ? (lv2.x > state.CX ? -1 : 1) * (state.MAIN_R ?? 160) * 0.28
         : (state.MAIN_R ?? 160) * 0.28;
-      state.circles.push(spawnBall(0, xOff));
-      this._phase = 'WAIT_SETTLE3'; this._timer = 0;
-    }
-
-    if (this._phase === 'WAIT_SETTLE3') {
-      const lv0 = this._byLv(0);
-      if (lv0 && (settled(lv0) || this._timer > 80) && this._timer > 15) {
-        const lv2 = this._byLv(2);
-        this._showHint  = true;
-        this._hintAlpha = 0;
-        if (lv0 && lv2) this._arrow = { sx: lv0.x, sy: lv0.y, tx: lv2.x, ty: lv2.y };
-        this._phase = 'WAIT_ABSORB2'; this._timer = 0;
-      }
+      const lv0 = spawnBall(0, xOff);
+      state.circles.push(lv0);
+      // Hint + ok ANINDA görünsün
+      this._showHint  = true;
+      this._hintAlpha = 0;
+      if (lv2) this._arrow = { sx: lv0.x, sy: lv0.y, tx: lv2.x, ty: lv2.y };
+      this._phase = 'WAIT_ABSORB2'; this._timer = 0;
     }
 
     if (this._phase === 'WAIT_ABSORB2') {
@@ -722,6 +706,9 @@ export class TutorialManager {
       t: 0, maxT: 72
     });
     state.goalSlots[0] = 'flying';
+    // Arena'daki lv2'yi kaldır — yoksa sahnede kopya kalır
+    // (flying goal görsel olarak lv2'nin yerinden çıkıyor gibi başlar, doğal hisseder)
+    state.circles = state.circles.filter(c => c !== lv2);
   }
 
   // ── Step 3: popup ────────────────────────────────────────────────────────
@@ -787,27 +774,37 @@ export class TutorialManager {
 
   _drawLabel(text) {
     const { ctx, CX, CY, S } = state;
-    const accentColor = this._accentColor();
+    const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
+    // Hafif pulse animasyonu
+    const t = (this._labelT = (this._labelT || 0) + 1);
+    const pulse = 1 + Math.sin(t / 9) * 0.04;
     const y = CY;
 
     ctx.save();
-    ctx.globalAlpha  = 1;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
 
-    const fs  = Math.round(Math.max(18, 22 * S));
-    const pad = 16 * S;
-    ctx.font  = `bold ${fs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    const tw  = ctx.measureText(text).width;
-    const pw  = tw + pad * 2, ph = fs + pad * 1.4;
+    const fs = Math.round(Math.max(24, 30 * S));
+    ctx.font = `900 ${fs}px ${font}`;
 
-    // Pill arka plan
-    ctx.beginPath(); this._rr(ctx, CX - pw / 2, y - ph / 2, pw, ph, ph * 0.5);
-    ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fill();
-    ctx.strokeStyle = accentColor; ctx.lineWidth = 3; ctx.stroke();
+    // Pulse transform
+    ctx.translate(CX, y);
+    ctx.scale(pulse, pulse);
+    ctx.translate(-CX, -y);
 
-    // Metin
-    ctx.fillStyle = accentColor;
+    // Outline — sarı-turuncu renkleri okunabilir tutması için koyu kontur
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 6 * S;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.strokeText(text, CX, y);
+
+    // Dolgu — sarı→turuncu gradient (popup butonuyla uyumlu)
+    const tw = ctx.measureText(text).width;
+    const grad = ctx.createLinearGradient(CX - tw / 2, y - fs / 2, CX + tw / 2, y + fs / 2);
+    grad.addColorStop(0,    '#FFE74C');
+    grad.addColorStop(0.5,  '#FFD93D');
+    grad.addColorStop(1,    '#FF9F1C');
+    ctx.fillStyle = grad;
     ctx.fillText(text, CX, y);
 
     ctx.restore();
