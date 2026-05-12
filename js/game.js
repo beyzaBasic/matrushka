@@ -532,14 +532,35 @@ export class Game {
   }
 
   _randomBallLevel() {
-    const MAX_SPAWN_LEVEL = 3; // en fazla 4. sıradaki element (0-indexed)
-    const { LEVELS } = state;
+    const { LEVELS, currentLevel } = state;
     const def = this.goals.getLevelDef();
-    const maxGoalLevel = def.goals.reduce((mx, g) => Math.max(mx, g.level), 0);
-    // Spawn üst sınırı: goal'daki max ile MAX_SPAWN_LEVEL'in küçüğü
-    const maxSpawn = Math.min(maxGoalLevel, MAX_SPAWN_LEVEL);
+
+    // Goal'lardan en küçük iç halka seviyesini bul (temel hammadde)
+    let minInner = 999;
+    for (const g of def.goals) {
+      const inner = g.contains.length ? g.contains[g.contains.length - 1] : g.level;
+      if (inner < minInner) minInner = inner;
+    }
+    if (minInner === 999) minInner = 0;
+
+    // CP içindeki konum (0–9): zorluk kademesini belirler
+    const posIdx = Math.max(0, (currentLevel - 1) % 10);
+
+    // Konum bazlı genişlik: erken levellarda küçük toplar, boss'ta geniş aralık
+    const rawCap = posIdx <= 1 ? 1   // L1–2: sadece minInner+1
+                 : posIdx <= 5 ? 2   // L3–6: minInner+2
+                 :               3;  // L7–10: minInner+3
+    const maxSpawn = Math.max(minInner, Math.min(LEVELS.length - 1, minInner + rawCap));
+
+    // Ağırlıklı havuz: küçük toplar ağırlıklı, büyükler giderek seyrek
     const pool = [];
-    for (let i = 0; i <= maxSpawn; i++) pool.push(i);
+    for (let i = 0; i <= maxSpawn; i++) {
+      const w = i < minInner
+        ? 1                                // ön-dolgu: nadir
+        : Math.max(1, maxSpawn - i + 3);   // minInner en ağır, yukarısı azalır
+      for (let j = 0; j < w; j++) pool.push(i);
+    }
+
     const last = state._lastSpawnLevel ?? -1;
     const candidates = pool.length > 1 ? pool.filter(l => l !== last) : pool;
     const lv = candidates[Math.floor(Math.random() * candidates.length)];

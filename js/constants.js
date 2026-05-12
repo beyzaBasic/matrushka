@@ -147,84 +147,84 @@ function _buildCpLevels(cpIdx, totalCp) {
     return { level: lv, contains: c };
   };
 
-  // Her CP için farklı 10-level akışı — cpIdx % 5 ile 5 farklı şablon
-  // Ortak kurallar:
-  //   L1-2: 1 slot giriş           (yavaş başla)
-  //   L3-5: 2 slot tırmanış        (oyuncu ısındı)
-  //   L6-8: 3 slot baskı           (asıl zorluk)
-  //   L9-10: boss                  (CP finali)
-  // Şablonlar bu çerçeve içinde farklı chain derinliği ve slot sırası kullanır.
+  // Tasarım kuralları:
+  //   • Aynı leveldaki slotlar birbirinden net farklı (lv veya depth farklı)
+  //   • Ardışık iki level aynı slot yapısını tekrar etmez
+  //   • Depth 3 (üç iç halka) L9/L10 boss'larında sürpriz olarak girer
+  //   • Nefes levelleri (2-slot, düşük depth) baskı sonrası yerleştiriliyor
+  //   • 1-slot → 2-slot → 3-slot geçişi her şablonda farklı noktada
 
   const v = cpIdx % 5;
+
   if (v === 0) return [
-    // Şablon A — "Kademeli Tırmanış": her level bir öncekinden biraz daha derin
-    { goals: [chain(baseLv, 1)] },                                                // L1 — giriş
-    { goals: [chain(baseLv, 2)] },                                                // L2 — basit, nefes
-    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                              // L3 — asimetrik 2slot
-    { goals: [chain(baseLv, 2), chain(minLv, 1)] },                              // L4 — sol derin
-    { goals: [chain(baseLv, 1), chain(baseLv, 2)] },                             // L5 — sağ derin
-    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 1)] },             // L6 — 3slot giriş
-    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(baseLv, 1)] },            // L7 — orta derin
-    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(baseLv, 2)] },            // L8 — sağ ağır
-    { goals: [chain(maxLv, 2), chain(maxLv, 1), chain(baseLv, 2)] },             // L9 — boss giriş
-    { goals: [chain(maxLv, 2), chain(baseLv, isLast?3:2), chain(baseLv, 2)] },   // L10 — final boss
+    // A — "Kademeli Tırmanış": temiz çizgi, her adım biraz daha derin
+    { goals: [chain(baseLv, 1)] },                                               // L1  — tek halka giriş
+    { goals: [chain(baseLv, 2)] },                                               // L2  — tek, içi dolu
+    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                             // L3  — 2 slot, farklı renkler
+    { goals: [chain(maxLv, 1), chain(baseLv, 2)] },                             // L4  — max giriyor, asimetri
+    { goals: [chain(baseLv, 2), chain(minLv, 1)] },                             // L5  — nefes: sol derin sağ hafif
+    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 1)] },            // L6  — 3 slot, hepsi sığ
+    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L7  — sol derinleşir
+    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(minLv, 2)] },            // L8  — sağ ağırlaşır
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 1)] },            // L9  — boss: iki derin
+    { goals: [chain(maxLv, 3), chain(baseLv, 2), chain(minLv, isLast?3:2)] },   // L10 — final: max depth 3!
   ];
 
   if (v === 1) return [
-    // Şablon B — "Sürpriz Sağ": ağır slot sağda, sol nefes
-    { goals: [chain(baseLv, 1)] },                                                // L1 — tek, hafif
-    { goals: [chain(baseLv, 2)] },                                                // L2 — tek, derin
-    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L3 — sol hafif sağ ağır
-    { goals: [chain(baseLv, 1), chain(baseLv, 1)] },                             // L4 — çift aynı
-    { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                              // L5 — sağ yükseliş
-    { goals: [chain(baseLv, 1), chain(maxLv, 1), chain(minLv, 1)] },             // L6 — 3slot, orta zirve
-    { goals: [chain(baseLv, 2), chain(maxLv, 1), chain(baseLv, 1)] },            // L7 — sol derin
-    { goals: [chain(baseLv, 1), chain(maxLv, 2), chain(baseLv, 1)] },            // L8 — orta derin
-    { goals: [chain(maxLv, 1), chain(maxLv, 2), chain(baseLv, 2)] },             // L9 — boss, sağ ağır
-    { goals: [chain(maxLv, 2), chain(maxLv, isLast?3:2), chain(baseLv, 2)] },    // L10 — final boss
+    // B — "Sürpriz Sol": nefes sağda, ağırlık sola birikir; ortada 1-slot twist
+    { goals: [chain(baseLv, 1)] },                                               // L1  — giriş
+    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                             // L2  — min tanıtımı
+    { goals: [chain(baseLv, 2)] },                                               // L3  — 1-slot nefes, ama derin
+    { goals: [chain(minLv, 2), chain(baseLv, 1)] },                             // L4  — min derinleşir
+    { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                             // L5  — max giriyor sağdan
+    { goals: [chain(minLv, 1), chain(baseLv, 2), chain(maxLv, 1)] },            // L6  — 3 slot: orta derin
+    { goals: [chain(baseLv, 1), chain(maxLv, 2), chain(minLv, 1)] },            // L7  — max derinleşir ortada
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 2)] },            // L8  — hepsi depth 2
+    { goals: [chain(maxLv, 2), chain(maxLv, 1), chain(baseLv, 2)] },            // L9  — boss: çift max
+    { goals: [chain(maxLv, isLast?3:2), chain(maxLv, 2), chain(baseLv, 2)] },   // L10 — final boss
   ];
 
   if (v === 2) return [
-    // Şablon C — "Üçlü Vurgu": 3 slot erken giriyor, ama hafif başlar
-    { goals: [chain(baseLv, 1)] },                                                // L1
-    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L2 — 2slot erken
-    { goals: [chain(baseLv, 1), chain(baseLv, 2), chain(minLv, 1)] },            // L3 — 3slot giriş hafif
-    { goals: [chain(baseLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L4 — sol derin
-    { goals: [chain(baseLv, 1), chain(baseLv, 2), chain(minLv, 1)] },            // L5 — orta derin
-    { goals: [chain(baseLv, 2), chain(baseLv, 1), chain(baseLv, 2)] },           // L6 — nefes yok, simetrik
-    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(baseLv, 2)] },            // L7 — sol zirve
-    { goals: [chain(baseLv, 2), chain(maxLv, 1), chain(baseLv, 2)] },            // L8 — orta zirve
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(maxLv, 1)] },             // L9 — boss, köşegen
-    { goals: [chain(maxLv, 2), chain(maxLv, isLast?3:2), chain(maxLv, 2)] },     // L10 — final boss üçlü
+    // C — "Erken Üçlü": L3'te 3 slot sürprizi, sonra 2-slot nefes, tekrar tırmanış
+    { goals: [chain(baseLv, 1)] },                                               // L1  — tek
+    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                             // L2  — 2 slot hızlı
+    { goals: [chain(minLv, 1), chain(baseLv, 1), chain(maxLv, 1)] },            // L3  — 3 slot sürpriz, hepsi sığ!
+    { goals: [chain(baseLv, 2), chain(minLv, 1)] },                             // L4  — 2 slot nefes
+    { goals: [chain(maxLv, 1), chain(baseLv, 2)] },                             // L5  — max+derin combo
+    { goals: [chain(minLv, 2), chain(baseLv, 1), chain(maxLv, 1)] },            // L6  — 3 slot: sol derinleşti
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 1)] },            // L7  — iki derin
+    { goals: [chain(minLv, 2), chain(maxLv, 2), chain(baseLv, 1)] },            // L8  — kanatlar derin, merkez nefes
+    { goals: [chain(maxLv, 3), chain(minLv, 2), chain(baseLv, 1)] },            // L9  — boss: depth 3 ilk kez!
+    { goals: [chain(maxLv, 3), chain(baseLv, isLast?3:2), chain(minLv, 2)] },   // L10 — final
   ];
 
   if (v === 3) return [
-    // Şablon D — "Dalgalı Nefes": zorluğu dalgalı tut, nefes slotları beklenmedik yerde
-    { goals: [chain(baseLv, 2)] },                                                // L1 — erken derin, tek slot
-    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                              // L2 — nefes sol
-    { goals: [chain(baseLv, 2), chain(baseLv, 1)] },                             // L3 — sol derin tekrar
-    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                              // L4 — nefes sağ
-    { goals: [chain(maxLv, 1), chain(baseLv, 2)] },                              // L5 — ani yükseliş
-    { goals: [chain(baseLv, 2), chain(minLv, 1), chain(baseLv, 1)] },            // L6 — 3slot, orta nefes
-    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 1)] },             // L7 — nefes sağa itti
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(baseLv, 1)] },            // L8 — sol ağır
-    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(maxLv, 1)] },             // L9 — boss köşegen
-    { goals: [chain(maxLv, isLast?3:2), chain(maxLv, 2), chain(baseLv, 2)] },    // L10 — final boss
+    // D — "Dalgalı Nefes": zorluk bilinçli dalgalı — tırman, nefes, tekrar
+    { goals: [chain(baseLv, 2)] },                                               // L1  — baştan derin, tek
+    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                             // L2  — nefes
+    { goals: [chain(maxLv, 1), chain(baseLv, 1)] },                             // L3  — surge: max giriyor
+    { goals: [chain(minLv, 2), chain(maxLv, 1)] },                              // L4  — min derinleşir
+    { goals: [chain(baseLv, 1), chain(minLv, 1), chain(maxLv, 1)] },            // L5  — 3 slot, hepsi sığ
+    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L6  — sol ağırlaşır
+    { goals: [chain(baseLv, 1), chain(maxLv, 1), chain(minLv, 2)] },            // L7  — nefes dalgası: sağ derinleşir
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 2)] },            // L8  — hepsi depth 2, tepe
+    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(maxLv, 1)] },            // L9  — boss
+    { goals: [chain(maxLv, isLast?3:2), chain(baseLv, 2), chain(minLv, 2)] },   // L10 — final
   ];
 
   // v === 4
   return [
-    // Şablon E — "Büyüyen Baskı": 2. yarıda hızlı tırmanış, boss çok ağır
-    { goals: [chain(baseLv, 1)] },                                                // L1 — en basit giriş
-    { goals: [chain(baseLv, 2)] },                                                // L2
-    { goals: [chain(baseLv, 1), chain(baseLv, 1)] },                             // L3 — çift aynı
-    { goals: [chain(baseLv, 2), chain(baseLv, 3)] },                             // L4 — sol derin sağ hafif
-    { goals: [chain(maxLv, 1), chain(baseLv, 1)] },                              // L5 — ani zirve
-    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(minLv, 1)] },             // L6 — 3slot, sağ nefes
-    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(baseLv, 1)] },            // L7 — sol ağır
-    { goals: [chain(maxLv, 1), chain(maxLv, 2), chain(baseLv, 2)] },             // L8 — çift maxLv
-    { goals: [chain(maxLv, 2), chain(maxLv, 1), chain(maxLv, 2)] },              // L9 — boss simetrik ağır
-    { goals: [chain(maxLv, isLast?3:2), chain(maxLv, 2), chain(maxLv, isLast?3:2)] }, // L10 — final boss
+    // E — "Geç Patlama": base atlayarak başlar, son 4 levelde patlama
+    { goals: [chain(baseLv, 1)] },                                               // L1  — tek
+    { goals: [chain(minLv, 1), chain(maxLv, 1)] },                              // L2  — base yok! renk kontrast
+    { goals: [chain(baseLv, 2)] },                                               // L3  — 1-slot derin öğret
+    { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                             // L4  — 2 slot: max kalır
+    { goals: [chain(minLv, 1), chain(baseLv, 2), chain(maxLv, 1)] },            // L5  — 3 slot giriş: orta derin
+    { goals: [chain(baseLv, 2), chain(minLv, 1), chain(maxLv, 2)] },            // L6  — kanatlar derinleşir
+    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 2)] },            // L7  — nefes: sağ sürpriz
+    { goals: [chain(maxLv, 2), chain(minLv, 2), chain(baseLv, 2)] },            // L8  — hepsi depth 2
+    { goals: [chain(maxLv, 3), chain(baseLv, 1), chain(minLv, 2)] },            // L9  — boss: max depth 3, kontrast
+    { goals: [chain(maxLv, isLast?3:2), chain(baseLv, 2), chain(minLv, isLast?3:2)] }, // L10 — final
   ];
 }
 
