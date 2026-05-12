@@ -146,7 +146,7 @@ export class Game {
     // Tutorial popup butonu — PLAY! → direkt Level 1 (map atlanır)
     // Map sadece "her 10 levelda kutlama" ve "uygulama açılışı" için açılır.
     const tpb = state._tutPopupBtn;
-    if (tpb && x >= tpb.x && x <= tpb.x + tpb.w && y >= tpb.y && y <= tpb.y + tpb.h) {
+    if (state.tutShowPopup && tpb && x >= tpb.x && x <= tpb.x + tpb.w && y >= tpb.y && y <= tpb.y + tpb.h) {
       state.tutShowPopup = false;
       state.isTutorial   = false;
       state.tutDone      = true;
@@ -156,7 +156,12 @@ export class Game {
         window._matrushkaMap.hide();
       }
       if (state.canvas) state.canvas.style.display = 'block';
-      this.startFromLevel(TUTORIAL_LEVELS); // ilk gerçek level
+      // "?" ile açıldıysa kaydedilen level'a dön, yoksa ilk gerçek level
+      const returnLevel = (state._savedLevel != null && state._savedLevel >= TUTORIAL_LEVELS)
+        ? state._savedLevel
+        : TUTORIAL_LEVELS;
+      state._savedLevel = null;
+      this.startFromLevel(returnLevel);
       return;
     }
     // Tutorial butonu — toggle: ilk basışta tutorial aç, ikinci basışta önceki level'a dön
@@ -612,11 +617,13 @@ export class Game {
     state.autoDropDeadline = isBlocked ? 0 : Date.now() + 1000;
 
     if (isBlocked && !state.levelSuccess) {
+      const blockedLevel = state.currentLevel;
       setTimeout(() => {
-        if (!state.levelSuccess && !state.gameOver) {
-          state.gameOver = true;
-          this.audio.gameOver();
-        }
+        if (state.levelSuccess || state.gameOver) return;
+        if (state.currentLevel !== blockedLevel) return;
+        if (!state._nextBallBlocked) return;
+        state.gameOver = true;
+        this.audio.gameOver();
       }, 800);
     }
   }
@@ -636,8 +643,10 @@ export class Game {
     state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
-    // Beklemesiz: yeni nextBall ANINDA üretilsin
-    if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    // Kısa gecikme: düşen top spawn bölgesini geçsin, sonra next üret
+    setTimeout(() => {
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    }, 250);
   }
 
   // Pick + bırak: sürüklenip bırakılan pozisyondan serbest düşüş
@@ -654,8 +663,10 @@ export class Game {
     state._lastDropX = dropX;
     this.audio.spawn();
     state.heldBall = null;
-    // Beklemesiz: yeni nextBall ANINDA üretilsin
-    if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    // Kısa gecikme: düşen top spawn bölgesini geçsin, sonra next üret
+    setTimeout(() => {
+      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+    }, 250);
   }
 
   // ── Absorb / Merge ────────────────────────────────────────────────
@@ -846,8 +857,9 @@ export class Game {
       ball.vy = 2;
       state.circles.push(ball);
       this.audio.spawn();
-      // Beklemesiz: yeni nextBall ANINDA üretilsin (eski: 500ms beklerdi)
-      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+      setTimeout(() => {
+        if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+      }, 250);
     }
 
     // Hedef animasyonları

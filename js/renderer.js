@@ -1378,11 +1378,11 @@ export class Renderer {
     this.rrect(bx, by + 6 * S, bw, bh, bh * 0.45);
     ctx.fill();
 
-    // Body — sarı→turuncu (success ile aynı)
+    // Body — yeşil gradient
     const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
-    btnGrad.addColorStop(0, '#FFE74C');
-    btnGrad.addColorStop(0.5, '#FFD93D');
-    btnGrad.addColorStop(1, '#FF9F1C');
+    btnGrad.addColorStop(0, '#69F0AE');
+    btnGrad.addColorStop(0.5, '#00E676');
+    btnGrad.addColorStop(1, '#00C853');
     this.rrect(bx, by, bw, bh, bh * 0.45);
     ctx.fillStyle = btnGrad; ctx.fill();
 
@@ -1396,12 +1396,12 @@ export class Renderer {
     ctx.lineWidth = 3 * S;
     ctx.stroke();
 
-    // Text — koyu pembe (success ile aynı)
+    // Text — koyu yeşil
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillText('▶  Play Again', CX, bcy + 3 * S);
-    ctx.fillStyle = '#C2185B';
+    ctx.fillStyle = '#1B5E20';
     ctx.fillText('▶  Play Again', CX, bcy);
 
     ctx.restore();

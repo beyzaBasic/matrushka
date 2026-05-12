@@ -79,7 +79,10 @@ export class TutorialManager {
       this._hintAlpha = Math.min(1, this._hintAlpha + 0.08);
     }
     if (!this._showHint) return;
-    if (label) this._drawLabel(label);
+    if (label) {
+      const target = this._labelTarget();
+      this._drawLabel(label, target?.x, target?.y, target?.color);
+    }
     if (this._arrow) this._drawArrow();
   }
 
@@ -238,11 +241,11 @@ export class TutorialManager {
     ctx.beginPath(); this._rr(ctx, bx, by + 6 * S, bw, bh, bh * 0.45);
     ctx.fill();
 
-    // Body — sarı→turuncu (parlak, canlı — ön planda)
+    // Body — yeşil gradient
     const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
-    btnGrad.addColorStop(0, '#FFE74C');
-    btnGrad.addColorStop(0.5, '#FFD93D');
-    btnGrad.addColorStop(1, '#FF9F1C');
+    btnGrad.addColorStop(0, '#69F0AE');
+    btnGrad.addColorStop(0.5, '#00E676');
+    btnGrad.addColorStop(1, '#00C853');
     ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
     ctx.fillStyle = btnGrad; ctx.fill();
 
@@ -256,11 +259,11 @@ export class TutorialManager {
     ctx.lineWidth = 3 * S;
     ctx.stroke();
 
-    // Text — koyu pembe
+    // Text — koyu yeşil
     ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillText(ctaLabel, CX, bcy + 3 * S);
-    ctx.fillStyle = '#C2185B';
+    ctx.fillStyle = '#1B5E20';
     ctx.fillText(ctaLabel, CX, bcy);
 
     // İki dans eden yıldız
@@ -576,10 +579,7 @@ export class TutorialManager {
     if (this._phase === 'DROP1' && this._timer > 28) {
       const right = spawnBall(0, +xOff);
       state.circles.push(right);
-      // Hint + ok ANINDA görünsün — toplar settle olmasını bekleme
       const left = state.circles.find(c => c.level === 0 && c !== right);
-      this._showHint  = true;
-      this._hintAlpha = 0; // pop animasyonu için (drawHint'te ramp olur)
       if (left) {
         const r = right.x > left.x ? right : left;
         const l = right.x > left.x ? left : right;
@@ -589,6 +589,10 @@ export class TutorialManager {
     }
 
     if (this._phase === 'WAIT_MERGE') {
+      // Top düştükten sonra (~20 frame) hint'i göster
+      if (!this._showHint && this._timer > 20) {
+        this._showHint = true; this._hintAlpha = 0;
+      }
       // Ok pozisyonunu canlı tut
       const bs = state.circles.filter(c => c.level === 0);
       if (bs.length >= 2 && this._arrow) {
@@ -617,15 +621,16 @@ export class TutorialManager {
     if (this._phase === 'SPAWN_LV2' || (this._phase === 'INIT' && this._timer > 10)) {
       const lv2 = spawnBall(2, 0);
       state.circles.push(lv2);
-      // Hint + ok ANINDA görünsün
       const lv1 = this._byLv(1);
-      this._showHint  = true;
-      this._hintAlpha = 0;
       if (lv1) this._arrow = { sx: lv1.x, sy: lv1.y, tx: lv2.x, ty: lv2.y };
       this._phase = 'WAIT_ABSORB'; this._timer = 0;
     }
 
     if (this._phase === 'WAIT_ABSORB') {
+      // Top düştükten sonra (~20 frame) hint'i göster
+      if (!this._showHint && this._timer > 20) {
+        this._showHint = true; this._hintAlpha = 0;
+      }
       const lv1 = this._byLv(1), lv2 = this._byLv(2);
       if (this._arrow && lv1 && lv2) {
         this._arrow.sx = lv1.x; this._arrow.sy = lv1.y;
@@ -654,14 +659,15 @@ export class TutorialManager {
         : (state.MAIN_R ?? 160) * 0.28;
       const lv0 = spawnBall(0, xOff);
       state.circles.push(lv0);
-      // Hint + ok ANINDA görünsün
-      this._showHint  = true;
-      this._hintAlpha = 0;
       if (lv2) this._arrow = { sx: lv0.x, sy: lv0.y, tx: lv2.x, ty: lv2.y };
       this._phase = 'WAIT_ABSORB2'; this._timer = 0;
     }
 
     if (this._phase === 'WAIT_ABSORB2') {
+      // Top düştükten sonra (~20 frame) hint'i göster
+      if (!this._showHint && this._timer > 20) {
+        this._showHint = true; this._hintAlpha = 0;
+      }
       const lv0 = this._byLv(0), lv2 = this._byLv(2);
       if (this._arrow && lv0 && lv2) {
         this._arrow.sx = lv0.x; this._arrow.sy = lv0.y;
@@ -772,40 +778,58 @@ export class TutorialManager {
     return null;
   }
 
-  _drawLabel(text) {
+  // Hint yazısının topların üzerindeki (padding'li) pozisyonunu ve rengini döndürür
+  _labelTarget() {
+    const { circles, LEVELS, S } = state;
+    const pad = 22 * (S ?? 1);
+
+    if (this._step === 0 && this._phase === 'WAIT_MERGE') {
+      const bs = circles.filter(c => c.level === 0);
+      if (bs.length >= 2) {
+        const mx  = (bs[0].x + bs[1].x) / 2;
+        const top = Math.min(bs[0].y - bs[0].r, bs[1].y - bs[1].r);
+        return { x: mx, y: top - pad, color: LEVELS?.[0]?.color };
+      }
+    }
+    if (this._step === 1 && this._phase === 'WAIT_ABSORB') {
+      const lv1 = this._byLv(1), lv2 = this._byLv(2);
+      if (lv1 && lv2) {
+        const mx  = (lv1.x + lv2.x) / 2;
+        const top = Math.min(lv1.y - lv1.r, lv2.y - lv2.r);
+        return { x: mx, y: top - pad, color: LEVELS?.[1]?.color };
+      }
+    }
+    if (this._step === 2 && this._phase === 'WAIT_ABSORB2') {
+      const lv0 = this._byLv(0), lv2 = this._byLv(2);
+      if (lv0 && lv2) {
+        const mx  = (lv0.x + lv2.x) / 2;
+        const top = Math.min(lv0.y - lv0.r, lv2.y - lv2.r);
+        return { x: mx, y: top - pad, color: LEVELS?.[0]?.color };
+      }
+    }
+    return null;
+  }
+
+  _drawLabel(text, posX, posY, ballColor) {
     const { ctx, CX, CY, S } = state;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    // Hafif pulse animasyonu
     const t = (this._labelT = (this._labelT || 0) + 1);
-    const pulse = 1 + Math.sin(t / 9) * 0.04;
-    const y = CY;
+    // Toplarla birlikte yukarı-aşağı yüzen hareket
+    const bob = Math.sin(t / 13) * 7 * (S ?? 1);
+    const x = posX ?? CX;
+    const y = (posY ?? CY) + bob;
 
     ctx.save();
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
+    ctx.font = `bold ${Math.round(32 * (S ?? 1))}px ${font}`;
 
-    const fs = Math.round(Math.max(24, 30 * S));
-    ctx.font = `900 ${fs}px ${font}`;
+    // Top rengiyle glow
+    ctx.shadowColor = ballColor || '#FFD93D';
+    ctx.shadowBlur  = 8 * (S ?? 1);
 
-    // Pulse transform
-    ctx.translate(CX, y);
-    ctx.scale(pulse, pulse);
-    ctx.translate(-CX, -y);
-
-    // Outline — sarı-turuncu renkleri okunabilir tutması için koyu kontur
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 6 * S;
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-    ctx.strokeText(text, CX, y);
-
-    // Dolgu — sarı→turuncu gradient (popup butonuyla uyumlu)
-    const tw = ctx.measureText(text).width;
-    const grad = ctx.createLinearGradient(CX - tw / 2, y - fs / 2, CX + tw / 2, y + fs / 2);
-    grad.addColorStop(0,    '#FFE74C');
-    grad.addColorStop(0.5,  '#FFD93D');
-    grad.addColorStop(1,    '#FF9F1C');
-    ctx.fillStyle = grad;
-    ctx.fillText(text, CX, y);
+    ctx.fillStyle = ballColor || '#FFD93D';
+    ctx.fillText(text, x, y);
 
     ctx.restore();
   }
