@@ -1128,11 +1128,6 @@ export class Game {
     if (state.isTutorial && !state.tutDone) {
       this.tutorial.drawHint();
     }
-    // Tutorial popup
-    if (state.tutShowPopup) {
-      this.tutorial.drawPopup();
-    }
-
     // Hint zincirleri — her levelda göster
     this.hints.drawAllChains(this.goals);
 
@@ -1145,12 +1140,18 @@ export class Game {
     if (bRect) R.drawBlastBtn(bRect, !state.levelSuccess && !state.gameOver && this.blast.isEnabled(bRect));
     R.drawBlastProjectiles();
 
-    // Palette guide (overlay'den önce — arkada kalır)
-    if (!state.gameOver && !state.levelSuccess) R.drawPaletteGuide();
-
     // Success / Game over overlay'leri
     R.drawSuccessOverlay(this.goals, this.tutorial);
     if (state.gameOver) R.drawGameOver(this.goals);
+
+    // Palette guide — tüm overlay backdrop'larından sonra, kart içeriğinden önce
+    // Kart ortada, şerit solda → çakışmaz; backdrop üstünde görünür kalır
+    R.drawPaletteGuide();
+
+    // Tutorial popup — palette guide'dan sonra (şerit backdrop arkasında kalır)
+    if (state.tutShowPopup) {
+      this.tutorial.drawPopup();
+    }
 
     // Pause butonu + sound (her zaman en üstte)
     R.drawSoundBtn();

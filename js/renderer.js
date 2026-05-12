@@ -1326,92 +1326,91 @@ export class Renderer {
   }
 
   drawGameOver(goalManager) {
-    const ctx = state.ctx, { gameOverAlpha, W, H, CX, CY, S } = state;
+    const ctx = state.ctx, { gameOverAlpha, W, H, CX, CY } = state;
     ctx.fillStyle=`rgba(10,5,30,${gameOverAlpha*0.82})`; ctx.fillRect(0,0,W,H);
     if (gameOverAlpha <= 0.2) return;
-    const a=Math.min(1,(gameOverAlpha-0.1)/0.6), tt=Date.now()*0.001;
+    const a  = Math.min(1,(gameOverAlpha-0.1)/0.6);
+    const tt = Date.now()*0.001;
+    const bw = Math.min(W * 0.82, 340);
+    const CS = bw / 340;
     ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
-    // Emoji
-    ctx.font=`${Math.round(64*S)}px sans-serif`; ctx.globalAlpha=a; ctx.fillText('😵',CX,CY-110*S);
-    // Başlık
-    ctx.font=`bold ${Math.round(38*S)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
+    ctx.font=`${Math.round(Math.max(44,58*CS))}px sans-serif`;
+    ctx.globalAlpha=a; ctx.fillText('😵',CX,CY-Math.round(95*CS));
+    ctx.font=`bold ${Math.round(Math.max(26,36*CS))}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
     ctx.fillStyle='#fff'; ctx.shadowColor='rgba(255,50,50,0.6)'; ctx.shadowBlur=18;
-    ctx.fillText('GAME OVER',CX,CY-52*S); ctx.shadowBlur=0;
-    // Level pill
-    this._drawLevelPill(a, goalManager, CX, CY, S);
-    // Play Again butonu
-    this._drawPlayAgainBtn(a, tt, W, CX, CY, S);
+    ctx.fillText('GAME OVER',CX,CY-Math.round(44*CS)); ctx.shadowBlur=0;
+    this._drawLevelPill(a, goalManager, CX, CY, CS);
+    this._drawPlayAgainBtn(a, tt, W, CX, CY, CS, bw);
     ctx.restore();
   }
 
-  _drawLevelPill(a, goalManager, CX, CY, S) {
-    const ctx=state.ctx, lTxt=goalManager.displayLevelText(), lFs=Math.round(22*S);
+  _drawLevelPill(a, goalManager, CX, CY, CS) {
+    const ctx=state.ctx, lTxt=goalManager.displayLevelText();
+    const lFs=Math.round(Math.max(14,20*CS));
     ctx.font=`bold ${lFs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    const pW=ctx.measureText(lTxt).width+32*S, pH=lFs+16*S;
-    const px=CX-pW/2, py=CY-pH/2+4*S;
+    const pW=ctx.measureText(lTxt).width+Math.round(28*CS), pH=lFs+Math.round(14*CS);
+    const px=CX-pW/2, py=CY-pH/2+Math.round(4*CS);
     ctx.globalAlpha=a*0.9;
     this.rrect(px,py,pW,pH,pH*0.5); ctx.fillStyle='rgba(255,255,255,0.12)'; ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1.5; ctx.stroke();
     ctx.fillStyle='#fff'; ctx.globalAlpha=a; ctx.fillText(lTxt,CX,py+pH*0.52);
   }
 
-  _drawPlayAgainBtn(a, tt, W, CX, CY, S) {
+  _drawPlayAgainBtn(a, tt, W, CX, CY, CS, bw) {
     const ctx = state.ctx;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    const bw = Math.min(260, W * 0.68), bh = Math.round(58 * S);
-    const bx = CX - bw / 2, by = CY + 48 * S;
-    // Pulse + hafif salınım (success butonuyla aynı animasyon)
-    const t = tt * 9; // sin frekansını success ile uyumla
-    const pulse = 1 + Math.sin(t / 9) * 0.045;
-    const rot   = Math.sin(t / 14) * 0.025;
-    const bcx = CX, bcy = by + bh / 2;
+    bw = bw || Math.min(W * 0.82, 340);
+    const bh = Math.round(Math.max(46, 52*CS));
+    const bx = CX - bw/2, by = CY + Math.round(40*CS);
+    const t = tt * 9;
+    const pulse = 1 + Math.sin(t/9) * 0.045;
+    const rot   = Math.sin(t/14) * 0.025;
+    const bcx = CX, bcy = by + bh/2;
 
     ctx.globalAlpha = a;
     ctx.save();
-    ctx.translate(bcx, bcy);
-    ctx.rotate(rot);
-    ctx.scale(pulse, pulse);
-    ctx.translate(-bcx, -bcy);
+    ctx.translate(bcx,bcy); ctx.rotate(rot); ctx.scale(pulse,pulse); ctx.translate(-bcx,-bcy);
 
-    // Shadow — derinlik (success ile aynı koyu)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-    this.rrect(bx, by + 6 * S, bw, bh, bh * 0.45);
-    ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,0.45)';
+    this.rrect(bx, by+Math.round(5*CS), bw, bh, bh*0.45); ctx.fill();
 
-    // Body — yeşil gradient
-    const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
-    btnGrad.addColorStop(0, '#69F0AE');
-    btnGrad.addColorStop(0.5, '#00E676');
-    btnGrad.addColorStop(1, '#00C853');
-    this.rrect(bx, by, bw, bh, bh * 0.45);
-    ctx.fillStyle = btnGrad; ctx.fill();
+    const btnGrad = ctx.createLinearGradient(0,by,0,by+bh);
+    btnGrad.addColorStop(0,'#69F0AE'); btnGrad.addColorStop(0.5,'#00E676'); btnGrad.addColorStop(1,'#00C853');
+    this.rrect(bx,by,bw,bh,bh*0.45); ctx.fillStyle=btnGrad; ctx.fill();
 
-    // Shine
-    this.rrect(bx + 10 * S, by + 5 * S, bw - 20 * S, bh * 0.42, bh * 0.3);
-    ctx.fillStyle = 'rgba(255,255,255,0.50)'; ctx.fill();
+    this.rrect(bx+Math.round(8*CS), by+Math.round(4*CS), bw-Math.round(16*CS), bh*0.42, bh*0.3);
+    ctx.fillStyle='rgba(255,255,255,0.50)'; ctx.fill();
 
-    // Border
-    this.rrect(bx, by, bw, bh, bh * 0.45);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3 * S;
-    ctx.stroke();
+    this.rrect(bx,by,bw,bh,bh*0.45);
+    ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5,Math.round(2.5*CS)); ctx.stroke();
 
-    // Text — koyu yeşil
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.fillText('▶  Play Again', CX, bcy + 3 * S);
-    ctx.fillStyle = '#1B5E20';
-    ctx.fillText('▶  Play Again', CX, bcy);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=`900 ${Math.round(Math.max(16,20*CS))}px ${font}`;
+    ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.fillText('▶  Play Again',CX,bcy+3*CS);
+    ctx.fillStyle='#1B5E20';          ctx.fillText('▶  Play Again',CX,bcy);
 
     ctx.restore();
-    state._gameOverBtn = { x: bx, y: by, w: bw, h: bh };
+    state._gameOverBtn = { x:bx, y:by, w:bw, h:bh };
   }
 
   // ── Palet rehberi ──────────────────────────────────────────────────
   _paletteGuideCache = null;
 
   _invalidatePaletteGuide() { this._paletteGuideCache = null; }
+
+  _rr(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
 
   drawPaletteGuide() {
     const { ctx, LEVELS, S, CX, CY, MAIN_R, MIN_DIM } = state;
@@ -1434,14 +1433,14 @@ export class Renderer {
     const slotBot  = gemTop + GEM_R_px * 2; // slot alt noktası
 
     // Stripe sınırları
-    // Portrait telefonda: üst = gemTop, alt = havuzun tepesi (CY - MAIN_R)
-    // Diğer: geniş ekranda havuz bottom, dar ekranda slot bottom
     const { W, H } = state;
-    const isPortrait   = W < H;
-    const stripeTop    = Math.max(2, Math.round(22 - 14 * S));
-    const stripeBottom = isPortrait
+    const isPortrait = W < H;
+    const stripeTop  = Math.max(2, Math.round(22 - 14 * S));
+    // Alt: portrait'te havuz tepesi, landscape'te slot altı — ama %65'te kes (kısalt)
+    const naturalBot = isPortrait
       ? (CY - MAIN_R)
       : (availW >= 32 * S ? (CY + MAIN_R) : slotBot);
+    const stripeBottom = stripeTop + (naturalBot - stripeTop) * 0.65;
     const stripeHeight = stripeBottom - stripeTop;
     if (stripeHeight <= 0) return;
 
@@ -1449,15 +1448,50 @@ export class Renderer {
     const maxRraw   = LEVELS[n - 1].r;
     const totalHraw = LEVELS.reduce((s, lv) => s + lv.r * 2, 0) + (n - 1) * GAP;
     // Duck gagası merkeze göre 1.1r sağa taşar — width faktörünü büyüt
-    const shape     = LEVELS[0]?.shape || 'sphere';
-    const wFactor   = shape === 'duck' ? 2.1 : 2.0;
-    const scByW = availW / (maxRraw * wFactor);
-    const scByH = stripeHeight / totalHraw;
-    const sc    = Math.min(scByW, scByH, 1);
+    const shape   = LEVELS[0]?.shape || 'sphere';
+    const wFactor = shape === 'duck' ? 2.1 : 2.0;
+    const scByW   = availW / (maxRraw * wFactor);
+    const scByH   = stripeHeight / totalHraw;
+    const sc      = Math.min(scByW, scByH, 1);
     if (sc <= 0) return;
 
     const maxR = maxRraw * sc;
-    const cx   = PAD + maxR; // en geniş topa göre hizala
+    const cx   = PAD + maxR;
+
+    // Tüm topların gerçek kaplama alanını hesapla (arka panel için)
+    let ballsTop = stripeTop, ballsBot = stripeTop;
+    {
+      let y = stripeTop;
+      for (let i = 0; i < n; i++) {
+        const cr = LEVELS[i].r * sc;
+        y += cr;
+        if (i === 0) ballsTop = y - cr;
+        ballsBot = y + cr;
+        y += cr + GAP;
+      }
+    }
+    const panelPadX = 5 * S;
+    const panelPadY = 8 * S;
+    const panelX = cx - maxR - panelPadX;
+    const panelW = maxR * 2 + panelPadX * 2;
+    const panelY = ballsTop - panelPadY;
+    const panelH = (ballsBot - ballsTop) + panelPadY * 2;
+    const panelR = (panelW / 2) * 0.55; // pill şekli
+
+    // Arka panel — oyun alanından hafif ayrışan, sade pill
+    ctx.save();
+    ctx.beginPath();
+    this._rr(ctx, panelX, panelY, panelW, panelH, panelR);
+    ctx.fillStyle = state.isDarkMode
+      ? 'rgba(255,255,255,0.06)'
+      : 'rgba(0,0,0,0.07)';
+    ctx.fill();
+    ctx.strokeStyle = state.isDarkMode
+      ? 'rgba(255,255,255,0.10)'
+      : 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1 * S;
+    ctx.stroke();
+    ctx.restore();
 
     // lv0 en üstte (küçük), en yüksek level en altta (büyük) — yukarıdan aşağıya
     let curY = stripeTop;

@@ -146,14 +146,22 @@ export class TutorialManager {
     const t = cardState.t;
 
     const ctx = state.ctx;
-    const { W, H, CX, CY, S } = state;
+    const { W, H, CX, CY } = state;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
 
-    // ── Backdrop (arkada gameplay yarı görünür kalsın) ──────────────────────
+    // ── Kart boyutu — viewport-responsive, S'den bağımsız ────────────────────
+    // Telefon (375px): cw≈323, web (1200px): cw≈380 (max)
+    const cw = Math.min(W * 0.86, 380);
+    const ch = showDemo ? Math.min(H * 0.62, 345) : Math.min(H * 0.56, 325);
+    const cx = CX - cw / 2;
+    const cy = CY - ch / 2;
+    // CS: karta oransal iç ölçek — telefonda ~0.85, web'de 1.0
+    const CS = cw / 380;
+
+    // ── Backdrop ──────────────────────────────────────────────────────────────
     const dimAlpha = Math.min(0.55, t * 0.03) * alpha;
     ctx.fillStyle = `rgba(0,0,0,${dimAlpha})`;
     ctx.fillRect(0, 0, W, H);
-    // Hafif radial koyulaşma — kartın etrafı için ek vurgu
     const vGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W, H) * 0.7);
     vGrad.addColorStop(0, 'rgba(0,0,0,0)');
     vGrad.addColorStop(1, `rgba(0,0,0,${dimAlpha * 0.5})`);
@@ -168,67 +176,56 @@ export class TutorialManager {
     const elastic = ep < 1
       ? 1 + Math.pow(2, -10 * ep) * Math.sin((ep - 0.075) * (2 * Math.PI / 0.3))
       : 1;
-    const cardScale = ep < 1 ? elastic : 1;
-
-    // Card boyutu
-    const cw = Math.min(W * 0.88, 340 * S);
-    const ch = (showDemo ? 340 : 320) * S;
-    const cx = CX - cw / 2;
-    const cy = CY - ch / 2;
 
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(CX, CY);
-    ctx.scale(cardScale, cardScale);
+    ctx.scale(ep < 1 ? elastic : 1, ep < 1 ? elastic : 1);
     ctx.translate(-CX, -CY);
 
-    // ── Card body — SADE (koyu yarı saydam, glassmorphism hissi) ─────────────
-    // Eski canlı turuncu→pembe→mor gradient kaldırıldı.
-    // Yeni: ince koyu kart → buton parlak sarısı ön plana çıkıyor.
-    ctx.beginPath(); this._rr(ctx, cx, cy, cw, ch, 28 * S);
+    // ── Card body ─────────────────────────────────────────────────────────────
+    ctx.beginPath(); this._rr(ctx, cx, cy, cw, ch, Math.round(22 * CS));
     ctx.fillStyle = 'rgba(20, 18, 40, 0.72)';
     ctx.fill();
-
-    // İnce beyaz iç çerçeve (subtle)
     ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-    ctx.lineWidth = 1.5 * S;
+    ctx.lineWidth = Math.max(1, Math.round(1.5 * CS));
     ctx.stroke();
-
-    // Sparkles kaldırıldı (kart sade)
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-    // Başlık — büyük, beyaz, hafif bouncing
-    const headerBounce = Math.sin(t / 22) * 2 * S;
-    const titleFs = Math.round(42 * S);
+    // Başlık
+    const headerBounce = Math.sin(t / 22) * Math.round(2 * CS);
+    const titleFs = Math.round(Math.max(24, 40 * CS));
+    const titleY  = cy + ch * 0.175;
     ctx.font = `900 ${titleFs}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.40)';
-    ctx.fillText(title, CX, cy + 62 * S + headerBounce + 3 * S);
+    ctx.fillText(title, CX, titleY + headerBounce + 3 * CS);
     ctx.fillStyle = '#fff';
-    ctx.fillText(title, CX, cy + 62 * S + headerBounce);
+    ctx.fillText(title, CX, titleY + headerBounce);
 
     // Alt başlık
     if (subtitle) {
-      ctx.font = `600 ${Math.round(14 * S)}px ${font}`;
+      ctx.font = `600 ${Math.round(Math.max(11, 13 * CS))}px ${font}`;
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.fillText(subtitle, CX, cy + 95 * S);
+      ctx.fillText(subtitle, CX, cy + ch * 0.27);
     }
 
     // Demo veya stars
     if (showDemo) {
-      this._drawDemoRow(cx, cy + 110 * S, cw, t);
+      this._drawDemoRow(cx, cy + ch * 0.32, cw, t, CS);
     } else {
-      this._drawCardStars(cx, cy + 140 * S, cw, stars, t);
+      this._drawCardStars(cx, cy + ch * 0.38, cw, stars, t, CS);
     }
 
-    // CTA buton — parlak/canlı (ön planda)
+    // ── CTA butonu ────────────────────────────────────────────────────────────
+    const bh = Math.round(Math.max(46, 54 * CS));
+    const bw = cw * 0.80;
+    const bx = CX - bw / 2;
+    const by = cy + ch - bh - Math.round(20 * CS);
+    const bcx = CX, bcy = by + bh / 2;
+
     const btnPulse = 1 + Math.sin(t / 9) * 0.045;
     const btnRot   = Math.sin(t / 14) * 0.025;
-    const bw = cw * 0.78;
-    const bh = 62 * S;
-    const bx = CX - bw / 2;
-    const by = cy + ch - 84 * S;
-    const bcx = CX, bcy = by + bh / 2;
 
     ctx.save();
     ctx.translate(bcx, bcy);
@@ -236,12 +233,10 @@ export class TutorialManager {
     ctx.scale(btnPulse, btnPulse);
     ctx.translate(-bcx, -bcy);
 
-    // Shadow (buton altına derinlik — koyu kartta daha belirgin)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-    ctx.beginPath(); this._rr(ctx, bx, by + 6 * S, bw, bh, bh * 0.45);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); this._rr(ctx, bx, by + Math.round(5 * CS), bw, bh, bh * 0.45);
     ctx.fill();
 
-    // Body — yeşil gradient
     const btnGrad = ctx.createLinearGradient(0, by, 0, by + bh);
     btnGrad.addColorStop(0, '#69F0AE');
     btnGrad.addColorStop(0.5, '#00E676');
@@ -249,34 +244,29 @@ export class TutorialManager {
     ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
     ctx.fillStyle = btnGrad; ctx.fill();
 
-    // Shine (üst yarı parlama)
-    ctx.beginPath(); this._rr(ctx, bx + 10 * S, by + 5 * S, bw - 20 * S, bh * 0.42, bh * 0.3);
+    ctx.beginPath(); this._rr(ctx, bx + Math.round(8 * CS), by + Math.round(4 * CS), bw - Math.round(16 * CS), bh * 0.42, bh * 0.3);
     ctx.fillStyle = 'rgba(255,255,255,0.50)'; ctx.fill();
 
-    // Border
     ctx.beginPath(); this._rr(ctx, bx, by, bw, bh, bh * 0.45);
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3 * S;
+    ctx.lineWidth = Math.max(1.5, Math.round(2.5 * CS));
     ctx.stroke();
 
-    // Text — koyu yeşil
-    ctx.font = `900 ${Math.round(22 * S)}px ${font}`;
+    const btnFs = Math.round(Math.max(16, 20 * CS));
+    ctx.font = `900 ${btnFs}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.fillText(ctaLabel, CX, bcy + 3 * S);
+    ctx.fillText(ctaLabel, CX, bcy + 3 * CS);
     ctx.fillStyle = '#1B5E20';
     ctx.fillText(ctaLabel, CX, bcy);
 
-    // İki dans eden yıldız
     const starPhase = t / 22;
-    const star1X = bx + 22 * S + Math.sin(starPhase) * 3 * S;
-    const star2X = bx + bw - 22 * S + Math.sin(starPhase + 1) * 3 * S;
+    const spkR = Math.round(Math.max(2, 3 * CS));
     ctx.fillStyle = '#fff';
-    this._drawSparkle(ctx, star1X, bcy, 3 * S);
-    this._drawSparkle(ctx, star2X, bcy, 3 * S);
+    this._drawSparkle(ctx, bx + Math.round(18 * CS) + Math.sin(starPhase) * 3 * CS, bcy, spkR);
+    this._drawSparkle(ctx, bx + bw - Math.round(18 * CS) + Math.sin(starPhase + 1) * 3 * CS, bcy, spkR);
 
     ctx.restore();
 
-    // Hit area (transform öncesi rect — input handler bunu kullanır)
     state[btnRectKey] = { x: bx, y: by, w: bw, h: bh, a: alpha };
 
     ctx.restore();
@@ -288,10 +278,9 @@ export class TutorialManager {
   }
 
   // Stars çizimi — 3 yıldız, kazanılanlar dolu, sallanan
-  _drawCardStars(cx, cy, cw, stars, t) {
+  _drawCardStars(cx, cy, cw, stars, t, CS = 1) {
     const ctx = state.ctx;
-    const { S } = state;
-    const starR = 24 * S;
+    const starR = Math.round(Math.max(16, 22 * CS));
     const gap = starR * 2.4;
     const totalW = starR * 2 + gap * 2;
     const startX = cx + cw / 2 - totalW / 2 + starR;
@@ -321,10 +310,10 @@ export class TutorialManager {
         sg.addColorStop(0.5, '#FFD93D');
         sg.addColorStop(1, '#FF9F1C');
         ctx.fillStyle = sg; ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * S; ctx.stroke();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1.5, 2 * CS); ctx.stroke();
       } else {
         ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5 * S; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = Math.max(1, 1.5 * CS); ctx.stroke();
       }
       ctx.restore();
     }
@@ -397,40 +386,34 @@ export class TutorialManager {
 
   // ── Animated demo row — Merge ve Absorb mini animasyonu ──────────────────
 
-  _drawDemoRow(cx, cy, cw, t) {
+  _drawDemoRow(cx, cy, cw, t, CS = 1) {
     const ctx = state.ctx;
-    const { S, isDarkMode, LEVELS } = state;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
 
-    // 2 sütun: Merge | Absorb
     const colW = cw / 2;
     const merge_cx = cx + colW * 0.5;
     const absorb_cx = cx + colW * 1.5;
-    const demoH = 130 * S;
-    const cycleT = 90; // her loop 90 frame
+    const demoH = Math.round(120 * CS);
+    const cycleT = 90;
 
-    // Renkler — demo için sabit hypercasual paleti
-    // Merge: SARI + SARI → TURUNCU
-    // Absorb: dış PEMBE içi TURUNCU (turuncu pembeye giriyor)
-    const cYellow = '#FFD93D';  // sarı — merge başlangıç
-    const cOrange = '#FF9F1C';  // turuncu — merge sonucu + absorb küçük
-    const cPink   = '#FF6B9D';  // pembe — absorb büyük top
+    const cYellow = '#FFD93D';
+    const cOrange = '#FF9F1C';
+    const cPink   = '#FF6B9D';
 
-    // Ortak: divider çizgi — beyaz transparan
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 1.5 * S;
+    ctx.lineWidth = Math.max(1, 1.5 * CS);
     ctx.beginPath();
-    ctx.moveTo(cx + colW, cy + 15 * S);
-    ctx.lineTo(cx + colW, cy + demoH - 15 * S);
+    ctx.moveTo(cx + colW, cy + Math.round(12 * CS));
+    ctx.lineTo(cx + colW, cy + demoH - Math.round(12 * CS));
     ctx.stroke();
     ctx.restore();
 
     // ── MERGE animation ──────────────────────────────────────────────
-    const phase = (t % cycleT) / cycleT; // 0..1
-    const ballR = 14 * S;
-    const spread = 22 * S;
-    const animY = cy + 50 * S;
+    const phase = (t % cycleT) / cycleT;
+    const ballR  = Math.round(Math.max(9, 13 * CS));
+    const spread = Math.round(Math.max(14, 20 * CS));
+    const animY  = cy + Math.round(44 * CS);
 
     // 0.0-0.4: iki top yan yana yaklaşıyor
     // 0.4-0.6: birleşiyor
@@ -438,8 +421,8 @@ export class TutorialManager {
     let leftX, rightX, merged = false, mergeScale = 1;
     if (phase < 0.4) {
       const p = phase / 0.4;
-      leftX  = merge_cx - spread - (1 - p) * 15 * S;
-      rightX = merge_cx + spread + (1 - p) * 15 * S;
+      leftX  = merge_cx - spread - (1 - p) * Math.round(13 * CS);
+      rightX = merge_cx + spread + (1 - p) * Math.round(13 * CS);
     } else if (phase < 0.55) {
       leftX = merge_cx - spread * (1 - (phase - 0.4) / 0.15);
       rightX = merge_cx + spread * (1 - (phase - 0.4) / 0.15);
@@ -457,8 +440,8 @@ export class TutorialManager {
       // Yaklaşma çizgisi (faint)
       if (phase < 0.4) {
         ctx.strokeStyle = `rgba(255,255,255,${0.2 + phase * 0.5})`;
-        ctx.lineWidth = 1.5 * S;
-        ctx.setLineDash([3 * S, 3 * S]);
+        ctx.lineWidth = Math.max(1, 1.5 * CS);
+        ctx.setLineDash([Math.round(3 * CS), Math.round(3 * CS)]);
         ctx.beginPath();
         ctx.moveTo(leftX + ballR, animY);
         ctx.lineTo(rightX - ballR, animY);
@@ -466,70 +449,59 @@ export class TutorialManager {
         ctx.setLineDash([]);
       }
     } else {
-      // Merged: lv1 top + sparkle ring
       const r = ballR * 1.4 * mergeScale;
-      // Ring
       const ringAlpha = Math.max(0, 1 - (phase - 0.55) / 0.3);
       if (ringAlpha > 0) {
         ctx.strokeStyle = `rgba(255, 217, 61, ${ringAlpha})`;
-        ctx.lineWidth = 2 * S;
+        ctx.lineWidth = Math.max(1.5, 2 * CS);
         ctx.beginPath();
-        ctx.arc(merge_cx, animY, r + (1 - ringAlpha) * 18 * S, 0, Math.PI * 2);
+        ctx.arc(merge_cx, animY, r + (1 - ringAlpha) * Math.round(16 * CS), 0, Math.PI * 2);
         ctx.stroke();
       }
       this._drawDemoBall(ctx, merge_cx, animY, r, cOrange);
     }
     ctx.restore();
 
-    // Merge label — başlık + alt başlık, beyaz
+    const labelFs  = Math.round(Math.max(10, 13 * CS));
+    const subFs    = Math.round(Math.max(8,  10 * CS));
+    const labelY   = cy + Math.round(96 * CS);
+    const subY     = cy + Math.round(112 * CS);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `900 ${Math.round(14 * S)}px ${font}`;
+    ctx.font = `900 ${labelFs}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
-    ctx.fillText('MERGE', merge_cx, cy + 102 * S + 2 * S);
+    ctx.fillText('MERGE', merge_cx, labelY + 2);
     ctx.fillStyle = '#fff';
-    ctx.fillText('MERGE', merge_cx, cy + 102 * S);
-    // Alt başlık
-    ctx.font = `600 ${Math.round(10 * S)}px ${font}`;
+    ctx.fillText('MERGE', merge_cx, labelY);
+    ctx.font = `600 ${subFs}px ${font}`;
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillText('same + same', merge_cx, cy + 118 * S);
+    ctx.fillText('same + same', merge_cx, subY);
 
     // ── ABSORB animation ─────────────────────────────────────────────
-    // Büyük top sabit, küçük top yaklaşıp içine giriyor
-    const bigR = 22 * S;
+    const bigR = Math.round(Math.max(14, 20 * CS));
     let smallX, smallScale = 1, smallAlpha = 1;
     if (phase < 0.45) {
       const p = phase / 0.45;
-      smallX = absorb_cx - 32 * S + p * 22 * S;
+      smallX = absorb_cx - Math.round(30 * CS) + p * Math.round(20 * CS);
     } else if (phase < 0.65) {
       const p = (phase - 0.45) / 0.20;
-      smallX = absorb_cx - 10 * S + p * 10 * S;
+      smallX = absorb_cx - Math.round(10 * CS) + p * Math.round(10 * CS);
       smallScale = 1 - p * 0.6;
       smallAlpha = 1 - p * 0.8;
     } else {
-      smallX = absorb_cx;
-      smallScale = 0;
-      smallAlpha = 0;
+      smallX = absorb_cx; smallScale = 0; smallAlpha = 0;
     }
 
     ctx.save();
-    // Büyük top — PEMBE
     const bigPulse = phase > 0.45 && phase < 0.75 ? 1 + Math.sin((phase - 0.45) / 0.3 * Math.PI) * 0.12 : 1;
     this._drawDemoBall(ctx, absorb_cx, animY, bigR * bigPulse, cPink);
-    // İç halka (nested görünüm) — absorb tamamlanınca, içi TURUNCU
     if (phase > 0.65) {
       const innerAlpha = Math.min(1, (phase - 0.65) / 0.15);
       ctx.fillStyle = `rgba(255,255,255,${innerAlpha * 0.35})`;
-      ctx.beginPath();
-      ctx.arc(absorb_cx, animY, bigR * 0.55, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = cOrange;
-      ctx.globalAlpha = innerAlpha;
-      ctx.beginPath();
-      ctx.arc(absorb_cx, animY, bigR * 0.45, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(absorb_cx, animY, bigR * 0.55, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = cOrange; ctx.globalAlpha = innerAlpha;
+      ctx.beginPath(); ctx.arc(absorb_cx, animY, bigR * 0.45, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // Küçük top (yaklaşan) — TURUNCU
     if (smallAlpha > 0) {
       ctx.globalAlpha = smallAlpha;
       this._drawDemoBall(ctx, smallX, animY, ballR * smallScale, cOrange);
@@ -537,16 +509,14 @@ export class TutorialManager {
     }
     ctx.restore();
 
-    // Absorb label — başlık + alt başlık, beyaz
-    ctx.font = `900 ${Math.round(14 * S)}px ${font}`;
+    ctx.font = `900 ${labelFs}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
-    ctx.fillText('ABSORB', absorb_cx, cy + 102 * S + 2 * S);
+    ctx.fillText('ABSORB', absorb_cx, labelY + 2);
     ctx.fillStyle = '#fff';
-    ctx.fillText('ABSORB', absorb_cx, cy + 102 * S);
-    // Alt başlık
-    ctx.font = `600 ${Math.round(10 * S)}px ${font}`;
+    ctx.fillText('ABSORB', absorb_cx, labelY);
+    ctx.font = `600 ${subFs}px ${font}`;
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillText('big eats small', absorb_cx, cy + 118 * S);
+    ctx.fillText('big eats small', absorb_cx, subY);
   }
 
   _drawDemoBall(ctx, x, y, r, color) {
