@@ -1478,17 +1478,26 @@ export class Renderer {
     const panelH = (ballsBot - ballsTop) + panelPadY * 2;
     const panelR = (panelW / 2) * 0.55; // pill şekli
 
-    // Arka panel — oyun alanından hafif ayrışan, sade pill
+    // Slide-in animasyonu: her top soldan kayarak gelir, sırayla (stagger)
+    const SLIDE_DUR  = 280; // ms — tek topun animasyon süresi
+    const STAGGER    = 60;  // ms — toplar arası gecikme
+    const elapsed    = Date.now() - (state.paletteGuideStart ?? 0);
+    const slideFrom  = -(cx + maxR + 12); // sol kenar dışı
+
+    // Arka panel için genel alpha: ilk topun ilerlemesi kadar
+    const panelP = Math.min(1, Math.max(0, elapsed / SLIDE_DUR));
+    const panelAlpha = (state.isDarkMode ? 0.06 : 0.07) * (1 - Math.pow(1 - panelP, 3));
+
     ctx.save();
     ctx.beginPath();
     this._rr(ctx, panelX, panelY, panelW, panelH, panelR);
     ctx.fillStyle = state.isDarkMode
-      ? 'rgba(255,255,255,0.06)'
-      : 'rgba(0,0,0,0.07)';
+      ? `rgba(255,255,255,${panelAlpha})`
+      : `rgba(0,0,0,${panelAlpha})`;
     ctx.fill();
     ctx.strokeStyle = state.isDarkMode
-      ? 'rgba(255,255,255,0.10)'
-      : 'rgba(0,0,0,0.10)';
+      ? `rgba(255,255,255,${panelAlpha * 1.67})`
+      : `rgba(0,0,0,${panelAlpha * 1.43})`;
     ctx.lineWidth = 1 * S;
     ctx.stroke();
     ctx.restore();
@@ -1502,14 +1511,22 @@ export class Renderer {
       const ballY = curY;
       curY += cr + GAP;
 
+      // Her top için stagger'lı ilerleme, easeOut cubic
+      const t  = Math.min(1, Math.max(0, (elapsed - i * STAGGER) / SLIDE_DUR));
+      const p  = 1 - Math.pow(1 - t, 3); // easeOut
+      const offsetX = slideFrom * (1 - p);
+
+      ctx.save();
+      ctx.globalAlpha = p;
       const fakeBall = {
-        x: cx, y: ballY, r: cr,
+        x: cx + offsetX, y: ballY, r: cr,
         level: i, color: lv.color,
         boing: 0, squish: null, absorbAnim: 0,
         absorbNear: false, isBeingDragged: false,
         contains: [], vx: 0, vy: 0,
       };
       this.drawSphere(fakeBall);
+      ctx.restore();
     }
   }
 

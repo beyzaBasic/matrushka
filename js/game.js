@@ -389,6 +389,7 @@ export class Game {
     this._preloadArena();
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
     state.autoDropDeadline = 0;
+    state.paletteGuideStart = Date.now();
     if (!state.isTutorial) {
       // Beklemesiz: ilk top ANINDA üretilsin (eski: 600ms beklerdi)
       if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
@@ -1140,15 +1141,12 @@ export class Game {
     if (bRect) R.drawBlastBtn(bRect, !state.levelSuccess && !state.gameOver && this.blast.isEnabled(bRect));
     R.drawBlastProjectiles();
 
-    // Success / Game over overlay'leri
-    R.drawSuccessOverlay(this.goals, this.tutorial);
-    if (state.gameOver) R.drawGameOver(this.goals);
-
-    // Palette guide — tüm overlay backdrop'larından sonra, kart içeriğinden önce
-    // Kart ortada, şerit solda → çakışmaz; backdrop üstünde görünür kalır
+    // Palette guide — tüm overlay'lardan önce, şerit her zaman arkada kalır
     R.drawPaletteGuide();
 
-    // Tutorial popup — palette guide'dan sonra (şerit backdrop arkasında kalır)
+    // Success / Game over / Tutorial overlay'leri — şeridin üstüne çizilir
+    R.drawSuccessOverlay(this.goals, this.tutorial);
+    if (state.gameOver) R.drawGameOver(this.goals);
     if (state.tutShowPopup) {
       this.tutorial.drawPopup();
     }
