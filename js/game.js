@@ -388,6 +388,7 @@ export class Game {
     this.goals.initLevelGoals();
     this._preloadArena();
     state.nextBall = null; state.heldBall = null; state._nextBallBlocked = false;
+    state.autoDropDeadline = 0;
     if (!state.isTutorial) {
       // Beklemesiz: ilk top ANINDA üretilsin (eski: 600ms beklerdi)
       if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
@@ -578,6 +579,7 @@ export class Game {
 
   // Üst açıklık içinde boş yer bul ve topu oraya yerleştir
   _generateNextBall() {
+    if (state.isTutorial) return;
     const lv = this._randomBallLevel();
     const { CX, CY, MAIN_R, LEVELS } = state;
     const r = LEVELS[lv].r;
@@ -954,11 +956,11 @@ export class Game {
         bg.addColorStop(0.80,'#0F0A28');
         bg.addColorStop(1,   '#080518');
       } else {
-        // Sıcak krem → altın
-        bg.addColorStop(0,   '#FFF8EE');
-        bg.addColorStop(0.45,'#FDECD2');
-        bg.addColorStop(0.80,'#F5D5A8');
-        bg.addColorStop(1,   '#E8BC80');
+        // Canlı gökyüzü mavisi — hypercasual
+        bg.addColorStop(0,   '#E8F9FF');
+        bg.addColorStop(0.40,'#C2EEFF');
+        bg.addColorStop(0.75,'#96D8F8');
+        bg.addColorStop(1,   '#68C0EE');
       }
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);

@@ -36,7 +36,7 @@ export const WORLD_CONFIG = [
   { id: 0, name: 'Tatlı Uyanış', subtitle: 'İlk Dokunuş',
     shape: 'sphere', bgColor: '#0D1B4B',
     lightBg: ['#F0E8D8', '#E8DCCA', '#DDD0B8', '#D9CAAB'], // Warm Sand
-    palette: ['#FFE135', '#FF6D00', '#E91E8C', '#2979FF', '#1DE9B6', '#CE93D8', '#FFD600'],
+    palette: ['#FFE135', '#FF6D00', '#E91E8C', '#9B27FF', '#2979FF', '#00E5FF', '#00E676'],
     containerForm: CONTAINER_FORMS.classicU,
     gravity: 0.28 },
 

@@ -1434,18 +1434,24 @@ export class Renderer {
     const slotBot  = gemTop + GEM_R_px * 2; // slot alt noktası
 
     // Stripe sınırları
-    // Üst: her zaman gemTop
-    // Alt: geniş ekranda havuz bottom, dar ekranda slot bottom
-    const hasSpace     = availW >= 32 * S;
-    const stripeTop    = gemTop;
-    const stripeBottom = hasSpace ? (CY + MAIN_R) : slotBot;
+    // Portrait telefonda: üst = gemTop, alt = havuzun tepesi (CY - MAIN_R)
+    // Diğer: geniş ekranda havuz bottom, dar ekranda slot bottom
+    const { W, H } = state;
+    const isPortrait   = W < H;
+    const stripeTop    = Math.max(2, Math.round(22 - 14 * S));
+    const stripeBottom = isPortrait
+      ? (CY - MAIN_R)
+      : (availW >= 32 * S ? (CY + MAIN_R) : slotBot);
     const stripeHeight = stripeBottom - stripeTop;
     if (stripeHeight <= 0) return;
 
     // Orijinal top yarıçaplarını kullan — oranları koru
-    const maxRraw  = LEVELS[n - 1].r;
+    const maxRraw   = LEVELS[n - 1].r;
     const totalHraw = LEVELS.reduce((s, lv) => s + lv.r * 2, 0) + (n - 1) * GAP;
-    const scByW = availW / (maxRraw * 2);
+    // Duck gagası merkeze göre 1.1r sağa taşar — width faktörünü büyüt
+    const shape     = LEVELS[0]?.shape || 'sphere';
+    const wFactor   = shape === 'duck' ? 2.1 : 2.0;
+    const scByW = availW / (maxRraw * wFactor);
     const scByH = stripeHeight / totalHraw;
     const sc    = Math.min(scByW, scByH, 1);
     if (sc <= 0) return;
@@ -1453,35 +1459,24 @@ export class Renderer {
     const maxR = maxRraw * sc;
     const cx   = PAD + maxR; // en geniş topa göre hizala
 
-    ctx.save();
-    ctx.shadowBlur = 0;
-
-    // lv0 en altta, en yüksek level en üstte
-    let curY = stripeBottom;
+    // lv0 en üstte (küçük), en yüksek level en altta (büyük) — yukarıdan aşağıya
+    let curY = stripeTop;
     for (let i = 0; i < n; i++) {
       const lv = LEVELS[i];
       const cr = lv.r * sc;
-      curY -= cr;
-      const cy = curY;
-      curY -= cr + GAP;
+      curY += cr;
+      const ballY = curY;
+      curY += cr + GAP;
 
-      // Gövde
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-      ctx.fillStyle = lv.color;
-      ctx.fill();
-
-      // Highlight
-      const hl = ctx.createRadialGradient(cx - cr * 0.3, cy - cr * 0.35, 0, cx, cy, cr);
-      hl.addColorStop(0, 'rgba(255,255,255,0.50)');
-      hl.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = hl;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
-      ctx.fill();
+      const fakeBall = {
+        x: cx, y: ballY, r: cr,
+        level: i, color: lv.color,
+        boing: 0, squish: null, absorbAnim: 0,
+        absorbNear: false, isBeingDragged: false,
+        contains: [], vx: 0, vy: 0,
+      };
+      this.drawSphere(fakeBall);
     }
-
-    ctx.restore();
   }
 
 

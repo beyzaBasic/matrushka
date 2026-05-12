@@ -81,7 +81,7 @@ export class TutorialManager {
     if (!this._showHint) return;
     if (label) {
       const target = this._labelTarget();
-      this._drawLabel(label, target?.x, target?.y, target?.color);
+      this._drawLabel(label, target?.x, target?.y);
     }
     if (this._arrow) this._drawArrow();
   }
@@ -810,27 +810,23 @@ export class TutorialManager {
     return null;
   }
 
-  _drawLabel(text, posX, posY, ballColor) {
+  _drawLabel(text, posX, posY) {
     const { ctx, CX, CY, S } = state;
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
     const t = (this._labelT = (this._labelT || 0) + 1);
-    // Toplarla birlikte yukarı-aşağı yüzen hareket
     const bob = Math.sin(t / 13) * 7 * (S ?? 1);
     const x = posX ?? CX;
     const y = (posY ?? CY) + bob;
 
+    const isDark = state.isDarkMode;
     ctx.save();
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `bold ${Math.round(32 * (S ?? 1))}px ${font}`;
-
-    // Top rengiyle glow
-    ctx.shadowColor = ballColor || '#FFD93D';
-    ctx.shadowBlur  = 8 * (S ?? 1);
-
-    ctx.fillStyle = ballColor || '#FFD93D';
+    ctx.shadowColor  = isDark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)';
+    ctx.shadowBlur   = 6 * (S ?? 1);
+    ctx.fillStyle    = isDark ? '#FFFFFF' : '#1A1040';
     ctx.fillText(text, x, y);
-
     ctx.restore();
   }
 
