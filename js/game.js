@@ -391,8 +391,12 @@ export class Game {
     state.autoDropDeadline = 0;
     state.paletteGuideStart = Date.now();
     if (!state.isTutorial) {
-      // Beklemesiz: ilk top ANINDA üretilsin (eski: 600ms beklerdi)
-      if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
+      // Açılış animasyonları (~640ms) bittikten sonra ilk topu üret
+      const _startLv = state.currentLevel;
+      setTimeout(() => {
+        if (state.currentLevel !== _startLv) return;
+        if (!state.levelSuccess && !state.gameOver) this._generateNextBall();
+      }, 680);
     }
   }
 
