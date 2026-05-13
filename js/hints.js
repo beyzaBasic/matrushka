@@ -120,8 +120,8 @@ export class HintManager {
     const bigR = rr[nc - 1]; // en büyük daire yarıçapı
 
     const poolTop = CY - MAIN_R;
-    const rawMidY = sp.cy + sp.gemR + 10 + bigR;
-    const midY = Math.min(rawMidY, poolTop - bigR - 12);
+    const rawMidY = sp.cy + sp.gemR + 10 + R_BIG;
+    const midY = Math.min(rawMidY, poolTop - R_BIG - 12);
 
     const gap = Math.round(sp.gemR * 0.42);
     const padX = Math.min(8, Math.floor(gap / 2) - 1);
@@ -169,8 +169,8 @@ export class HintManager {
     const rr = radii.map(r => Math.max(3, Math.round(r * sc)));
     const aw = Math.max(4, Math.round(ARROW * sc)), gw = Math.max(2, Math.round(GAP * sc));
     const poolTop = CY - MAIN_R;
-    const rawMidY = sp.cy + sp.gemR + 10 + rr[n - 1];
-    const midY = Math.min(rawMidY, poolTop - rr[n - 1] - 12);
+    const rawMidY = sp.cy + sp.gemR + 10 + R_BIG;
+    const midY = Math.min(rawMidY, poolTop - R_BIG - 12);
     const tw2 = rr.reduce((s, r) => s + r * 2, 0) + (n - 1) * (gw * 2 + aw);
     let curX = sp.cx - tw2 / 2;
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.001 * 2.2);
