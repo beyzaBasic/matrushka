@@ -188,14 +188,16 @@ export class Game {
     }
     const hb = state._homeBtn;
     if (hb && x >= hb.x && x <= hb.x + hb.w && y >= hb.y && y <= hb.y + hb.h) {
-      state.isPaused = false;
-      state.gameOver = false;
-      state.gameOverAlpha = 0;
-      state.levelSuccess = false;
+      this._resetGame();
+      state.isPaused        = false;
+      state.levelSuccess    = false;
       state.levelSuccessAlpha = 0;
-      state.circles = [];
-      state.particles = [];
-      state.nextBall = null;
+      state.nextBall        = null;
+      state.heldBall        = null;
+      state.draggedCircle   = null;
+      state.flyingGoals     = [];
+      state.goalSlots       = [];
+      if (state.canvas) state.canvas.style.display = 'none';
       if (window._matrushkaMap && typeof window._matrushkaMap.show === 'function') {
         window._matrushkaMap.show();
       }

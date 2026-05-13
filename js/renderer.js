@@ -1319,10 +1319,11 @@ export class Renderer {
   }
 
   drawPauseBtn() {
-    const ctx = state.ctx, { isPaused, levelSuccess, gameOver } = state;
+    const ctx = state.ctx, { isPaused, levelSuccess, gameOver, isDarkMode } = state;
     if (levelSuccess || gameOver) state._pauseBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(0);
-    this._drawHCBtn(pcx, pcy, ICON, '#4A8FE8', (cx, cy, s) => {
+    const _col = isDarkMode ? '#3A3F6B' : '#5B82B8';
+    this._drawHCBtn(pcx, pcy, ICON, _col, (cx, cy, s) => {
       if (isPaused) {
         ctx.beginPath();
         ctx.moveTo(cx - s*0.58, cy - s*0.75); ctx.lineTo(cx + s*0.92, cy); ctx.lineTo(cx - s*0.58, cy + s*0.75);
@@ -1337,11 +1338,12 @@ export class Renderer {
   }
 
   drawSoundBtn() {
-    const ctx = state.ctx, { isMuted, levelSuccess, gameOver, isPaused } = state;
+    const ctx = state.ctx, { isMuted, levelSuccess, gameOver, isPaused, isDarkMode } = state;
     const _disabled = levelSuccess || gameOver || isPaused;
     if (_disabled) state._soundBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(1);
-    this._drawHCBtn(pcx, pcy, ICON, '#2FC594', (cx, cy, s) => {
+    const _col = isDarkMode ? '#3A3F6B' : '#3A9E7A';
+    this._drawHCBtn(pcx, pcy, ICON, _col, (cx, cy, s) => {
       ctx.beginPath();
       ctx.moveTo(cx-s*0.55,cy-s*0.38); ctx.lineTo(cx-s*0.18,cy-s*0.38);
       ctx.lineTo(cx+s*0.18,cy-s*0.72); ctx.lineTo(cx+s*0.18,cy+s*0.72);
@@ -1365,7 +1367,8 @@ export class Renderer {
     const _disabled = levelSuccess || gameOver || isPaused;
     if (_disabled) state._darkModeBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(2);
-    this._drawHCBtn(pcx, pcy, ICON, '#F5A623', (cx, cy, s, bg) => {
+    const _col = isDarkMode ? '#3A3F6B' : '#C4852A';
+    this._drawHCBtn(pcx, pcy, ICON, _col, (cx, cy, s, bg) => {
       if (!isDarkMode) {
         // Güneş
         ctx.beginPath(); ctx.arc(cx, cy, s*0.44, 0, Math.PI*2); ctx.fill();
@@ -1391,11 +1394,12 @@ export class Renderer {
   }
 
   drawTutorialBtn() {
-    const ctx = state.ctx, { levelSuccess, gameOver, isPaused } = state;
+    const ctx = state.ctx, { levelSuccess, gameOver, isPaused, isDarkMode } = state;
     const _disabled = levelSuccess || gameOver || isPaused;
     if (_disabled) state._tutorialBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(3);
-    this._drawHCBtn(pcx, pcy, ICON, '#E94F6F', (cx, cy, s) => {
+    const _col = isDarkMode ? '#3A3F6B' : '#B84E6A';
+    this._drawHCBtn(pcx, pcy, ICON, _col, (cx, cy, s) => {
       ctx.shadowBlur = 0;
       ctx.font = `900 ${Math.round(ICON * 0.92)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1405,11 +1409,12 @@ export class Renderer {
   }
 
   drawHomeBtn() {
-    const ctx = state.ctx, { levelSuccess, gameOver, isPaused } = state;
+    const ctx = state.ctx, { levelSuccess, gameOver, isPaused, isDarkMode } = state;
     const _disabled = levelSuccess || gameOver || isPaused;
     if (_disabled) state._homeBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(4);
-    this._drawHCBtn(pcx, pcy, ICON, '#9B59B6', (cx, cy, s) => {
+    const _col = isDarkMode ? '#3A3F6B' : '#7A52A8';
+    this._drawHCBtn(pcx, pcy, ICON, _col, (cx, cy, s) => {
       const hw = s*1.18, rh = s*0.70, bh = s*0.72, bw = hw*0.78;
       ctx.lineWidth = Math.max(1.5, ICON * 0.15);
       // Çatı
@@ -1503,8 +1508,8 @@ export class Renderer {
 
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font=`900 ${Math.round(Math.max(16,20*CS))}px ${font}`;
-    ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.fillText('▶  Play Again',CX,bcy+3*CS);
-    ctx.fillStyle='#1B5E20';          ctx.fillText('▶  Play Again',CX,bcy);
+    ctx.fillStyle='rgba(0,0,0,0.12)'; ctx.fillText('▶  PLAY AGAIN',CX,bcy+2*CS);
+    ctx.fillStyle='#1B5E20';          ctx.fillText('▶  PLAY AGAIN',CX,bcy);
 
     ctx.restore();
     state._gameOverBtn = { x:bx, y:by, w:bw, h:bh };
@@ -1522,7 +1527,7 @@ export class Renderer {
       const PAD          = Math.max(6, BTN_PAD || 8);
       // 5 buton daire düzeni — daire çapı = footerH
       const btnR    = Math.max(10, Math.min(28, Math.round(footerH * 0.155)));
-      const circleR = Math.max(8, Math.floor(footerH / 2) - btnR);
+      const circleR = Math.max(8, Math.floor(footerH / 2) - btnR - 6);
       const circleCX = W - PAD - Math.floor(footerH / 2);
       const circleCY = footerTop + Math.floor(footerH / 2);
       const btnColW  = Math.ceil(footerH) + PAD;
