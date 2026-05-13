@@ -1241,12 +1241,26 @@ export class Renderer {
     });
   }
 
+  // Buton merkez koordinatı — idx: 0=pause,1=sound,2=dark,3=tutorial
+  _btnCenter(idx) {
+    const { W, H, safeTop } = state;
+    const { isPortrait, footerTop, footerH, ICON, PAD } = this._sidebarLayout();
+    if (isPortrait) {
+      const btnCell = footerH / 4;
+      const pcy = footerTop + btnCell * idx + btnCell / 2;
+      const pcx = W - PAD - ICON;
+      return { pcx, pcy, ICON };
+    }
+    // Landscape: üst sağda yatay
+    const LIC = 30, LGAP = 6, LPAD = 12;
+    return { pcx: W - LPAD - LIC/2 - idx * (LIC + LGAP), pcy: (safeTop||0) + 22, ICON: LIC };
+  }
+
   drawPauseBtn() {
-    const ctx = state.ctx, { W, safeTop, isPaused, levelSuccess } = state;
+    const ctx = state.ctx, { isPaused, levelSuccess } = state;
     if (levelSuccess) { state._pauseBtn=null; return; }
-    const ICON=30, GAP=6, PAD=12;
-    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2;
-    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4; ctx.fillStyle='#fff';
+    const { pcx, pcy, ICON } = this._btnCenter(0);
+    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=2; ctx.fillStyle='#fff';
     if (isPaused) {
       const bh=ICON*(1/3);
       ctx.beginPath(); ctx.moveTo(pcx-bh*0.5,pcy-bh); ctx.lineTo(pcx+bh,pcy); ctx.lineTo(pcx-bh*0.5,pcy+bh); ctx.closePath(); ctx.fill();
@@ -1261,12 +1275,11 @@ export class Renderer {
   }
 
   drawSoundBtn() {
-    const ctx = state.ctx, { W, safeTop, isMuted, levelSuccess } = state;
+    const ctx = state.ctx, { isMuted, levelSuccess } = state;
     if (levelSuccess) { state._soundBtn=null; return; }
-    const ICON=30, GAP=6, PAD=12;
-    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2 - (ICON+GAP);
+    const { pcx, pcy, ICON } = this._btnCenter(1);
     const s = ICON * 0.38;
-    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4;
+    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=2;
     ctx.fillStyle='#fff'; ctx.strokeStyle='#fff'; ctx.lineWidth=ICON*0.12; ctx.lineCap='round';
     ctx.beginPath();
     ctx.moveTo(pcx-s*0.55,pcy-s*0.38); ctx.lineTo(pcx-s*0.18,pcy-s*0.38);
@@ -1287,12 +1300,11 @@ export class Renderer {
   }
 
   drawDarkModeBtn() {
-    const ctx = state.ctx, { W, safeTop, isDarkMode, levelSuccess } = state;
+    const ctx = state.ctx, { isDarkMode, levelSuccess } = state;
     if (levelSuccess) { state._darkModeBtn=null; return; }
-    const ICON=30, GAP=6, PAD=12;
-    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2 - (ICON+GAP)*2;
+    const { pcx, pcy, ICON } = this._btnCenter(2);
     const s = ICON * 0.42;
-    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowBlur=4;
+    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=2;
     if (isDarkMode) {
       ctx.fillStyle='#FFD966';
       ctx.beginPath(); ctx.arc(pcx,pcy,s*0.72,0,Math.PI*2); ctx.fill();
@@ -1316,10 +1328,9 @@ export class Renderer {
   }
 
   drawTutorialBtn() {
-    const ctx = state.ctx, { W, safeTop, levelSuccess } = state;
+    const ctx = state.ctx, { levelSuccess } = state;
     if (levelSuccess) { state._tutorialBtn = null; return; }
-    const ICON=30, GAP=6, PAD=12;
-    const pcy = (safeTop||0) + 22, pcx = W - PAD - ICON/2 - (ICON+GAP)*3;
+    const { pcx, pcy, ICON } = this._btnCenter(3);
     const s = ICON * 0.38;
     ctx.save();
     ctx.globalAlpha = 0.72;
@@ -1423,6 +1434,29 @@ export class Renderer {
     state._gameOverBtn = { x:bx, y:by, w:bw, h:bh };
   }
 
+  // ── Sidebar ortak layout hesabı ───────────────────────────────────
+  // Hem renk şeridi hem de butonlar bu değerleri paylaşır.
+  _sidebarLayout() {
+    const { W, H, CX, CY, MAIN_R, BTN_BOTTOM_PAD, BTN_PAD, S } = state;
+    const isPortrait = W < H;
+    if (isPortrait) {
+      const footerTop    = CY + MAIN_R + 8;
+      const footerBottom = H - Math.max(12, BTN_BOTTOM_PAD || 12) - 4;
+      const footerH      = Math.max(20, footerBottom - footerTop);
+      // Buton ikonu: 4 dikey buton + 3 boşluk sığsın
+      const ICON  = Math.min(24, Math.max(12, Math.floor((footerH - 18) / 4 / 2)));
+      const PAD   = Math.max(8, BTN_PAD || 12);
+      const btnColW  = ICON * 2 + PAD * 2;        // buton sütunu genişliği
+      const stripAvailW = W - btnColW - PAD * 3;  // şerit için kalan genişlik
+      return { isPortrait, footerTop, footerBottom, footerH, ICON, PAD, btnColW, stripAvailW };
+    }
+    // Landscape: şerit havuzun sol alanında, butonlar üst sağda değişmez
+    const PAD     = Math.round(8 * S);
+    const poolLeft = CX - MAIN_R;
+    return { isPortrait, footerTop: CY - MAIN_R, footerBottom: CY + MAIN_R, footerH: MAIN_R * 2,
+             ICON: 30, PAD, btnColW: 0, stripAvailW: poolLeft - PAD * 2 };
+  }
+
   // ── Palet rehberi ──────────────────────────────────────────────────
   _paletteGuideCache = null;
 
@@ -1443,41 +1477,24 @@ export class Renderer {
   }
 
   drawPaletteGuide() {
-    const { ctx, LEVELS, S, CX, CY, MAIN_R, MIN_DIM } = state;
+    const { ctx, LEVELS, S, CX, CY, MAIN_R } = state;
     if (!LEVELS || LEVELS.length === 0) return;
 
     const n   = LEVELS.length;
-    const PAD = 8 * S;
     const GAP = 5 * S;
 
-    // Sol boşluk: havuzun sol kenarı ile ekran solu arası
-    const poolLeft = CX - MAIN_R;
-    const availW   = poolLeft - PAD * 2;
-    if (availW < 8 * S) return;
+    const { isPortrait, footerTop, footerBottom, footerH, PAD, stripAvailW } = this._sidebarLayout();
 
-    // Slot sınırları
-    const ng       = state.goalSlots?.length || 1;
-    const GEM_R_px = ng <= 1 ? 64 : ng === 2 ? 54 : 44;
-    const TTL      = Math.round(28 * MIN_DIM / 800) + 8;
-    const gemTop   = 10 + TTL + 4;          // slot üst noktası
-    const slotBot  = gemTop + GEM_R_px * 2; // slot alt noktası
-
-    // Stripe sınırları
-    const { W, H } = state;
-    const isPortrait = W < H;
-    const stripeTop  = Math.max(2, Math.round(22 - 14 * S));
-    // Alt: portrait'te havuz tepesi, landscape'te slot altı — ama %65'te kes (kısalt)
-    const naturalBot = isPortrait
-      ? (CY - MAIN_R)
-      : (availW >= 32 * S ? (CY + MAIN_R) : slotBot);
-    const stripeBottom = stripeTop + (naturalBot - stripeTop) * 0.65;
+    // Portrait: footer alanı (havuz altı); Landscape: havuz sol alanı
+    const availW     = stripAvailW;
+    const stripeTop  = footerTop;
+    const stripeBottom = footerBottom;
     const stripeHeight = stripeBottom - stripeTop;
-    if (stripeHeight <= 0) return;
+    if (availW < 6 || stripeHeight <= 0) return;
 
     // Orijinal top yarıçaplarını kullan — oranları koru
     const maxRraw   = LEVELS[n - 1].r;
     const totalHraw = LEVELS.reduce((s, lv) => s + lv.r * 2, 0) + (n - 1) * GAP;
-    // Duck gagası merkeze göre 1.1r sağa taşar — width faktörünü büyüt
     const shape   = LEVELS[0]?.shape || 'sphere';
     const wFactor = shape === 'duck' ? 2.1 : 2.0;
     const scByW   = availW / (maxRraw * wFactor);
@@ -1486,7 +1503,10 @@ export class Renderer {
     if (sc <= 0) return;
 
     const maxR = maxRraw * sc;
-    const cx   = PAD + maxR;
+    // Landscape: sola ortalanmış; Portrait: sol kenara yaslanmış
+    const cx = isPortrait
+      ? PAD + maxR
+      : Math.max(PAD + maxR, (CX - MAIN_R) / 2);
 
     // Tüm topların gerçek kaplama alanını hesapla (arka panel için)
     let ballsTop = stripeTop, ballsBot = stripeTop;

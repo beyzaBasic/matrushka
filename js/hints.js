@@ -96,7 +96,53 @@ export class HintManager {
 
   drawAllChains(goalManager) {
     const def = goalManager.getLevelDef(), n = def.goals.length;
+    if (n === 0) return;
+    for (let i = 0; i < n; i++) this._drawChainBand(goalManager, i, n);
     for (let i = 0; i < n; i++) this._drawChain(goalManager.goalSlotPos(i), def.goals[i]);
+  }
+
+  _drawChainBand(goalManager, i, n) {
+    const { ctx, CY, MAIN_R } = state;
+    const sp = goalManager.goalSlotPos(i);
+
+    const R_BIG = 14;
+    const poolTop = CY - MAIN_R;
+    const rawMidY = sp.cy + sp.gemR + 10 + R_BIG;
+    const midY = Math.min(rawMidY, poolTop - R_BIG - 12);
+
+    const gap = Math.round(sp.gemR * 0.42); // goalSlotPos ile aynı gap
+    const padX = Math.min(8, Math.floor(gap / 2) - 1); // gap'in yarısından az
+    const padY = 6;
+    const bandW = sp.gemR * 2 + padX * 2;
+    const bandH = R_BIG * 2 + padY * 2;
+    const bandLeft = sp.cx - sp.gemR - padX;
+    const bandY = midY - R_BIG - padY;
+    const bandR = bandH / 2;
+
+    // Her slot kendi animasyonuyla senkron
+    const SLOT_DUR = 420, STAGGER = 110;
+    const elapsed = Date.now() - (state.slotAnimStart ?? 0);
+    const delay = i * STAGGER;
+    const tp = Math.min(1, Math.max(0, (elapsed - delay) / SLOT_DUR));
+    if (tp <= 0) return;
+    const c1 = 1.70158, c3 = c1 + 1;
+    const sc = tp < 1 ? (1 + c3 * Math.pow(tp - 1, 3) + c1 * Math.pow(tp - 1, 2)) : 1;
+    const alpha = Math.min(1, tp * 2);
+
+    const cx = bandLeft + bandW / 2;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, midY);
+    ctx.scale(sc, 1);
+    ctx.translate(-cx, -midY);
+
+    this._rrect(ctx, bandLeft, bandY, bandW, bandH, bandR);
+    ctx.fillStyle = state.isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+    ctx.fill();
+    ctx.strokeStyle = state.isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
   }
 
   _drawChain(sp, goal) {
