@@ -1241,111 +1241,147 @@ export class Renderer {
     });
   }
 
-  // Buton merkez koordinatı — idx: 0=pause,1=sound,2=dark,3=tutorial
+  // Buton merkez koordinatı — idx: 0=pause,1=sound,2=dark,3=tutorial,4=home
   _btnCenter(idx) {
-    const { W, H, safeTop } = state;
-    const { isPortrait, footerTop, footerH, ICON, PAD } = this._sidebarLayout();
+    const { W, safeTop } = state;
+    const { isPortrait, btnR, circleR, circleCX, circleCY } = this._sidebarLayout();
     if (isPortrait) {
-      const btnCell = footerH / 4;
-      const pcy = footerTop + btnCell * idx + btnCell / 2;
-      const pcx = W - PAD - ICON;
-      return { pcx, pcy, ICON };
+      // Pentagon: 5 buton eşit açıyla daire üzerinde
+      const angle = -Math.PI / 2 + idx * (2 * Math.PI / 5);
+      const pcx = Math.round(circleCX + circleR * Math.cos(angle));
+      const pcy = Math.round(circleCY + circleR * Math.sin(angle));
+      return { pcx, pcy, ICON: btnR };
     }
-    // Landscape: üst sağda yatay
-    const LIC = 30, LGAP = 6, LPAD = 12;
-    return { pcx: W - LPAD - LIC/2 - idx * (LIC + LGAP), pcy: (safeTop||0) + 22, ICON: LIC };
+    // Landscape: üst sağda yatay sıra — web ile aynı
+    const LIC = 19, LGAP = 10, LPAD = 12;
+    return { pcx: W - LPAD - LIC - idx * (LIC * 2 + LGAP), pcy: (safeTop || 0) + 24, ICON: LIC };
+  }
+
+  // Hypercasual buton çizici — renkli daire + highlight + beyaz ikon
+  _drawHCBtn(pcx, pcy, r, bgColor, drawIconFn) {
+    const ctx = state.ctx;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.30)';
+    ctx.shadowBlur  = r * 0.55;
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = r * 0.22;
+    ctx.beginPath(); ctx.arc(pcx, pcy, r, 0, Math.PI * 2);
+    ctx.fillStyle = bgColor; ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    const hl = ctx.createRadialGradient(pcx - r*0.28, pcy - r*0.32, 0, pcx, pcy, r);
+    hl.addColorStop(0, 'rgba(255,255,255,0.42)');
+    hl.addColorStop(0.55, 'rgba(255,255,255,0.06)');
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(pcx, pcy, r, 0, Math.PI * 2);
+    ctx.fillStyle = hl; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.5, r * 0.17);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+    drawIconFn(pcx, pcy, r * 0.46, bgColor);
+    ctx.restore();
   }
 
   drawPauseBtn() {
     const ctx = state.ctx, { isPaused, levelSuccess } = state;
-    if (levelSuccess) { state._pauseBtn=null; return; }
+    if (levelSuccess) { state._pauseBtn = null; return; }
     const { pcx, pcy, ICON } = this._btnCenter(0);
-    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=2; ctx.fillStyle='#fff';
-    if (isPaused) {
-      const bh=ICON*(1/3);
-      ctx.beginPath(); ctx.moveTo(pcx-bh*0.5,pcy-bh); ctx.lineTo(pcx+bh,pcy); ctx.lineTo(pcx-bh*0.5,pcy+bh); ctx.closePath(); ctx.fill();
-    } else {
-      const bw=ICON*0.13, bh=ICON*(2/3), gap=ICON*0.20;
-      const bx1=pcx-gap/2-bw, bx2=pcx+gap/2, by=pcy-bh/2;
-      this.rrect(bx1,by,bw,bh,bw*0.5); ctx.fill();
-      this.rrect(bx2,by,bw,bh,bw*0.5); ctx.fill();
-    }
-    ctx.restore();
-    state._pauseBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
+    this._drawHCBtn(pcx, pcy, ICON, '#4A8FE8', (cx, cy, s) => {
+      if (isPaused) {
+        ctx.beginPath();
+        ctx.moveTo(cx - s*0.58, cy - s*0.75); ctx.lineTo(cx + s*0.92, cy); ctx.lineTo(cx - s*0.58, cy + s*0.75);
+        ctx.closePath(); ctx.fill();
+      } else {
+        const bw = s*0.32, bh = s*1.55, gap = s*0.52;
+        this.rrect(cx - gap/2 - bw, cy - bh/2, bw, bh, bw*0.4); ctx.fill();
+        this.rrect(cx + gap/2,       cy - bh/2, bw, bh, bw*0.4); ctx.fill();
+      }
+    });
+    state._pauseBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawSoundBtn() {
     const ctx = state.ctx, { isMuted, levelSuccess } = state;
-    if (levelSuccess) { state._soundBtn=null; return; }
+    if (levelSuccess) { state._soundBtn = null; return; }
     const { pcx, pcy, ICON } = this._btnCenter(1);
-    const s = ICON * 0.38;
-    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=2;
-    ctx.fillStyle='#fff'; ctx.strokeStyle='#fff'; ctx.lineWidth=ICON*0.12; ctx.lineCap='round';
-    ctx.beginPath();
-    ctx.moveTo(pcx-s*0.55,pcy-s*0.38); ctx.lineTo(pcx-s*0.18,pcy-s*0.38);
-    ctx.lineTo(pcx+s*0.18,pcy-s*0.72); ctx.lineTo(pcx+s*0.18,pcy+s*0.72);
-    ctx.lineTo(pcx-s*0.18,pcy+s*0.38); ctx.lineTo(pcx-s*0.55,pcy+s*0.38);
-    ctx.closePath(); ctx.fill();
-    if (!isMuted) {
-      ctx.shadowBlur=0;
-      ctx.beginPath(); ctx.arc(pcx+s*0.18,pcy,s*0.55,-Math.PI*0.38,Math.PI*0.38); ctx.stroke();
-      ctx.beginPath(); ctx.arc(pcx+s*0.18,pcy,s*0.90,-Math.PI*0.30,Math.PI*0.30); ctx.stroke();
-    } else {
-      ctx.shadowBlur=0; ctx.lineWidth=ICON*0.13;
-      ctx.beginPath(); ctx.moveTo(pcx+s*0.28,pcy-s*0.52); ctx.lineTo(pcx+s*0.80,pcy+s*0.52); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(pcx+s*0.80,pcy-s*0.52); ctx.lineTo(pcx+s*0.28,pcy+s*0.52); ctx.stroke();
-    }
-    ctx.restore();
-    state._soundBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
+    this._drawHCBtn(pcx, pcy, ICON, '#2FC594', (cx, cy, s) => {
+      ctx.beginPath();
+      ctx.moveTo(cx-s*0.55,cy-s*0.38); ctx.lineTo(cx-s*0.18,cy-s*0.38);
+      ctx.lineTo(cx+s*0.18,cy-s*0.72); ctx.lineTo(cx+s*0.18,cy+s*0.72);
+      ctx.lineTo(cx-s*0.18,cy+s*0.38); ctx.lineTo(cx-s*0.55,cy+s*0.38);
+      ctx.closePath(); ctx.fill();
+      ctx.lineWidth = Math.max(1.5, ICON * 0.13);
+      if (!isMuted) {
+        ctx.beginPath(); ctx.arc(cx+s*0.18,cy,s*0.55,-Math.PI*0.38,Math.PI*0.38); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx+s*0.18,cy,s*0.92,-Math.PI*0.30,Math.PI*0.30); ctx.stroke();
+      } else {
+        ctx.lineWidth = Math.max(1.5, ICON * 0.16);
+        ctx.beginPath(); ctx.moveTo(cx+s*0.28,cy-s*0.52); ctx.lineTo(cx+s*0.82,cy+s*0.52); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+s*0.82,cy-s*0.52); ctx.lineTo(cx+s*0.28,cy+s*0.52); ctx.stroke();
+      }
+    });
+    state._soundBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawDarkModeBtn() {
     const ctx = state.ctx, { isDarkMode, levelSuccess } = state;
-    if (levelSuccess) { state._darkModeBtn=null; return; }
+    if (levelSuccess) { state._darkModeBtn = null; return; }
     const { pcx, pcy, ICON } = this._btnCenter(2);
-    const s = ICON * 0.42;
-    ctx.save(); ctx.globalAlpha=0.72; ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=2;
-    if (isDarkMode) {
-      ctx.fillStyle='#FFD966';
-      ctx.beginPath(); ctx.arc(pcx,pcy,s*0.72,0,Math.PI*2); ctx.fill();
-      ctx.globalCompositeOperation='destination-out';
-      ctx.beginPath(); ctx.arc(pcx+s*0.32,pcy-s*0.18,s*0.58,0,Math.PI*2); ctx.fill();
-      ctx.globalCompositeOperation='source-over';
-    } else {
-      ctx.fillStyle='#FF9800';
-      ctx.beginPath(); ctx.arc(pcx,pcy,s*0.38,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#FF9800'; ctx.lineWidth=s*0.15; ctx.lineCap='round'; ctx.shadowBlur=0;
-      for (let i=0;i<8;i++) {
-        const a=(i/8)*Math.PI*2;
-        ctx.beginPath();
-        ctx.moveTo(pcx+Math.cos(a)*s*0.50,pcy+Math.sin(a)*s*0.50);
-        ctx.lineTo(pcx+Math.cos(a)*s*0.72,pcy+Math.sin(a)*s*0.72);
-        ctx.stroke();
+    this._drawHCBtn(pcx, pcy, ICON, '#F5A623', (cx, cy, s, bg) => {
+      if (!isDarkMode) {
+        // Güneş
+        ctx.beginPath(); ctx.arc(cx, cy, s*0.44, 0, Math.PI*2); ctx.fill();
+        ctx.lineWidth = Math.max(1.5, ICON * 0.14);
+        for (let i = 0; i < 8; i++) {
+          const a = (i/8)*Math.PI*2;
+          ctx.beginPath();
+          ctx.moveTo(cx+Math.cos(a)*s*0.62, cy+Math.sin(a)*s*0.62);
+          ctx.lineTo(cx+Math.cos(a)*s*0.90, cy+Math.sin(a)*s*0.90);
+          ctx.stroke();
+        }
+      } else {
+        // Ay — clip ile kesme
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, s*0.78, 0, Math.PI*2); ctx.clip();
+        ctx.beginPath(); ctx.arc(cx, cy, s*0.78, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = bg;
+        ctx.beginPath(); ctx.arc(cx + s*0.40, cy - s*0.22, s*0.65, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
       }
-    }
-    ctx.restore();
-    state._darkModeBtn = { x:pcx-ICON, y:pcy-ICON, w:ICON*2, h:ICON*2 };
+    });
+    state._darkModeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawTutorialBtn() {
     const ctx = state.ctx, { levelSuccess } = state;
     if (levelSuccess) { state._tutorialBtn = null; return; }
     const { pcx, pcy, ICON } = this._btnCenter(3);
-    const s = ICON * 0.38;
-    ctx.save();
-    ctx.globalAlpha = 0.72;
-    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 4;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = ICON * 0.12;
-    ctx.lineCap = 'round';
-    // Soru işareti (?)
-    ctx.font = `bold ${Math.round(ICON * 0.85)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('?', pcx, pcy + ICON * 0.04);
-    ctx.restore();
-    state._tutorialBtn = { x: pcx - ICON, y: pcy - ICON, w: ICON * 2, h: ICON * 2 };
+    this._drawHCBtn(pcx, pcy, ICON, '#E94F6F', (cx, cy, s) => {
+      ctx.shadowBlur = 0;
+      ctx.font = `900 ${Math.round(ICON * 0.92)}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('?', cx, cy + ICON * 0.05);
+    });
+    state._tutorialBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
+  }
+
+  drawHomeBtn() {
+    const ctx = state.ctx, { levelSuccess } = state;
+    if (levelSuccess) { state._homeBtn = null; return; }
+    const { pcx, pcy, ICON } = this._btnCenter(4);
+    this._drawHCBtn(pcx, pcy, ICON, '#9B59B6', (cx, cy, s) => {
+      const hw = s*1.18, rh = s*0.70, bh = s*0.72, bw = hw*0.78;
+      ctx.lineWidth = Math.max(1.5, ICON * 0.15);
+      // Çatı
+      ctx.beginPath();
+      ctx.moveTo(cx - hw, cy - s*0.05);
+      ctx.lineTo(cx, cy - rh - s*0.05);
+      ctx.lineTo(cx + hw, cy - s*0.05);
+      ctx.stroke();
+      // Gövde
+      this.rrect(cx - bw, cy - s*0.05, bw*2, bh, bh*0.14); ctx.fill();
+    });
+    state._homeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawPauseOverlay() {
@@ -1440,21 +1476,26 @@ export class Renderer {
     const { W, H, CX, CY, MAIN_R, BTN_BOTTOM_PAD, BTN_PAD, S } = state;
     const isPortrait = W < H;
     if (isPortrait) {
-      const footerTop    = CY + MAIN_R + 8;
-      const footerBottom = H - Math.max(12, BTN_BOTTOM_PAD || 12) - 4;
+      const footerTop    = CY + MAIN_R + 4;
+      const footerBottom = H - Math.max(6, BTN_BOTTOM_PAD || 6) - 2;
       const footerH      = Math.max(20, footerBottom - footerTop);
-      // Buton ikonu: 4 dikey buton + 3 boşluk sığsın
-      const ICON  = Math.min(24, Math.max(12, Math.floor((footerH - 18) / 4 / 2)));
-      const PAD   = Math.max(8, BTN_PAD || 12);
-      const btnColW  = ICON * 2 + PAD * 2;        // buton sütunu genişliği
-      const stripAvailW = W - btnColW - PAD * 3;  // şerit için kalan genişlik
-      return { isPortrait, footerTop, footerBottom, footerH, ICON, PAD, btnColW, stripAvailW };
+      const PAD          = Math.max(6, BTN_PAD || 8);
+      // 5 buton daire düzeni — daire çapı = footerH
+      const btnR    = Math.max(10, Math.min(28, Math.round(footerH * 0.155)));
+      const circleR = Math.max(8, Math.floor(footerH / 2) - btnR);
+      const circleCX = W - PAD - Math.floor(footerH / 2);
+      const circleCY = footerTop + Math.floor(footerH / 2);
+      const btnColW  = Math.ceil(footerH) + PAD;
+      const stripAvailW = Math.max(20, W - btnColW - PAD * 2);
+      const ICON = btnR;
+      return { isPortrait, footerTop, footerBottom, footerH, PAD, btnColW, stripAvailW, ICON, btnR, circleR, circleCX, circleCY };
     }
-    // Landscape: şerit havuzun sol alanında, butonlar üst sağda değişmez
+    // Landscape: şerit havuzun sol alanında, butonlar üst sağda — web ile aynı
     const PAD     = Math.round(8 * S);
     const poolLeft = CX - MAIN_R;
     return { isPortrait, footerTop: CY - MAIN_R, footerBottom: CY + MAIN_R, footerH: MAIN_R * 2,
-             ICON: 30, PAD, btnColW: 0, stripAvailW: poolLeft - PAD * 2 };
+             ICON: 19, PAD, btnColW: 0, stripAvailW: poolLeft - PAD * 2,
+             btnR: 19, circleR: 0, circleCX: 0, circleCY: 0 };
   }
 
   // ── Palet rehberi ──────────────────────────────────────────────────

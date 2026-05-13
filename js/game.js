@@ -65,7 +65,7 @@ export class Game {
     // Forma göre MAIN_R scale — portrait'ta dar marj, landscape'te geniş
     const form = state.containerForm;
     if (form) {
-      const formMargin = L.W < L.H ? 5 : 16; // portrait: 1/3 küçültüldü
+      const formMargin = L.W < L.H ? 2 : 16; // portrait: kenara yapışık
       const maxHalfW = (L.W - formMargin * 2) / 2;
       const spread   = Math.max(Math.sin((form.openFrac ?? 0.5) * Math.PI), form.topWidthFactor ?? 1);
       const maxRbyForm = Math.floor(maxHalfW / spread);
@@ -115,6 +115,12 @@ export class Game {
     const { x, y } = this._getPos(e);
     state.mousePos = { x, y };
     this.audio.unlock();
+
+    // Pause overlay — her durumda (gameOver dahil) önce kontrol et
+    const rb = state._resumeBtn;
+    if (rb && x >= rb.x && x <= rb.x + rb.w && y >= rb.y && y <= rb.y + rb.h) {
+      state.isPaused = false; return;
+    }
 
     // levelSuccess: sadece next level butonuna izin ver
     if (state.levelSuccess) {
@@ -180,14 +186,17 @@ export class Game {
       }
       return;
     }
+    const hb = state._homeBtn;
+    if (hb && x >= hb.x && x <= hb.x + hb.w && y >= hb.y && y <= hb.y + hb.h) {
+      if (window._matrushkaMap && typeof window._matrushkaMap.show === 'function') {
+        window._matrushkaMap.show();
+      }
+      return;
+    }
     const pb = state._pauseBtn;
     if (pb && x >= pb.x && x <= pb.x + pb.w && y >= pb.y && y <= pb.y + pb.h) {
       state.isPaused = !state.isPaused;
       return;
-    }
-    const rb = state._resumeBtn;
-    if (rb && x >= rb.x && x <= rb.x + rb.w && y >= rb.y && y <= rb.y + rb.h) {
-      state.isPaused = false; return;
     }
     if (state.isPaused) return;
 
@@ -1167,21 +1176,20 @@ export class Game {
     if (bRect) R.drawBlastBtn(bRect, !state.levelSuccess && !state.gameOver && this.blast.isEnabled(bRect));
     R.drawBlastProjectiles();
 
-    // Palette guide — tüm overlay'lardan önce, şerit her zaman arkada kalır
+    // Palette guide + settings butonları — overlay'lardan önce, arkada kalır
     R.drawPaletteGuide();
+    R.drawSoundBtn();
+    R.drawDarkModeBtn();
+    R.drawTutorialBtn();
+    R.drawHomeBtn();
+    R.drawPauseBtn();
 
-    // Success / Game over / Tutorial overlay'leri — şeridin üstüne çizilir
+    // Success / Game over / Tutorial overlay'leri — butonların üstüne çizilir
     R.drawSuccessOverlay(this.goals, this.tutorial);
     if (state.gameOver) R.drawGameOver(this.goals);
     if (state.tutShowPopup) {
       this.tutorial.drawPopup();
     }
-
-    // Pause butonu + sound (her zaman en üstte)
-    R.drawSoundBtn();
-    R.drawDarkModeBtn();
-    R.drawTutorialBtn();
-    R.drawPauseBtn();
     if (state.isPaused) {
       R.drawPauseOverlay();
     } else {

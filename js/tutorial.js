@@ -151,9 +151,12 @@ export class TutorialManager {
     const font = `"ui-rounded","Arial Rounded MT Bold",sans-serif`;
 
     // ── Kart boyutu — viewport-responsive, S'den bağımsız ────────────────────
-    // Telefon (375px): cw≈323, web (1200px): cw≈380 (max)
-    const cw = Math.min(W * 0.86, 380);
-    const ch = showDemo ? Math.min(H * 0.62, 345) : Math.min(H * 0.56, 325);
+    // Telefon (375px): cw≈300, web (1200px): cw≈380 (max)
+    const isPhone = W < H && W < 500;
+    const cw = isPhone ? Math.min(W * 0.78, 320) : Math.min(W * 0.86, 380);
+    const ch = isPhone
+      ? (showDemo ? Math.min(H * 0.52, 290) : Math.min(H * 0.46, 270))
+      : (showDemo ? Math.min(H * 0.62, 345) : Math.min(H * 0.56, 325));
     const cx = CX - cw / 2;
     const cy = CY - ch / 2;
     // CS: karta oransal iç ölçek — telefonda ~0.85, web'de 1.0
@@ -180,6 +183,7 @@ export class TutorialManager {
 
     ctx.save();
     ctx.globalAlpha = alpha;
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; // önceki frame'den kalan gölgeyi temizle
     ctx.translate(CX, CY);
     ctx.scale(ep < 1 ? elastic : 1, ep < 1 ? elastic : 1);
     ctx.translate(-CX, -CY);
@@ -255,6 +259,7 @@ export class TutorialManager {
 
     const btnFs = Math.round(Math.max(16, 20 * CS));
     ctx.font = `900 ${btnFs}px ${font}`;
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillText(ctaLabel, CX, bcy + 3 * CS);
     ctx.fillStyle = '#1B5E20';
@@ -468,6 +473,7 @@ export class TutorialManager {
     const labelY   = cy + Math.round(96 * CS);
     const subY     = cy + Math.round(112 * CS);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
     ctx.font = `900 ${labelFs}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
     ctx.fillText('MERGE', merge_cx, labelY + 2);
@@ -510,6 +516,7 @@ export class TutorialManager {
     }
     ctx.restore();
 
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
     ctx.font = `900 ${labelFs}px ${font}`;
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
     ctx.fillText('ABSORB', absorb_cx, labelY + 2);

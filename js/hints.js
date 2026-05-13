@@ -102,21 +102,34 @@ export class HintManager {
   }
 
   _drawChainBand(goalManager, i, n) {
-    const { ctx, CY, MAIN_R } = state;
+    const { ctx, CY, MAIN_R, LEVELS } = state;
     const sp = goalManager.goalSlotPos(i);
+    const def = goalManager.getLevelDef();
+    const goal = def.goals[i];
 
-    const R_BIG = 14;
+    // _drawChain ile aynı tw2 hesabı — band, circle'larla tam hizalı olsun
+    const chain = [goal.level, ...goal.contains].filter(lv => lv >= 0 && lv < LEVELS.length).reverse();
+    const nc = chain.length;
+    const R_BIG = 14, R_SMALL = 6, ARROW = 7, GAP = 3;
+    const radii = chain.map((_, k) => nc === 1 ? R_BIG : Math.round(R_SMALL + (R_BIG - R_SMALL) * k / (nc - 1)));
+    const totalW = radii.reduce((s, r) => s + r * 2, 0) + (nc - 1) * (GAP * 2 + ARROW);
+    const maxW = sp.gemR * 2, scC = totalW > maxW ? maxW / totalW : 1;
+    const rr = radii.map(r => Math.max(3, Math.round(r * scC)));
+    const aw = Math.max(4, Math.round(ARROW * scC)), gw = Math.max(2, Math.round(GAP * scC));
+    const tw2 = rr.reduce((s, r) => s + r * 2, 0) + (nc - 1) * (gw * 2 + aw);
+    const bigR = rr[nc - 1]; // en büyük daire yarıçapı
+
     const poolTop = CY - MAIN_R;
-    const rawMidY = sp.cy + sp.gemR + 10 + R_BIG;
-    const midY = Math.min(rawMidY, poolTop - R_BIG - 12);
+    const rawMidY = sp.cy + sp.gemR + 10 + bigR;
+    const midY = Math.min(rawMidY, poolTop - bigR - 12);
 
-    const gap = Math.round(sp.gemR * 0.42); // goalSlotPos ile aynı gap
-    const padX = Math.min(8, Math.floor(gap / 2) - 1); // gap'in yarısından az
+    const gap = Math.round(sp.gemR * 0.42);
+    const padX = Math.min(8, Math.floor(gap / 2) - 1);
     const padY = 6;
-    const bandW = sp.gemR * 2 + padX * 2;
-    const bandH = R_BIG * 2 + padY * 2;
-    const bandLeft = sp.cx - sp.gemR - padX;
-    const bandY = midY - R_BIG - padY;
+    const bandW = tw2 + padX * 2;          // circle genişliğiyle hizalı
+    const bandH = bigR * 2 + padY * 2;
+    const bandLeft = sp.cx - tw2 / 2 - padX;  // sp.cx ortalı
+    const bandY = midY - bigR - padY;
     const bandR = bandH / 2;
 
     // Her slot kendi animasyonuyla senkron
