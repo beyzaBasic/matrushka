@@ -26,15 +26,46 @@ body {
   user-select: none;
 }
 canvas { display: block; touch-action: none; }
+
+/* Portrait lock — telefon/tablet landscape'e döndürüldüğünde uyarı göster */
+#orientation-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: #111;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+  font-family: "ui-rounded","Arial Rounded MT Bold",sans-serif;
+  font-size: 18px;
+  text-align: center;
+}
+#orientation-overlay .icon { font-size: 52px; animation: rot 1.6s ease-in-out infinite alternate; }
+@keyframes rot { from { transform: rotate(0deg); } to { transform: rotate(-90deg); } }
+@media (max-width: 1024px) and (orientation: landscape) {
+  #orientation-overlay { display: flex; }
+}
 </style>
 </head>
 <body>
+<div id="orientation-overlay">
+  <div class="icon">📱</div>
+  <div>Lütfen cihazı döndürün</div>
+  <div style="font-size:13px;opacity:0.6;">Please rotate to portrait</div>
+</div>
 <canvas id="c"></canvas>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
 <script type="module">
   import { Game } from './js/game.js';
   import { MapScreen } from './js/map.js';
+
+  // Portrait kilidi — telefon/tablet (max 1024px) için
+  const _isMobile = window.screen.width <= 1024 || window.screen.height <= 1024;
+  if (_isMobile && screen.orientation?.lock) {
+    screen.orientation.lock('portrait').catch(() => {});
+  }
 
   const canvas = document.getElementById('c');
 

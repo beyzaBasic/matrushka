@@ -1257,6 +1257,42 @@ export class Renderer {
     return { pcx: W - LPAD - LIC - idx * (LIC * 2 + LGAP), pcy: (safeTop || 0) + 24, ICON: LIC };
   }
 
+  // Butonların arka panel çerçevesi — portrait: daire, landscape: dikdörtgen
+  drawBtnPanel() {
+    const ctx = state.ctx;
+    const { isDarkMode, S } = state;
+    const fill   = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+    const stroke = isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)';
+    const { isPortrait, footerH, circleCX, circleCY, footerTop, ICON } = this._sidebarLayout();
+
+    ctx.save();
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+    ctx.fillStyle  = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth  = 1;
+
+    if (isPortrait) {
+      // Daire — çapı renk şeridinin boyu kadar
+      const r = Math.floor(footerH / 2);
+      ctx.beginPath();
+      ctx.arc(circleCX, circleCY, r, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    } else {
+      // Landscape: tüm butonları kaplayan pill dikdörtgen
+      const LIC = ICON, LGAP = 10, LPAD = 12, N = 5;
+      const { W, safeTop } = state;
+      const pcy = (safeTop || 0) + 24;
+      const rightEdge = W - LPAD;
+      const leftEdge  = W - LPAD - LIC * 2 - (N - 1) * (LIC * 2 + LGAP);
+      const padX = 8 * S, padY = 6 * S;
+      const pw = rightEdge - leftEdge + padX * 2;
+      const ph = LIC * 2 + padY * 2;
+      this.rrect(leftEdge - padX, pcy - LIC - padY, pw, ph, ph / 2);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Hypercasual buton çizici — renkli daire + highlight + beyaz ikon
   _drawHCBtn(pcx, pcy, r, bgColor, drawIconFn) {
     const ctx = state.ctx;
@@ -1283,8 +1319,8 @@ export class Renderer {
   }
 
   drawPauseBtn() {
-    const ctx = state.ctx, { isPaused, levelSuccess } = state;
-    if (levelSuccess) { state._pauseBtn = null; return; }
+    const ctx = state.ctx, { isPaused, levelSuccess, gameOver } = state;
+    if (levelSuccess || gameOver) state._pauseBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(0);
     this._drawHCBtn(pcx, pcy, ICON, '#4A8FE8', (cx, cy, s) => {
       if (isPaused) {
@@ -1301,8 +1337,9 @@ export class Renderer {
   }
 
   drawSoundBtn() {
-    const ctx = state.ctx, { isMuted, levelSuccess } = state;
-    if (levelSuccess) { state._soundBtn = null; return; }
+    const ctx = state.ctx, { isMuted, levelSuccess, gameOver, isPaused } = state;
+    const _disabled = levelSuccess || gameOver || isPaused;
+    if (_disabled) state._soundBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(1);
     this._drawHCBtn(pcx, pcy, ICON, '#2FC594', (cx, cy, s) => {
       ctx.beginPath();
@@ -1320,12 +1357,13 @@ export class Renderer {
         ctx.beginPath(); ctx.moveTo(cx+s*0.82,cy-s*0.52); ctx.lineTo(cx+s*0.28,cy+s*0.52); ctx.stroke();
       }
     });
-    state._soundBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
+    if (!_disabled) state._soundBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawDarkModeBtn() {
-    const ctx = state.ctx, { isDarkMode, levelSuccess } = state;
-    if (levelSuccess) { state._darkModeBtn = null; return; }
+    const ctx = state.ctx, { isDarkMode, levelSuccess, gameOver, isPaused } = state;
+    const _disabled = levelSuccess || gameOver || isPaused;
+    if (_disabled) state._darkModeBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(2);
     this._drawHCBtn(pcx, pcy, ICON, '#F5A623', (cx, cy, s, bg) => {
       if (!isDarkMode) {
@@ -1349,12 +1387,13 @@ export class Renderer {
         ctx.restore();
       }
     });
-    state._darkModeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
+    if (!_disabled) state._darkModeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawTutorialBtn() {
-    const ctx = state.ctx, { levelSuccess } = state;
-    if (levelSuccess) { state._tutorialBtn = null; return; }
+    const ctx = state.ctx, { levelSuccess, gameOver, isPaused } = state;
+    const _disabled = levelSuccess || gameOver || isPaused;
+    if (_disabled) state._tutorialBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(3);
     this._drawHCBtn(pcx, pcy, ICON, '#E94F6F', (cx, cy, s) => {
       ctx.shadowBlur = 0;
@@ -1362,12 +1401,13 @@ export class Renderer {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('?', cx, cy + ICON * 0.05);
     });
-    state._tutorialBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
+    if (!_disabled) state._tutorialBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawHomeBtn() {
-    const ctx = state.ctx, { levelSuccess } = state;
-    if (levelSuccess) { state._homeBtn = null; return; }
+    const ctx = state.ctx, { levelSuccess, gameOver, isPaused } = state;
+    const _disabled = levelSuccess || gameOver || isPaused;
+    if (_disabled) state._homeBtn = null;
     const { pcx, pcy, ICON } = this._btnCenter(4);
     this._drawHCBtn(pcx, pcy, ICON, '#9B59B6', (cx, cy, s) => {
       const hw = s*1.18, rh = s*0.70, bh = s*0.72, bw = hw*0.78;
@@ -1381,7 +1421,7 @@ export class Renderer {
       // Gövde
       this.rrect(cx - bw, cy - s*0.05, bw*2, bh, bh*0.14); ctx.fill();
     });
-    state._homeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
+    if (!_disabled) state._homeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
   drawPauseOverlay() {

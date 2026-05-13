@@ -188,6 +188,14 @@ export class Game {
     }
     const hb = state._homeBtn;
     if (hb && x >= hb.x && x <= hb.x + hb.w && y >= hb.y && y <= hb.y + hb.h) {
+      state.isPaused = false;
+      state.gameOver = false;
+      state.gameOverAlpha = 0;
+      state.levelSuccess = false;
+      state.levelSuccessAlpha = 0;
+      state.circles = [];
+      state.particles = [];
+      state.nextBall = null;
       if (window._matrushkaMap && typeof window._matrushkaMap.show === 'function') {
         window._matrushkaMap.show();
       }
@@ -1178,11 +1186,15 @@ export class Game {
 
     // Palette guide + settings butonları — overlay'lardan önce, arkada kalır
     R.drawPaletteGuide();
+    const _overlayActive = state.levelSuccess || state.gameOver || state.tutShowPopup || state.isPaused;
+    if (_overlayActive) { state.ctx.save(); state.ctx.globalAlpha = 0.30; }
+    R.drawBtnPanel();
     R.drawSoundBtn();
     R.drawDarkModeBtn();
     R.drawTutorialBtn();
     R.drawHomeBtn();
     R.drawPauseBtn();
+    if (_overlayActive) state.ctx.restore();
 
     // Success / Game over / Tutorial overlay'leri — butonların üstüne çizilir
     R.drawSuccessOverlay(this.goals, this.tutorial);
