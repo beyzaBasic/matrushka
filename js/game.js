@@ -459,9 +459,7 @@ export class Game {
       const cpIdx = Math.floor(completedGameLevels / LEVELS_PER_CP) - 1;
       // index.html üzerinden map'e eriş
       if (window._matrushkaMap) {
-        window._matrushkaMap.showCheckpoint(cpIdx, () => {
-          this._doNextLevel(nextLevel);
-        });
+        window._matrushkaMap.showCheckpoint(cpIdx);
       } else {
         this._doNextLevel(nextLevel);
       }

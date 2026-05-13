@@ -171,20 +171,24 @@ export class MapScreen {
     setTimeout(() => { if (this._div) this._div.style.display = 'none'; }, 400);
   }
 
-  showCheckpoint(cpIdx, onDone) {
+  showCheckpoint(cpIdx) {
     saveProgress((cpIdx + 1) * LEVELS_PER_CP);
     this._build();
     this._refreshNodes();
     this._div.style.display = 'block';
     requestAnimationFrame(() => { this._div.style.opacity = '1'; });
-    // Map ticker'ı başlat — checkpoint sırasında konfeti/walkers aksın
     if (this._app && this._app.ticker && !this._app.ticker.started) this._app.ticker.start();
+    // Yeni aktif node'u kutla
+    const newNodeIdx = (cpIdx + 1) * LEVELS_PER_CP;
+    const newNode = this._nodes[newNodeIdx];
+    if (newNode) { newNode.celebrate = true; newNode.celebrateT = 0; }
+    // Scroll: yeni node görünür olsun
     const H = this._app.screen.height;
-    const lastNode = this._nodes[(cpIdx + 1) * LEVELS_PER_CP - 1];
-    if (lastNode) this._targetY = Math.max(0, Math.min(this._worldH - H, lastNode.worldY - H * 0.5));
+    if (newNode) this._targetY = Math.max(0, Math.min(this._worldH - H, newNode.worldY - H * 0.5));
     this._rainOn   = true;
     this._rainCols = getWorldConfig(cpIdx).palette;
-    setTimeout(() => { this._showContBtn(onDone); }, 2500);
+    // "New Pack" popup'ı 600ms sonra göster
+    setTimeout(() => { this._showNewPackPopup(cpIdx); }, 600);
   }
 
   // ── Node tıklama ──────────────────────────────────────────────────
@@ -444,6 +448,21 @@ export class MapScreen {
       g.lineStyle(r*.10,0x2a2a44,0.85); g.arc(nd.x,ly,lw*.26,Math.PI,0,false); g.lineStyle(0);
       return;
     }
+    // celebration expanding rings
+    if(nd.celebrate){
+      nd.celebrateT=(nd.celebrateT||0)+dt*0.018;
+      const RING_COUNT=3, RING_DUR=1.0;
+      for(let i=0;i<RING_COUNT;i++){
+        const phase=((nd.celebrateT+i*(RING_DUR/RING_COUNT))%RING_DUR)/RING_DUR;
+        const ringR=r+phase*r*2.2;
+        const alpha=(1-phase)*0.75;
+        if(alpha>0.02){
+          g.lineStyle(2.5*(1-phase*0.6),nd.col,alpha);
+          g.drawCircle(nd.x,nd.worldY,ringR);
+          g.lineStyle(0);
+        }
+      }
+    }
     drawBall(g,nd.x,nd.worldY,r,nd.col);
     if(nd.isActive){
       g.lineStyle(3,nd.col,0.35+0.45*pulse); g.drawCircle(nd.x,nd.worldY,r+5+pulse*8); g.lineStyle(0);
@@ -495,24 +514,90 @@ export class MapScreen {
   }
 
   // ── Devam butonu ──────────────────────────────────────────────────
-  _showContBtn(onDone) {
-    if(this._contBtn) this._contBtn.remove();
-    const btn=document.createElement('button');
-    btn.textContent='Devam ▶';
-    btn.style.cssText=`position:fixed;bottom:48px;left:50%;transform:translateX(-50%);
-      z-index:200;padding:16px 48px;background:linear-gradient(135deg,#FFD700,#FF9500);
-      color:#000;font-size:18px;font-weight:bold;font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;letter-spacing:2px;
-      border:none;border-radius:50px;cursor:pointer;box-shadow:0 0 32px rgba(255,210,0,0.5);
-      opacity:0;transition:opacity 0.4s;`;
-    document.body.appendChild(btn);
-    this._contBtn=btn;
-    requestAnimationFrame(()=>{btn.style.opacity='1';});
-    btn.addEventListener('click',()=>{
-      this._rainOn=false;
-      this._rain.forEach(p=>this._rainLayer.removeChild(p.gfx));
-      this._rain=[];
-      btn.remove(); this._contBtn=null;
-      this.hide(); if(onDone)onDone();
-    });
+  _showNewPackPopup(cpIdx) {
+    const nextCpIdx = cpIdx + 1;
+    const world = getWorldConfig(nextCpIdx);
+    if (!world) return;
+    const pal = world.palette;
+    const mainCol = pal[Math.floor(pal.length / 2)] || '#FFD700';
+    const darkCol = pal[pal.length - 1] || '#FF9500';
+
+    if (!document.getElementById('_npStyles')) {
+      const st = document.createElement('style');
+      st.id = '_npStyles';
+      st.textContent = `
+        @keyframes _npFade{from{opacity:0}to{opacity:1}}
+        @keyframes _npPop{from{transform:scale(0.55);opacity:0}to{transform:scale(1);opacity:1}}
+        @keyframes _npBounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-12px)}70%{transform:translateY(4px)}}
+        @keyframes _npShine{0%{background-position:200% center}100%{background-position:-200% center}}
+      `;
+      document.head.appendChild(st);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `position:fixed;inset:0;z-index:400;display:flex;align-items:center;
+      justify-content:center;background:rgba(0,0,0,0.62);animation:_npFade 0.3s ease;`;
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background:linear-gradient(150deg,#1a0e3d 0%,#2a1460 60%,#1a0e3d 100%);
+      border-radius:28px;padding:36px 28px 28px;text-align:center;
+      box-shadow:0 0 60px ${mainCol}55,0 24px 64px rgba(0,0,0,0.55);
+      border:2px solid ${mainCol}44;max-width:300px;width:82%;position:relative;
+      animation:_npPop 0.42s cubic-bezier(0.34,1.56,0.64,1);`;
+
+    const badge = document.createElement('div');
+    badge.textContent = 'NEW PACK';
+    badge.style.cssText = `position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+      background:linear-gradient(90deg,${mainCol},${darkCol});color:#000;
+      font-weight:900;font-size:11px;letter-spacing:3px;padding:5px 20px;
+      border-radius:20px;font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
+      box-shadow:0 2px 14px ${mainCol}66;white-space:nowrap;`;
+
+    const icon = document.createElement('div');
+    icon.textContent = '🎁';
+    icon.style.cssText = `font-size:60px;display:block;margin-bottom:6px;animation:_npBounce 0.7s ease 0.25s both;`;
+
+    const label = document.createElement('div');
+    label.textContent = 'UNLOCKED!';
+    label.style.cssText = `color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:4px;`;
+
+    const name = document.createElement('div');
+    name.textContent = world.name.toUpperCase();
+    name.style.cssText = `
+      background:linear-gradient(90deg,${mainCol},#fff,${mainCol});
+      background-size:200% auto;animation:_npShine 2.2s linear infinite;
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      font-size:24px;font-weight:900;letter-spacing:1px;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:6px;`;
+
+    const sub = document.createElement('div');
+    sub.textContent = world.subtitle || '';
+    sub.style.cssText = `color:rgba(255,255,255,0.40);font-size:13px;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:22px;`;
+
+    const btn = document.createElement('div');
+    btn.textContent = 'EXPLORE  ▶';
+    btn.style.cssText = `
+      background:linear-gradient(135deg,${mainCol},${darkCol});
+      color:#000;font-weight:900;font-size:15px;letter-spacing:2px;
+      padding:14px 36px;border-radius:50px;cursor:pointer;display:inline-block;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
+      box-shadow:0 4px 24px ${mainCol}66;transition:transform 0.1s;`;
+    btn.addEventListener('pointerdown', () => { btn.style.transform = 'scale(0.95)'; });
+
+    card.append(badge, icon, label, name, sub, btn);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    const dismiss = () => {
+      overlay.style.transition = 'opacity 0.22s';
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.remove(); }, 220);
+      this._rainOn = false;
+      if (this._rain) { this._rain.forEach(p => this._rainLayer?.removeChild(p.gfx)); this._rain = []; }
+    };
+    btn.addEventListener('click', dismiss);
   }
 }

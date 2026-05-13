@@ -1243,18 +1243,12 @@ export class Renderer {
 
   // Buton merkez koordinatı — idx: 0=pause,1=sound,2=dark,3=tutorial,4=home
   _btnCenter(idx) {
-    const { W, safeTop } = state;
-    const { isPortrait, btnR, circleR, circleCX, circleCY } = this._sidebarLayout();
-    if (isPortrait) {
-      // Pentagon: 5 buton eşit açıyla daire üzerinde
-      const angle = -Math.PI / 2 + idx * (2 * Math.PI / 5);
-      const pcx = Math.round(circleCX + circleR * Math.cos(angle));
-      const pcy = Math.round(circleCY + circleR * Math.sin(angle));
-      return { pcx, pcy, ICON: btnR };
-    }
-    // Landscape: üst sağda yatay sıra — web ile aynı
-    const LIC = 19, LGAP = 10, LPAD = 12;
-    return { pcx: W - LPAD - LIC - idx * (LIC * 2 + LGAP), pcy: (safeTop || 0) + 24, ICON: LIC };
+    const { btnR, circleR, circleCX, circleCY } = this._sidebarLayout();
+    // Portrait ve landscape aynı pentagon düzeni
+    const angle = -Math.PI / 2 + idx * (2 * Math.PI / 5);
+    const pcx = Math.round(circleCX + circleR * Math.cos(angle));
+    const pcy = Math.round(circleCY + circleR * Math.sin(angle));
+    return { pcx, pcy, ICON: btnR };
   }
 
   // Butonların arka panel çerçevesi — portrait: daire, landscape: dikdörtgen
@@ -1263,7 +1257,7 @@ export class Renderer {
     const { isDarkMode, S } = state;
     const fill   = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
     const stroke = isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)';
-    const { isPortrait, footerH, circleCX, circleCY, footerTop, ICON } = this._sidebarLayout();
+    const { isPortrait, footerH, circleCX, circleCY } = this._sidebarLayout();
 
     ctx.save();
     ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
@@ -1278,16 +1272,10 @@ export class Renderer {
       ctx.arc(circleCX, circleCY, r, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
     } else {
-      // Landscape: tüm butonları kaplayan pill dikdörtgen
-      const LIC = ICON, LGAP = 10, LPAD = 12, N = 5;
-      const { W, safeTop } = state;
-      const pcy = (safeTop || 0) + 24;
-      const rightEdge = W - LPAD;
-      const leftEdge  = W - LPAD - LIC * 2 - (N - 1) * (LIC * 2 + LGAP);
-      const padX = 8 * S, padY = 6 * S;
-      const pw = rightEdge - leftEdge + padX * 2;
-      const ph = LIC * 2 + padY * 2;
-      this.rrect(leftEdge - padX, pcy - LIC - padY, pw, ph, ph / 2);
+      // Landscape: sağ üstte daire
+      const r = Math.floor(footerH / 2);
+      ctx.beginPath();
+      ctx.arc(circleCX, circleCY, r, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
     }
     ctx.restore();
@@ -1535,12 +1523,23 @@ export class Renderer {
       const ICON = btnR;
       return { isPortrait, footerTop, footerBottom, footerH, PAD, btnColW, stripAvailW, ICON, btnR, circleR, circleCX, circleCY };
     }
-    // Landscape: şerit havuzun sol alanında, butonlar üst sağda — web ile aynı
-    const PAD     = Math.round(8 * S);
+    // Landscape: sağ üstte pentagon daire
+    const PAD      = Math.round(8 * S);
+    const btnR     = Math.max(8, Math.round(13 * S));
+    // Pentagon: komşu butonlar arası mesafe = 2*circleR*sin(π/5) >= 2*btnR + BTN_GAP
+    const BTN_GAP  = Math.max(2, Math.round(4 * S));
+    const circleR  = Math.ceil((btnR + BTN_GAP) / Math.sin(Math.PI / 5));
+    // Daire kenarı ile buton arası padding
+    const RING_PAD = Math.max(4, Math.round(5 * S));
+    const bgR      = circleR + btnR + RING_PAD;
+    // Daire altı = hint satırı altıyla hizalı (pool üst kenarından küçük boşluk)
+    const hintBottom = CY - MAIN_R - 6;
+    const circleCX = W - PAD - bgR;
+    const circleCY = hintBottom - bgR;
     const poolLeft = CX - MAIN_R;
-    return { isPortrait, footerTop: CY - MAIN_R, footerBottom: CY + MAIN_R, footerH: MAIN_R * 2,
-             ICON: 19, PAD, btnColW: 0, stripAvailW: poolLeft - PAD * 2,
-             btnR: 19, circleR: 0, circleCX: 0, circleCY: 0 };
+    return { isPortrait, footerTop: CY - MAIN_R, footerBottom: CY + MAIN_R, footerH: bgR * 2,
+             PAD, btnColW: 0, stripAvailW: poolLeft - PAD * 2,
+             ICON: btnR, btnR, circleR, circleCX, circleCY };
   }
 
   // ── Palet rehberi ──────────────────────────────────────────────────
