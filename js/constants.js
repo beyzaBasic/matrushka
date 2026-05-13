@@ -1,5 +1,5 @@
 // ── constants.js ──────────────────────────────────────────────────
-import { WORLD_CONFIG } from './world-config.js';
+import { WORLD_CONFIG, CONTAINER_FORMS } from './world-config.js';
 export const TUTORIAL_LEVELS = 1;
 
 
@@ -125,108 +125,108 @@ export function buildLevels(MAIN_R, palette, shape = 'sphere') {
   }));
 }
 
-// ── Dinamik level tasarımı — WORLD_CONFIG'den otomatik üretilir ──────
-// LEVEL_DEFS artık statik array değil; buildLevelDefs(WORLD_CONFIG) ile üretilir.
-// world-config.js'e yeni CP eklemek yeterli — constants.js'e dokunmaya gerek yok.
+// ── Level tasarımı ────────────────────────────────────────────────
+//
+// Her level def: { goals, containerForm }
+//   goals[i] = { level: N, contains: [N-1, N-2, ...] }
+//     level    = slotun beklediği en büyük top boyutu (0–6)
+//     contains = içinde bulunması gereken daha küçük boyutlar (iç halkalar)
+//   containerForm = o levele özel kap şekli (CP varsayılanını override eder)
+//
+// HYPERCASUAL ARC (10 level = 1 CP):
+//   L01 HOOK    1 slot, 0 iç halka — anında kazandır
+//   L02 LEARN   1 slot, 1 iç halka — konsept tanıtımı
+//   L03 APPLY   2 slot, flat       — öğrendiklerini kullan
+//   L04 TWIST   2 slot, asimetrik  — sol/sağ derinlik farkı
+//   L05 RELIEF  1 slot             — nefes al
+//   L06 SPIKE   3 slot             — şok dalgası!
+//   L07 SETTLE  2 slot, orta       — spikeı sindir
+//   L08 BUILD   3 slot, 2 nested   — boss tırmanışı
+//   L09 BOSS    3 slot, depth-2    — CP'nin zirvesi
+//   L10 FINALE  3-4 slot, max depth — hak edilmiş kapanış
+//
+// SLOT SAYISI: CP ilerledikçe 3-slot daha erken girer; CP3'ten 4-slot eklenur.
+// DEPTH: Her CP'de depth-2 L09'da standart; depth-3 L10'dan CP3'te L09'a iner.
+// CONTAINER FORM: basit levellerde classicU/roundBowl,
+//                 spike/boss'ta tallNarrow/goblet, finale'de vase.
 
-/**
- * Her CP için 10 level üretir. cp index'i ve toplam CP sayısına göre
- * baseLv (baskın level) ve chain derinliği otomatik ölçeklenir.
- *
- * baseLv: CP ilerledikçe artar. İlk CP'de 2-3, son CP'de 5-6 arası.
- * posIdx 0-9: her level içi pozisyon → slot sayısı, chain, nefes/boss ritmi
- */
-function _buildCpLevels(cpIdx, totalCp) {
-  const t = totalCp <= 1 ? 0 : cpIdx / (totalCp - 1);
-  const baseLv = Math.round(2 + t * 3);   // CP0→2, CP4→5
-  const maxLv  = Math.min(6, baseLv + 1);
-  const minLv  = Math.max(1, baseLv - 1);
-  const isLast = cpIdx >= totalCp - 1;
-
-  const chain = (lv, depth) => {
-    const c = [];
-    for (let d = 1; d <= depth && lv - d >= 0; d++) c.push(lv - d);
-    return { level: lv, contains: c };
+function _buildCpLevels(cpIdx, _totalCp) {
+  const CF = CONTAINER_FORMS;
+  const c = (lv, depth) => {
+    const contains = [];
+    const minDepth = Math.max(1, depth); // slot asla tek renk olamaz
+    for (let d = 1; d <= minDepth && lv - d >= 0; d++) contains.push(lv - d);
+    return { level: lv, contains };
   };
 
-  // Tasarım kuralları:
-  //   • Aynı leveldaki slotlar birbirinden net farklı (lv veya depth farklı)
-  //   • Ardışık iki level aynı slot yapısını tekrar etmez
-  //   • Depth 3 (üç iç halka) L9/L10 boss'larında sürpriz olarak girer
-  //   • Nefes levelleri (2-slot, düşük depth) baskı sonrası yerleştiriliyor
-  //   • 1-slot → 2-slot → 3-slot geçişi her şablonda farklı noktada
-
-  const v = cpIdx % 5;
-
-  if (v === 0) return [
-    // A — "Kademeli Tırmanış": temiz çizgi, her adım biraz daha derin
-    { goals: [chain(baseLv, 1)] },                                               // L1  — tek halka giriş
-    { goals: [chain(baseLv, 2)] },                                               // L2  — tek, içi dolu
-    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                             // L3  — 2 slot, farklı renkler
-    { goals: [chain(maxLv, 1), chain(baseLv, 2)] },                             // L4  — max giriyor, asimetri
-    { goals: [chain(baseLv, 2), chain(minLv, 1)] },                             // L5  — nefes: sol derin sağ hafif
-    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 1)] },            // L6  — 3 slot, hepsi sığ
-    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L7  — sol derinleşir
-    { goals: [chain(maxLv, 1), chain(baseLv, 2), chain(minLv, 2)] },            // L8  — sağ ağırlaşır
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 1)] },            // L9  — boss: iki derin
-    { goals: [chain(maxLv, 3), chain(baseLv, 2), chain(minLv, isLast?3:2)] },   // L10 — final: max depth 3!
+  // ── CP 0: Öğrenme — Boyutlar 1–4, max depth 2 ───────────────────
+  if (cpIdx === 0) return [
+    { goals: [c(3,0)],                          containerForm: CF.classicU   }, // L01 HOOK   tek düz top
+    { goals: [c(3,1)],                          containerForm: CF.classicU   }, // L02 LEARN  ilk iç halka
+    { goals: [c(4,0), c(2,0)],                 containerForm: CF.roundBowl  }, // L03 APPLY  2 slot, flat
+    { goals: [c(4,1), c(2,0)],                 containerForm: CF.classicU   }, // L04 TWIST  sol nested, sağ flat
+    { goals: [c(3,1)],                          containerForm: CF.roundBowl  }, // L05 RELIEF 1 slot nefes
+    { goals: [c(4,0), c(3,1), c(2,0)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot!
+    { goals: [c(4,1), c(2,0)],                 containerForm: CF.classicU   }, // L07 SETTLE 2 slot
+    { goals: [c(4,1), c(3,1), c(2,0)],         containerForm: CF.goblet     }, // L08 BUILD  3 slot, 2 nested
+    { goals: [c(4,2), c(3,1), c(2,0)],         containerForm: CF.goblet     }, // L09 BOSS   depth 2 giriyor
+    { goals: [c(4,2), c(3,1), c(2,1)],         containerForm: CF.vase       }, // L10 FINALE tüm slotlar nested
   ];
 
-  if (v === 1) return [
-    // B — "Sürpriz Sol": nefes sağda, ağırlık sola birikir; ortada 1-slot twist
-    { goals: [chain(baseLv, 1)] },                                               // L1  — giriş
-    { goals: [chain(minLv, 1), chain(baseLv, 1)] },                             // L2  — min tanıtımı
-    { goals: [chain(baseLv, 2)] },                                               // L3  — 1-slot nefes, ama derin
-    { goals: [chain(minLv, 2), chain(baseLv, 1)] },                             // L4  — min derinleşir
-    { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                             // L5  — max giriyor sağdan
-    { goals: [chain(minLv, 1), chain(baseLv, 2), chain(maxLv, 1)] },            // L6  — 3 slot: orta derin
-    { goals: [chain(baseLv, 1), chain(maxLv, 2), chain(minLv, 1)] },            // L7  — max derinleşir ortada
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 2)] },            // L8  — hepsi depth 2
-    { goals: [chain(maxLv, 2), chain(maxLv, 1), chain(baseLv, 2)] },            // L9  — boss: çift max
-    { goals: [chain(maxLv, isLast?3:2), chain(maxLv, 2), chain(baseLv, 2)] },   // L10 — final boss
+  // ── CP 1: Tırmanış — Boyutlar 2–5, depth 2 normal hale gelir ────
+  if (cpIdx === 1) return [
+    { goals: [c(4,1)],                          containerForm: CF.classicU   }, // L01 HOOK   nested single
+    { goals: [c(5,0), c(3,0)],                 containerForm: CF.roundBowl  }, // L02 LEARN  2 slot, boyut 5 giriyor
+    { goals: [c(5,1), c(3,0)],                 containerForm: CF.classicU   }, // L03 APPLY  sol nested
+    { goals: [c(5,0), c(3,1)],                 containerForm: CF.classicU   }, // L04 TWIST  sağ nested
+    { goals: [c(4,1)],                          containerForm: CF.roundBowl  }, // L05 RELIEF 1 slot
+    { goals: [c(5,0), c(4,0), c(2,0)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot, dar kap
+    { goals: [c(5,1), c(3,0)],                 containerForm: CF.classicU   }, // L07 SETTLE 2 slot
+    { goals: [c(5,1), c(4,1), c(2,0)],         containerForm: CF.goblet     }, // L08 BUILD  3 slot, 2 nested
+    { goals: [c(5,2), c(4,1), c(2,0)],         containerForm: CF.goblet     }, // L09 BOSS   depth 2
+    { goals: [c(5,2), c(4,2), c(2,1)],         containerForm: CF.vase       }, // L10 FINALE tüm slotlar derin
   ];
 
-  if (v === 2) return [
-    // C — "Erken Üçlü": L3'te 3 slot sürprizi, sonra 2-slot nefes, tekrar tırmanış
-    { goals: [chain(baseLv, 1)] },                                               // L1  — tek
-    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                             // L2  — 2 slot hızlı
-    { goals: [chain(minLv, 1), chain(baseLv, 1), chain(maxLv, 1)] },            // L3  — 3 slot sürpriz, hepsi sığ!
-    { goals: [chain(baseLv, 2), chain(minLv, 1)] },                             // L4  — 2 slot nefes
-    { goals: [chain(maxLv, 1), chain(baseLv, 2)] },                             // L5  — max+derin combo
-    { goals: [chain(minLv, 2), chain(baseLv, 1), chain(maxLv, 1)] },            // L6  — 3 slot: sol derinleşti
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 1)] },            // L7  — iki derin
-    { goals: [chain(minLv, 2), chain(maxLv, 2), chain(baseLv, 1)] },            // L8  — kanatlar derin, merkez nefes
-    { goals: [chain(maxLv, 3), chain(minLv, 2), chain(baseLv, 1)] },            // L9  — boss: depth 3 ilk kez!
-    { goals: [chain(maxLv, 3), chain(baseLv, isLast?3:2), chain(minLv, 2)] },   // L10 — final
+  // ── CP 2: Fırtına — Boyutlar 2–6, 3 slot standart, depth 3 finale ─
+  if (cpIdx === 2) return [
+    { goals: [c(5,1), c(3,0)],                 containerForm: CF.classicU   }, // L01 HOOK   2 slot, nested
+    { goals: [c(6,0), c(4,0)],                 containerForm: CF.roundBowl  }, // L02 LEARN  boyut 6 sürpriz!
+    { goals: [c(6,0), c(4,0), c(2,0)],         containerForm: CF.roundBowl  }, // L03 SPIKE  erken 3 slot!
+    { goals: [c(5,1), c(3,1)],                 containerForm: CF.classicU   }, // L04 RELIEF 2 slot nefes
+    { goals: [c(6,1), c(4,1)],                 containerForm: CF.tallNarrow }, // L05 APPLY  2 slot, ikisi nested
+    { goals: [c(6,1), c(4,1), c(2,0)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot, 2 nested
+    { goals: [c(6,2), c(4,0), c(2,0)],         containerForm: CF.goblet     }, // L07 TWIST  depth 2 giriyor
+    { goals: [c(6,1), c(5,1), c(4,1)],         containerForm: CF.goblet     }, // L08 BUILD  dar aralık, tümü nested
+    { goals: [c(6,2), c(5,1), c(3,1)],         containerForm: CF.vase       }, // L09 BOSS   vazo + depth 2
+    { goals: [c(6,3), c(5,1), c(4,1), c(2,0)], containerForm: CF.vase       }, // L10 FINALE depth 3 + 4 slot!
   ];
 
-  if (v === 3) return [
-    // D — "Dalgalı Nefes": zorluk bilinçli dalgalı — tırman, nefes, tekrar
-    { goals: [chain(baseLv, 2)] },                                               // L1  — baştan derin, tek
-    { goals: [chain(baseLv, 1), chain(minLv, 1)] },                             // L2  — nefes
-    { goals: [chain(maxLv, 1), chain(baseLv, 1)] },                             // L3  — surge: max giriyor
-    { goals: [chain(minLv, 2), chain(maxLv, 1)] },                              // L4  — min derinleşir
-    { goals: [chain(baseLv, 1), chain(minLv, 1), chain(maxLv, 1)] },            // L5  — 3 slot, hepsi sığ
-    { goals: [chain(maxLv, 2), chain(baseLv, 1), chain(minLv, 1)] },            // L6  — sol ağırlaşır
-    { goals: [chain(baseLv, 1), chain(maxLv, 1), chain(minLv, 2)] },            // L7  — nefes dalgası: sağ derinleşir
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(minLv, 2)] },            // L8  — hepsi depth 2, tepe
-    { goals: [chain(maxLv, 2), chain(baseLv, 2), chain(maxLv, 1)] },            // L9  — boss
-    { goals: [chain(maxLv, isLast?3:2), chain(baseLv, 2), chain(minLv, 2)] },   // L10 — final
+  // ── CP 3: Derinlik — Boyutlar 3–6, 4 slot L08'de, depth 3 boss ──
+  if (cpIdx === 3) return [
+    { goals: [c(6,1), c(4,0)],                 containerForm: CF.classicU   }, // L01 HOOK   2 slot
+    { goals: [c(6,1), c(4,1), c(3,0)],         containerForm: CF.roundBowl  }, // L02 LEARN  3 slot hızlı
+    { goals: [c(6,2), c(4,0)],                 containerForm: CF.tallNarrow }, // L03 TWIST  depth 2, 2 slot
+    { goals: [c(6,1), c(5,1), c(3,0)],         containerForm: CF.goblet     }, // L04 APPLY  dar boyut aralığı
+    { goals: [c(6,1), c(4,1)],                 containerForm: CF.classicU   }, // L05 RELIEF 2 slot
+    { goals: [c(6,2), c(5,1), c(3,0)],         containerForm: CF.tallNarrow }, // L06 SPIKE  depth 2 + dar kap
+    { goals: [c(6,2), c(5,1), c(4,1)],         containerForm: CF.goblet     }, // L07 BUILD  3 slot, dar aralık
+    { goals: [c(6,2), c(5,1), c(4,1), c(3,0)], containerForm: CF.goblet     }, // L08 SURGE  4 SLOT ilk kez!
+    { goals: [c(6,3), c(5,1), c(4,1), c(3,0)], containerForm: CF.vase       }, // L09 BOSS   depth 3!
+    { goals: [c(6,3), c(5,2), c(4,1), c(3,1)], containerForm: CF.vase       }, // L10 FINALE maksimum
   ];
 
-  // v === 4
+  // ── CP 4: Endgame — 4 slot standart, depth 3 çoklu slot ─────────
   return [
-    // E — "Geç Patlama": base atlayarak başlar, son 4 levelde patlama
-    { goals: [chain(baseLv, 1)] },                                               // L1  — tek
-    { goals: [chain(minLv, 1), chain(maxLv, 1)] },                              // L2  — base yok! renk kontrast
-    { goals: [chain(baseLv, 2)] },                                               // L3  — 1-slot derin öğret
-    { goals: [chain(baseLv, 1), chain(maxLv, 1)] },                             // L4  — 2 slot: max kalır
-    { goals: [chain(minLv, 1), chain(baseLv, 2), chain(maxLv, 1)] },            // L5  — 3 slot giriş: orta derin
-    { goals: [chain(baseLv, 2), chain(minLv, 1), chain(maxLv, 2)] },            // L6  — kanatlar derinleşir
-    { goals: [chain(maxLv, 1), chain(baseLv, 1), chain(minLv, 2)] },            // L7  — nefes: sağ sürpriz
-    { goals: [chain(maxLv, 2), chain(minLv, 2), chain(baseLv, 2)] },            // L8  — hepsi depth 2
-    { goals: [chain(maxLv, 3), chain(baseLv, 1), chain(minLv, 2)] },            // L9  — boss: max depth 3, kontrast
-    { goals: [chain(maxLv, isLast?3:2), chain(baseLv, 2), chain(minLv, isLast?3:2)] }, // L10 — final
+    { goals: [c(6,2), c(4,1)],                 containerForm: CF.classicU   }, // L01 HOOK   biraz nefes
+    { goals: [c(6,2), c(5,1), c(3,0)],         containerForm: CF.tallNarrow }, // L02 LEARN  3 slot hızlı
+    { goals: [c(6,1), c(5,2), c(4,0)],         containerForm: CF.goblet     }, // L03 TWIST  depth yeri değişti
+    { goals: [c(6,2), c(5,1), c(4,1), c(3,0)], containerForm: CF.roundBowl  }, // L04 APPLY  4 slot artık normal
+    { goals: [c(6,1), c(5,1)],                 containerForm: CF.classicU   }, // L05 RELIEF 2 slot
+    { goals: [c(6,2), c(5,2), c(4,1), c(3,0)], containerForm: CF.tallNarrow }, // L06 SPIKE  4 slot + 2×depth2
+    { goals: [c(6,3), c(5,1), c(4,0)],         containerForm: CF.goblet     }, // L07 TWIST  depth 3! 3 slot
+    { goals: [c(6,2), c(5,2), c(4,2), c(3,0)], containerForm: CF.goblet     }, // L08 BUILD  4 slot, hepsi derin
+    { goals: [c(6,3), c(5,2), c(4,1), c(3,1)], containerForm: CF.vase       }, // L09 BOSS   maksimum kaos
+    { goals: [c(6,3), c(5,2), c(4,2), c(3,1)], containerForm: CF.vase       }, // L10 FINALE ultimate
   ];
 }
 

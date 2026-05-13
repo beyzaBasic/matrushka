@@ -45,7 +45,7 @@ export const WORLD_CONFIG = [
     shape: 'jellybear', bgColor: '#F5FFFA',
     lightBg: ['#EEE8F5', '#E4DBF0', '#D4C8E8', '#C4B8DA'], // Dusty Lavender
     palette: ['#ADFF2F', '#FFD700', '#FFA500', '#FF7F50', '#FF1493', '#8A2BE2', '#0000CD'],
-    containerForm: CONTAINER_FORMS.roundBowl,
+    containerForm: CONTAINER_FORMS.classicU,
     gravity: 0.35 },
 
   // ── AKT 2: ÖĞLE ──────────────────────────────────────────────────
@@ -55,7 +55,7 @@ export const WORLD_CONFIG = [
     shape: 'matrushka', bgColor: '#c8ffe0',
     lightBg: ['#EFF5EC', '#E2EDD9', '#CCDFC4', '#BCCFAF'], // Soft Sage
     palette: ['#00f279', '#00ccff', '#0044ff', '#cc00ff', '#ff0077', '#ff6600', '#ffee00'],
-    containerForm: CONTAINER_FORMS.tallNarrow,
+    containerForm: CONTAINER_FORMS.classicU,
     gravity: 0.44 },
 
   // CP 03 · duck (Mavi Şeker) — Kadeh (dışa açılır), ağır yerçekimi
@@ -63,7 +63,7 @@ export const WORLD_CONFIG = [
     shape: 'duck', bgColor: '#D1E9FF',
     lightBg: ['#F0E8D8', '#E8DCCA', '#DDD0B8', '#D9CAAB'], // Warm Sand
     palette: ['#FF1493', '#9B00FF', '#0088FF', '#00CCFF', '#00DD00', '#FFD700', '#FF6600'],
-    containerForm: CONTAINER_FORMS.goblet,
+    containerForm: CONTAINER_FORMS.classicU,
     gravity: 0.53 },
 
   // ── AKT 4: ENDGAME ───────────────────────────────────────────────
@@ -73,7 +73,7 @@ export const WORLD_CONFIG = [
     shape: 'fish', bgColor: '#EBDDFF',
     lightBg: ['#EFF5EC', '#E2EDD9', '#CCDFC4', '#BCCFAF'], // Soft Sage
     palette:['#9B00FF', '#FF1493', '#FF6600', '#FFD700', '#00CC00', '#00E5FF', '#0088FF'],
-    containerForm: CONTAINER_FORMS.vase,
+    containerForm: CONTAINER_FORMS.classicU,
     gravity: 0.64 },
 
 ];

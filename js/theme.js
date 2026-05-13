@@ -5,8 +5,7 @@
 
 import { state } from './state.js';
 import { getWorldConfig, cpIdxFromLevel } from './world-config.js';
-import { buildLevels } from './constants.js';
-import { TUTORIAL_LEVELS } from './constants.js';
+import { buildLevels, LEVEL_DEFS, TUTORIAL_LEVELS } from './constants.js';
 
 export class ThemeManager {
 
@@ -62,9 +61,16 @@ export class ThemeManager {
         const lv = btn.levels[0];
         if (lv < state.LEVELS.length) btn.color = state.LEVELS[lv].color;
       }
-      return;
+    } else {
+      this.apply(cpIdx);
     }
-    this.apply(cpIdx);
+
+    // Per-level containerForm override (her level'ın kendi kap formu varsa uygula)
+    const levelDef = LEVEL_DEFS[internalLevel];
+    if (levelDef?.containerForm) {
+      state.containerForm = levelDef.containerForm;
+      if (state.theme) state.theme.containerForm = levelDef.containerForm;
+    }
   }
 
   // Resize sonrası LEVELS'ı ve renkleri yenile (CP değişmez)
