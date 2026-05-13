@@ -35,13 +35,15 @@ export function buildLayout() {
   const BTN_BOTTOM_PAD = Math.max(12, safeBot + 8);
 
   // MAIN_R: dikey alana göre maksimum — form bazlı scale _applyLayout'ta yapılır
-  const SIDE_PAD   = 16;
-  const maxRbyW    = Math.floor((W - SIDE_PAD * 2) / 2); // yatay üst sınır (form gözetmeden)
-  const _R_EST     = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
-  const BTN_H_EST  = Math.round(_R_EST * 0.62 * 0.42);
-  const BOTTOM_PAD = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
-  const MAIN_R     = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
-  const CY         = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
+  const isPortrait  = W < H;
+  const SIDE_PAD    = isPortrait ? Math.max(4, Math.round(16 / 3)) : 16; // portrait: 1/3 küçültüldü
+  const maxRbyW     = Math.floor((W - SIDE_PAD * 2) / 2);
+  const _R_EST      = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
+  const BTN_H_EST   = Math.round(_R_EST * 0.62 * 0.42);
+  const BOTTOM_PAD_BASE = BTN_H_EST + BTN_PAD + BTN_BOTTOM_PAD;
+  const BOTTOM_PAD  = isPortrait ? Math.round(BOTTOM_PAD_BASE * 1.5) : BOTTOM_PAD_BASE; // portrait: footer 1.5x
+  const MAIN_R      = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BOTTOM_PAD) / 2 - 2));
+  const CY          = SCORE_AREA + MAIN_R + Math.round((H - SCORE_AREA - BOTTOM_PAD - MAIN_R * 2) / 2);
 
   const safeTop = (() => {
     try {

@@ -62,10 +62,11 @@ export class Game {
     const L = buildLayout();
     Object.assign(state, L);
 
-    // Forma göre MAIN_R scale — her form 8px marjla tam sığsın
+    // Forma göre MAIN_R scale — portrait'ta dar marj, landscape'te geniş
     const form = state.containerForm;
     if (form) {
-      const maxHalfW = (L.W - 8 * 2) / 2;
+      const formMargin = L.W < L.H ? 5 : 16; // portrait: 1/3 küçültüldü
+      const maxHalfW = (L.W - formMargin * 2) / 2;
       const spread   = Math.max(Math.sin((form.openFrac ?? 0.5) * Math.PI), form.topWidthFactor ?? 1);
       const maxRbyForm = Math.floor(maxHalfW / spread);
       if (maxRbyForm < state.MAIN_R) {

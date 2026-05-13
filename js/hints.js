@@ -163,15 +163,27 @@ export class HintManager {
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.001 * 2.2);
     for (let i = 0; i < n; i++) {
       const lv = chain[i], r = rr[i], col = LEVELS[lv].color, cx2 = curX + r;
-      ctx.save(); ctx.globalAlpha = 0.85 + 0.15 * pulse;
-      ctx.beginPath(); ctx.arc(cx2, midY, r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
-      ctx.restore(); curX += r * 2;
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      // gölge — renkleri birbirinden ayırt ettirmeye yardımcı
+      ctx.shadowColor = 'rgba(0,0,0,0.55)';
+      ctx.shadowBlur = r * 0.7;
+      ctx.beginPath(); ctx.arc(cx2, midY, r, 0, Math.PI * 2);
+      ctx.fillStyle = col; ctx.fill();
+      // beyaz kenar halkası
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+      ctx.lineWidth = Math.max(1, r * 0.22);
+      ctx.stroke();
+      ctx.restore();
+      curX += r * 2;
       if (i < n - 1) {
         curX += gw;
-        const ax1 = curX, ax2 = curX + aw, ah = Math.max(2, Math.round(aw * 0.5));
-        ctx.save(); ctx.globalAlpha = 0.5 + 0.2 * pulse;
-        ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-        ctx.lineWidth = Math.max(1, aw * 0.2);
+        const ax1 = curX, ax2 = curX + aw, ah = Math.max(2, Math.round(aw * 0.55));
+        const arrowCol = state.isDarkMode ? 'rgba(255,255,255,0.90)' : 'rgba(30,30,30,0.70)';
+        ctx.save(); ctx.globalAlpha = 0.75 + 0.2 * pulse;
+        ctx.fillStyle = arrowCol; ctx.strokeStyle = arrowCol;
+        ctx.lineWidth = Math.max(1, aw * 0.25);
         ctx.beginPath(); ctx.moveTo(ax1, midY); ctx.lineTo(ax2 - ah, midY); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(ax2, midY); ctx.lineTo(ax2 - ah, midY - ah); ctx.lineTo(ax2 - ah, midY + ah); ctx.closePath(); ctx.fill();
         ctx.restore(); curX += aw + gw;
