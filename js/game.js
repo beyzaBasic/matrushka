@@ -10,6 +10,7 @@ import { TutorialManager } from './tutorial.js';
 import { Renderer } from './renderer.js';
 import { LEVELS_PER_CP, levelFromCpIdx, cpIdxFromLevel, getWorldConfig } from './world-config.js';
 import { ThemeManager } from './theme.js';
+import { popupManager } from './popup-manager.js';
 
 export class Game {
   constructor(canvas) {
@@ -472,109 +473,33 @@ export class Game {
 
   _showNewPackInterstitial(cpIdx, nextLevel) {
     const nextWorld = getWorldConfig(cpIdx + 1);
-    const pal = nextWorld?.palette || ['#FFD700', '#FF9500'];
-    const mainCol = pal[Math.floor(pal.length / 2)] || '#FFD700';
-    const darkCol = pal[pal.length - 1] || '#FF9500';
+    const pal      = nextWorld?.palette || ['#FFD700', '#FF9500'];
+    const mainCol  = pal[Math.floor(pal.length / 2)] || '#FFD700';
+    const darkCol  = pal[pal.length - 1] || '#FF9500';
+    const shape    = nextWorld?.shape || 'sphere';
 
-    // Ses durumunu koru (overlay sırasında WebAudio suspend olabilir)
-    if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
-
-    if (!document.getElementById('_npIntStyles')) {
-      const st = document.createElement('style');
-      st.id = '_npIntStyles';
-      st.textContent = `
-        @keyframes _npiFade{from{opacity:0}to{opacity:1}}
-        @keyframes _npiPop{from{transform:scale(0.5) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0deg);opacity:1}}
-        @keyframes _npiBounce{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-18px) scale(1.14)}65%{transform:translateY(5px) scale(0.96)}}
-        @keyframes _npiShine{0%{background-position:200% center}100%{background-position:-200% center}}
-        @keyframes _npiPulse{0%,100%{box-shadow:0 0 32px var(--np-glow),0 16px 48px rgba(0,0,0,0.5)}50%{box-shadow:0 0 72px var(--np-glow),0 16px 48px rgba(0,0,0,0.5)}}
-        @keyframes _npiSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-      `;
-      document.head.appendChild(st);
-    }
-
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `position:fixed;inset:0;z-index:500;display:flex;align-items:center;
-      justify-content:center;background:rgba(0,0,0,0.78);animation:_npiFade 0.35s ease;`;
-
-    const card = document.createElement('div');
-    card.style.cssText = `
-      --np-glow:${mainCol}77;
-      background:linear-gradient(160deg,#0d0820 0%,#1e1040 55%,#0d0820 100%);
-      border-radius:32px;padding:40px 32px 32px;text-align:center;
-      box-shadow:0 0 60px ${mainCol}55,0 24px 64px rgba(0,0,0,0.6);
-      border:2px solid ${mainCol}55;max-width:320px;width:86%;position:relative;
-      animation:_npiPop 0.45s cubic-bezier(0.34,1.56,0.64,1),_npiPulse 2.8s ease-in-out 0.5s infinite;`;
-
-    const badge = document.createElement('div');
-    badge.textContent = 'NEW PACK';
-    badge.style.cssText = `position:absolute;top:-16px;left:50%;transform:translateX(-50%);
-      background:linear-gradient(90deg,${mainCol},${darkCol},${mainCol});
-      background-size:200% auto;animation:_npiShine 2s linear infinite;
-      color:#000;font-weight:900;font-size:11px;letter-spacing:3px;padding:6px 22px;
-      border-radius:20px;font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
-      box-shadow:0 3px 16px ${mainCol}88;white-space:nowrap;`;
-
-    // Sonraki paketin şekli ile ikon çiz
-    const shape = nextWorld?.shape || 'sphere';
-    const iconWrap = document.createElement('div');
-    iconWrap.style.cssText = `display:block;margin:0 auto 10px;width:96px;height:112px;
-      animation:_npiBounce 1.3s ease 0.3s both;`;
     const iconCanvas = document.createElement('canvas');
     iconCanvas.width = 192; iconCanvas.height = 224;
     iconCanvas.style.cssText = 'width:96px;height:112px;';
-    iconWrap.appendChild(iconCanvas);
     this._drawPopupShape(iconCanvas, shape, mainCol, darkCol, pal);
 
-    const topLine = document.createElement('div');
-    topLine.textContent = 'UNLOCKING';
-    topLine.style.cssText = `color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:4px;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:6px;`;
-
-    const name = document.createElement('div');
-    name.textContent = (nextWorld?.name || 'New World').toUpperCase();
-    name.style.cssText = `
-      background:linear-gradient(90deg,${mainCol},#fff,${darkCol});
-      background-size:200% auto;animation:_npiShine 2s linear infinite;
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      font-size:28px;font-weight:900;letter-spacing:1px;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:8px;`;
-
-    const sub = document.createElement('div');
-    sub.textContent = nextWorld?.subtitle || '';
-    sub.style.cssText = `color:rgba(255,255,255,0.38);font-size:13px;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:28px;`;
-
-    const btn = document.createElement('div');
-    btn.textContent = 'EXPLORE MAP  ▶';
-    btn.style.cssText = `
-      background:linear-gradient(135deg,${mainCol},${darkCol});
-      color:#000;font-weight:900;font-size:15px;letter-spacing:2px;
-      padding:16px 40px;border-radius:50px;cursor:pointer;display:inline-block;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
-      box-shadow:0 4px 28px ${mainCol}77;transition:transform 0.12s,box-shadow 0.12s;`;
-    btn.addEventListener('pointerdown', () => {
-      btn.style.transform = 'scale(0.94)';
-      btn.style.boxShadow = `0 2px 12px ${mainCol}44`;
-    });
-    btn.addEventListener('pointerup', () => {
-      btn.style.transform = '';
-      btn.style.boxShadow = `0 4px 28px ${mainCol}77`;
-    });
-
-    card.append(badge, iconWrap, topLine, name, sub, btn);
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-
-    btn.addEventListener('click', () => {
-      // Ses durumunu yeniden uygula — overlay sırasında suspend olmuş olabilir
-      if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
-      overlay.style.transition = 'opacity 0.25s';
-      overlay.style.opacity = '0';
-      setTimeout(() => {
-        overlay.remove();
-        window._matrushkaMap.showCheckpoint(cpIdx);
-      }, 250);
+    popupManager.show({
+      badge:     'NEW PACK',
+      icon:      iconCanvas,
+      iconStyle: 'display:block;margin:0 auto 10px;width:96px;height:112px;animation:_pmBounce 1.3s ease 0.3s both;',
+      label:     'UNLOCKING',
+      title:     (nextWorld?.name || 'New World').toUpperCase(),
+      subtitle:  nextWorld?.subtitle || '',
+      mainCol,
+      darkCol,
+      buttons: [{
+        text:    'EXPLORE MAP  ▶',
+        primary: true,
+        onClick: () => {
+          if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
+          popupManager.hide(() => { window._matrushkaMap.showCheckpoint(cpIdx); });
+        },
+      }],
     });
   }
 

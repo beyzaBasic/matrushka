@@ -1,5 +1,6 @@
 // ── map.js ────────────────────────────────────────────────────────
 import { getWorldConfig, LEVELS_PER_CP, TOTAL_CHECKPOINTS } from './world-config.js';
+import { popupManager } from './popup-manager.js';
 
 const TEST_MODE = true;
 const TOTAL_LEVELS = TOTAL_CHECKPOINTS * LEVELS_PER_CP;
@@ -665,86 +666,29 @@ export class MapScreen {
     const nextCpIdx = cpIdx + 1;
     const world = getWorldConfig(nextCpIdx);
     if (!world) return;
-    const pal = world.palette;
+    const pal     = world.palette;
     const mainCol = pal[Math.floor(pal.length / 2)] || '#FFD700';
     const darkCol = pal[pal.length - 1] || '#FF9500';
 
-    if (!document.getElementById('_npStyles')) {
-      const st = document.createElement('style');
-      st.id = '_npStyles';
-      st.textContent = `
-        @keyframes _npFade{from{opacity:0}to{opacity:1}}
-        @keyframes _npPop{from{transform:scale(0.55);opacity:0}to{transform:scale(1);opacity:1}}
-        @keyframes _npBounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-12px)}70%{transform:translateY(4px)}}
-        @keyframes _npShine{0%{background-position:200% center}100%{background-position:-200% center}}
-      `;
-      document.head.appendChild(st);
-    }
-
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `position:fixed;inset:0;z-index:400;display:flex;align-items:center;
-      justify-content:center;background:rgba(0,0,0,0.62);animation:_npFade 0.3s ease;`;
-
-    const card = document.createElement('div');
-    card.style.cssText = `
-      background:linear-gradient(150deg,#1a0e3d 0%,#2a1460 60%,#1a0e3d 100%);
-      border-radius:28px;padding:36px 28px 28px;text-align:center;
-      box-shadow:0 0 60px ${mainCol}55,0 24px 64px rgba(0,0,0,0.55);
-      border:2px solid ${mainCol}44;max-width:300px;width:82%;position:relative;
-      animation:_npPop 0.42s cubic-bezier(0.34,1.56,0.64,1);`;
-
-    const badge = document.createElement('div');
-    badge.textContent = 'NEW PACK';
-    badge.style.cssText = `position:absolute;top:-15px;left:50%;transform:translateX(-50%);
-      background:linear-gradient(90deg,${mainCol},${darkCol});color:#000;
-      font-weight:900;font-size:11px;letter-spacing:3px;padding:5px 20px;
-      border-radius:20px;font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
-      box-shadow:0 2px 14px ${mainCol}66;white-space:nowrap;`;
-
-    const icon = document.createElement('div');
-    icon.textContent = '🎁';
-    icon.style.cssText = `font-size:60px;display:block;margin-bottom:6px;animation:_npBounce 0.7s ease 0.25s both;`;
-
-    const label = document.createElement('div');
-    label.textContent = 'UNLOCKED!';
-    label.style.cssText = `color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:4px;`;
-
-    const name = document.createElement('div');
-    name.textContent = world.name.toUpperCase();
-    name.style.cssText = `
-      background:linear-gradient(90deg,${mainCol},#fff,${mainCol});
-      background-size:200% auto;animation:_npShine 2.2s linear infinite;
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      font-size:24px;font-weight:900;letter-spacing:1px;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:6px;`;
-
-    const sub = document.createElement('div');
-    sub.textContent = world.subtitle || '';
-    sub.style.cssText = `color:rgba(255,255,255,0.40);font-size:13px;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:22px;`;
-
-    const btn = document.createElement('div');
-    btn.textContent = 'EXPLORE  ▶';
-    btn.style.cssText = `
-      background:linear-gradient(135deg,${mainCol},${darkCol});
-      color:#000;font-weight:900;font-size:15px;letter-spacing:2px;
-      padding:14px 36px;border-radius:50px;cursor:pointer;display:inline-block;
-      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
-      box-shadow:0 4px 24px ${mainCol}66;transition:transform 0.1s;`;
-    btn.addEventListener('pointerdown', () => { btn.style.transform = 'scale(0.95)'; });
-
-    card.append(badge, icon, label, name, sub, btn);
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-
-    const dismiss = () => {
-      overlay.style.transition = 'opacity 0.22s';
-      overlay.style.opacity = '0';
-      setTimeout(() => { overlay.remove(); }, 220);
-      this._rainOn = false;
-      if (this._rain) { this._rain.forEach(p => this._rainLayer?.removeChild(p.gfx)); this._rain = []; }
-    };
-    btn.addEventListener('click', dismiss);
+    popupManager.show({
+      badge:    'NEW PACK',
+      label:    'UNLOCKED!',
+      title:    world.name.toUpperCase(),
+      subtitle: world.subtitle || '',
+      mainCol,
+      darkCol,
+      buttons: [{
+        text:    'EXPLORE  ▶',
+        primary: true,
+        onClick: () => {
+          popupManager.hide();
+          this._rainOn = false;
+          if (this._rain) {
+            this._rain.forEach(p => this._rainLayer?.removeChild(p.gfx));
+            this._rain = [];
+          }
+        },
+      }],
+    });
   }
 }
