@@ -550,6 +550,7 @@ export class TutorialManager {
 
     if (this._phase === 'INIT' && this._timer > 5) {
       state.circles.push(spawnBall(0, -xOff));
+      state.audio?.spawn();
       this._phase = 'DROP1'; this._timer = 0;
     }
 
@@ -557,6 +558,7 @@ export class TutorialManager {
     if (this._phase === 'DROP1' && this._timer > 28) {
       const right = spawnBall(0, +xOff);
       state.circles.push(right);
+      state.audio?.spawn();
       const left = state.circles.find(c => c.level === 0 && c !== right);
       if (left) {
         const r = right.x > left.x ? right : left;
@@ -599,6 +601,7 @@ export class TutorialManager {
     if (this._phase === 'SPAWN_LV2' || (this._phase === 'INIT' && this._timer > 10)) {
       const lv2 = spawnBall(2, 0);
       state.circles.push(lv2);
+      state.audio?.spawn();
       const lv1 = this._byLv(1);
       if (lv1) this._arrow = { sx: lv1.x, sy: lv1.y, tx: lv2.x, ty: lv2.y };
       this._phase = 'WAIT_ABSORB'; this._timer = 0;
@@ -637,6 +640,7 @@ export class TutorialManager {
         : (state.MAIN_R ?? 160) * 0.28;
       const lv0 = spawnBall(0, xOff);
       state.circles.push(lv0);
+      state.audio?.spawn();
       if (lv2) this._arrow = { sx: lv0.x, sy: lv0.y, tx: lv2.x, ty: lv2.y };
       this._phase = 'WAIT_ABSORB2'; this._timer = 0;
     }
@@ -711,7 +715,7 @@ export class TutorialManager {
     const a = this._arrow;
     if (!a) return;
     const ctx = state.ctx, S = state.S ?? 1;
-    const accentColor = this._accentColor();
+    const accentColor = this._hintColor();
     const dx = a.tx - a.sx, dy = a.ty - a.sy;
     const dist = Math.hypot(dx, dy);
     if (dist < 1) return;
@@ -796,28 +800,21 @@ export class TutorialManager {
     const x = posX ?? CX;
     const y = (posY ?? CY) + bob;
 
+    const hintCol = this._hintColor();
     const isDark = state.isDarkMode;
     ctx.save();
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `bold ${Math.round(32 * (S ?? 1))}px ${font}`;
-    ctx.shadowColor  = isDark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)';
+    ctx.shadowColor  = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.75)';
     ctx.shadowBlur   = 6 * (S ?? 1);
-    ctx.fillStyle    = isDark ? '#FFFFFF' : '#1A1040';
+    ctx.fillStyle    = hintCol;
     ctx.fillText(text, x, y);
     ctx.restore();
   }
 
-  // Accent = border ile aynı renk (en yüksek level top rengi veya LEVELS[0])
-  _accentColor() {
-    const { circles, LEVELS } = state;
-    if (!LEVELS || LEVELS.length === 0) return '#fff';
-    let top = 0;
-    for (const c of circles) {
-      if (c.level > top) top = c.level;
-      for (const lv of c.contains) if (lv > top) top = lv;
-    }
-    return LEVELS[top]?.color || LEVELS[0].color;
+  _hintColor() {
+    return state.isDarkMode ? 'rgba(255,255,255,0.88)' : '#3D2080';
   }
 
   // ── Utils ─────────────────────────────────────────────────────────────────
