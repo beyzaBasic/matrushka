@@ -36,7 +36,7 @@ export function buildLayout() {
 
   // MAIN_R: dikey alana göre maksimum — form bazlı scale _applyLayout'ta yapılır
   const isPortrait  = W < H;
-  const SIDE_PAD    = isPortrait ? 2 : 16; // portrait: neredeyse kenara yapışık
+  const SIDE_PAD    = isPortrait ? 8 : 16;
   const maxRbyW     = Math.floor((W - SIDE_PAD * 2) / 2);
   const _R_EST      = Math.floor(Math.min(maxRbyW, (H - SCORE_AREA - BTN_BOTTOM_PAD) / 2 - 2));
   const BTN_H_EST   = Math.round(_R_EST * 0.62 * 0.42);

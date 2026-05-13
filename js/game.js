@@ -65,7 +65,7 @@ export class Game {
     // Forma göre MAIN_R scale — portrait'ta dar marj, landscape'te geniş
     const form = state.containerForm;
     if (form) {
-      const formMargin = L.W < L.H ? 2 : 16; // portrait: kenara yapışık
+      const formMargin = L.W < L.H ? 8 : 16;
       const maxHalfW = (L.W - formMargin * 2) / 2;
       const spread   = Math.max(Math.sin((form.openFrac ?? 0.5) * Math.PI), form.topWidthFactor ?? 1);
       const maxRbyForm = Math.floor(maxHalfW / spread);

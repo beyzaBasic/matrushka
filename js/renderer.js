@@ -1506,14 +1506,14 @@ export class Renderer {
   // ── Sidebar ortak layout hesabı ───────────────────────────────────
   // Hem renk şeridi hem de butonlar bu değerleri paylaşır.
   _sidebarLayout() {
-    const { W, H, CX, CY, MAIN_R, BTN_BOTTOM_PAD, BTN_PAD, S } = state;
+    const { W, H, CX, CY, MAIN_R, BTN_BOTTOM_PAD, BTN_PAD, S, MIN_DIM, goalSlots } = state;
     const isPortrait = W < H;
     if (isPortrait) {
+      // Portrait: eski konum — sağ alt
       const footerTop    = CY + MAIN_R + 4;
       const footerBottom = H - Math.max(6, BTN_BOTTOM_PAD || 6) - 2;
       const footerH      = Math.max(20, footerBottom - footerTop);
       const PAD          = Math.max(6, BTN_PAD || 8);
-      // 5 buton daire düzeni — daire çapı = footerH
       const btnR    = Math.max(10, Math.min(28, Math.round(footerH * 0.155)));
       const circleR = Math.max(8, Math.floor(footerH / 2) - btnR - 6);
       const circleCX = W - PAD - Math.floor(footerH / 2);
@@ -1523,19 +1523,25 @@ export class Renderer {
       const ICON = btnR;
       return { isPortrait, footerTop, footerBottom, footerH, PAD, btnColW, stripAvailW, ICON, btnR, circleR, circleCX, circleCY };
     }
-    // Landscape: sağ üstte pentagon daire
-    const PAD      = Math.round(8 * S);
-    const btnR     = Math.max(8, Math.round(13 * S));
+    // Landscape (web): sağ üstte, level title ile hizalı — çember ve butonlar büyük
+    const PAD        = Math.round(8 * S);
+    const TITLE_TOP  = 10;
+    const TTL        = Math.round(28 * MIN_DIM / 800) + 8;
+    const gemTop     = TITLE_TOP + TTL + 4;
+    const n          = goalSlots?.length || 1;
+    const availH     = (CY - MAIN_R) - gemTop;
+    const GEM_R_base = n <= 1 ? 64 : n === 2 ? 54 : 44;
+    const GEM_R      = Math.min(GEM_R_base, Math.max(20, Math.floor((availH - 50) / 2)));
+    const footerH    = Math.max(20, TTL + GEM_R * 2);
+    const btnR       = Math.max(10, Math.min(28, Math.round(footerH * 0.155)));
     // Pentagon: komşu butonlar arası mesafe = 2*circleR*sin(π/5) >= 2*btnR + BTN_GAP
     const BTN_GAP  = Math.max(2, Math.round(4 * S));
     const circleR  = Math.ceil((btnR + BTN_GAP) / Math.sin(Math.PI / 5));
-    // Daire kenarı ile buton arası padding
     const RING_PAD = Math.max(4, Math.round(5 * S));
     const bgR      = circleR + btnR + RING_PAD;
-    // Daire altı = hint satırı altıyla hizalı (pool üst kenarından küçük boşluk)
-    const hintBottom = CY - MAIN_R - 6;
+    // Çember top = level title top
     const circleCX = W - PAD - bgR;
-    const circleCY = hintBottom - bgR;
+    const circleCY = TITLE_TOP + bgR;
     const poolLeft = CX - MAIN_R;
     return { isPortrait, footerTop: CY - MAIN_R, footerBottom: CY + MAIN_R, footerH: bgR * 2,
              PAD, btnColW: 0, stripAvailW: poolLeft - PAD * 2,
@@ -1571,9 +1577,9 @@ export class Renderer {
     const { isPortrait, footerTop, footerBottom, footerH, PAD, stripAvailW } = this._sidebarLayout();
 
     // Portrait: footer alanı (havuz altı); Landscape: havuz sol alanı
-    const availW     = stripAvailW;
-    const stripeTop  = footerTop;
-    const stripeBottom = footerBottom;
+    const availW       = stripAvailW;
+    const stripeTop    = footerTop;
+    const stripeBottom = isPortrait ? footerBottom - Math.max(16, state.BTN_BOTTOM_PAD || 16) : footerBottom;
     const stripeHeight = stripeBottom - stripeTop;
     if (availW < 6 || stripeHeight <= 0) return;
 
