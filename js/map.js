@@ -9,6 +9,11 @@ function hexToRGB(hex) {
   const n = parseInt(hex.replace('#',''), 16);
   return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
 }
+function _lerpColor(c1, c2, t) {
+  const r1=(c1>>16)&255, g1=(c1>>8)&255, b1=c1&255;
+  const r2=(c2>>16)&255, g2=(c2>>8)&255, b2=c2&255;
+  return (Math.round(r1+(r2-r1)*t)<<16)|(Math.round(g1+(g2-g1)*t)<<8)|Math.round(b1+(b2-b1)*t);
+}
 function lightenInt(col, amt) {
   return (Math.min(255,((col>>16)&255)+amt)<<16)|(Math.min(255,((col>>8)&255)+amt)<<8)|(Math.min(255,(col&255)+amt));
 }
@@ -178,17 +183,32 @@ export class MapScreen {
     this._div.style.display = 'block';
     requestAnimationFrame(() => { this._div.style.opacity = '1'; });
     if (this._app && this._app.ticker && !this._app.ticker.started) this._app.ticker.start();
-    // Yeni aktif node'u kutla
+
     const newNodeIdx = (cpIdx + 1) * LEVELS_PER_CP;
     const newNode = this._nodes[newNodeIdx];
-    if (newNode) { newNode.celebrate = true; newNode.celebrateT = 0; }
-    // Scroll: yeni node görünür olsun
     const H = this._app.screen.height;
-    if (newNode) this._targetY = Math.max(0, Math.min(this._worldH - H, newNode.worldY - H * 0.5));
-    this._rainOn   = true;
-    this._rainCols = getWorldConfig(cpIdx).palette;
-    // "New Pack" popup'ı 600ms sonra göster
-    setTimeout(() => { this._showNewPackPopup(cpIdx); }, 600);
+
+    // Scroll: biraz yukarıdan başla, merkeze smooth inersin
+    if (newNode) {
+      const startY = Math.max(0, Math.min(this._worldH - H, newNode.worldY - H * 0.25));
+      this._scrollY = startY;
+      this._targetY = startY;
+    }
+
+    // 350ms fade-in sonrası: node merkeze scroll + hypercasual açılış
+    setTimeout(() => {
+      if (newNode) {
+        this._targetY = Math.max(0, Math.min(this._worldH - H, newNode.worldY - H * 0.5));
+        this._slowScroll = true;
+        newNode.openAnim   = true;
+        newNode.openT      = 0;
+        newNode.burstParticles = [];
+        newNode.celebrate  = true;
+        newNode.celebrateT = 0;
+      }
+      this._rainOn   = true;
+      this._rainCols = getWorldConfig(cpIdx).palette;
+    }, 350);
   }
 
   // ── Node tıklama ──────────────────────────────────────────────────
@@ -406,7 +426,9 @@ export class MapScreen {
   // ── Tick ──────────────────────────────────────────────────────────
   _tick(dt) {
     this._time+=dt;
-    this._scrollY+=(this._targetY-this._scrollY)*0.10;
+    const scrollSpeed = this._slowScroll ? 0.055 : 0.10;
+    this._scrollY += (this._targetY - this._scrollY) * scrollSpeed;
+    if (this._slowScroll && Math.abs(this._targetY - this._scrollY) < 1) this._slowScroll = false;
     this._layerBg.y=this._layerPath.y=this._layerNodes.y=this._layerWalk.y=-this._scrollY;
 
     const H=this._app.screen.height, midY=this._scrollY+H/2;
@@ -436,11 +458,88 @@ export class MapScreen {
 
   // ── Node çizim ────────────────────────────────────────────────────
   _drawNode(nd, dt) {
-    nd.pulseT+=dt*0.028;
-    const pulse=Math.sin(nd.pulseT)*0.5+0.5, g=nd.gfx;
+    nd.pulseT += dt * 0.028;
+    const pulse = Math.sin(nd.pulseT) * 0.5 + 0.5;
+    const g = nd.gfx;
     g.clear();
-    const R=nd.nodeR, sc=nd.hovered?1.22:(nd.isActive?1.06+pulse*0.06:1.0), r=R*sc;
-    if(!nd.unlocked&&!nd.isActive){
+
+    // ── Hypercasual açılma animasyonu ─────────────────────────────
+    const R = nd.nodeR;
+    let openSc = 1, drawCol = nd.col;
+    if (nd.openAnim) {
+      if (!nd.openT) {
+        nd.openT = 0;
+        this._spawnBurstParticles(nd);
+      }
+      nd.openT = Math.min(nd.openT + dt * 0.016, 1);
+      const t = nd.openT;
+
+      // Phase 1: White impact flash (t: 0 → 0.22)
+      if (t < 0.22) {
+        const ft = t / 0.22;
+        g.beginFill(0xffffff, (1 - ft) * 0.80);
+        g.drawCircle(nd.x, nd.worldY, R * (1 + ft * 4.0));
+        g.endFill();
+      }
+
+      // Phase 2: Two shockwave rings expanding outward
+      for (let ri = 0; ri < 2; ri++) {
+        const rt = t - ri * 0.07;
+        if (rt > 0 && rt < 0.45) {
+          const rp = rt / 0.45;
+          const rEase = 1 - Math.pow(1 - rp, 3); // easeOutCubic
+          g.lineStyle(3.5 * (1 - rp), nd.col, (1 - rp) * 0.85);
+          g.drawCircle(nd.x, nd.worldY, R * (1 + rEase * 3.0));
+          g.lineStyle(0);
+        }
+      }
+
+      // Phase 3: easeOutElastic spring scale
+      const st = Math.max(0, Math.min(1, (t - 0.04) / 0.71));
+      const TWO_PI_3 = (2 * Math.PI) / 3;
+      openSc = st <= 0 ? 0 : st >= 1 ? 1 :
+        Math.pow(2, -10 * st) * Math.sin((st * 10 - 0.75) * TWO_PI_3) + 1;
+      openSc = Math.max(0, openSc);
+
+      // Phase 4: White → real color
+      const cf = Math.max(0, Math.min(1, (t - 0.15) / 0.40));
+      drawCol = _lerpColor(0xffffff, nd.col, cf);
+
+      // Phase 5: Shine streak across node surface
+      if (t > 0.56 && t < 0.84) {
+        const sht = (t - 0.56) / 0.28;
+        const sx = nd.x - openSc * R * 0.80 + sht * openSc * R * 1.9;
+        const sy = nd.worldY - openSc * R * 0.32;
+        g.beginFill(0xffffff, 0.52 * Math.sin(sht * Math.PI));
+        g.drawEllipse(sx, sy, openSc * R * 0.14, openSc * R * 0.66);
+        g.endFill();
+      }
+
+      g.alpha = Math.min(1, t * 18);
+      if (t >= 1) { nd.openAnim = false; nd.openT = 0; }
+    } else {
+      g.alpha = 1;
+    }
+
+    // Burst parçacıklarını güncelle + çiz
+    if (nd.burstParticles && nd.burstParticles.length) {
+      for (let i = nd.burstParticles.length - 1; i >= 0; i--) {
+        const p = nd.burstParticles[i];
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        const fr = p.friction !== undefined ? p.friction : 0.92;
+        p.vx *= fr; p.vy *= fr;
+        p.life -= dt;
+        if (p.life <= 0) { nd.burstParticles.splice(i, 1); continue; }
+        const pa = Math.min(1, p.life / p.maxLife) * 0.9;
+        const pr = p.r * (p.life / p.maxLife);
+        g.beginFill(p.col, pa); g.drawCircle(p.x, p.y, pr); g.endFill();
+      }
+    }
+
+    const baseSc = nd.hovered ? 1.22 : (nd.isActive ? 1.06 + pulse*0.06 : 1.0);
+    const r = R * baseSc * openSc;
+
+    if (!nd.unlocked && !nd.isActive) {
       g.beginFill(0x1a1a2e,0.88); g.drawCircle(nd.x,nd.worldY,r); g.endFill();
       g.lineStyle(1.5,0x2a2a44,0.60); g.drawCircle(nd.x,nd.worldY,r); g.lineStyle(0);
       const lw=r*.40,lh=r*.32,lx=nd.x-lw/2,ly=nd.worldY-r*.08;
@@ -448,27 +547,75 @@ export class MapScreen {
       g.lineStyle(r*.10,0x2a2a44,0.85); g.arc(nd.x,ly,lw*.26,Math.PI,0,false); g.lineStyle(0);
       return;
     }
-    // celebration expanding rings
-    if(nd.celebrate){
-      nd.celebrateT=(nd.celebrateT||0)+dt*0.018;
-      const RING_COUNT=3, RING_DUR=1.0;
-      for(let i=0;i<RING_COUNT;i++){
-        const phase=((nd.celebrateT+i*(RING_DUR/RING_COUNT))%RING_DUR)/RING_DUR;
-        const ringR=r+phase*r*2.2;
-        const alpha=(1-phase)*0.75;
-        if(alpha>0.02){
-          g.lineStyle(2.5*(1-phase*0.6),nd.col,alpha);
-          g.drawCircle(nd.x,nd.worldY,ringR);
-          g.lineStyle(0);
-        }
+
+    // ── Celebrate: floating sparkles + glow pulse ────────────────────
+    if (nd.celebrate) {
+      nd.celebrateT = (nd.celebrateT || 0) + dt * 0.022;
+      const t = nd.celebrateT;
+
+      // Continuously spawn upward-floating sparkle particles
+      if (nd.burstParticles && Math.random() < 0.22 && t < 5.5) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist  = r * (0.25 + Math.random() * 1.0);
+        const cols  = [nd.col, 0xffffff, 0xffee44, lightenInt(nd.col, 80), 0xff88dd];
+        nd.burstParticles.push({
+          x: nd.x + Math.cos(angle) * dist,
+          y: nd.worldY + Math.sin(angle) * dist,
+          vx: (Math.random() - 0.5) * 1.0,
+          vy: -(1.2 + Math.random() * 2.2),
+          r:   2.0 + Math.random() * 3.5,
+          col: cols[Math.floor(Math.random() * cols.length)],
+          life: 35 + Math.random() * 30, maxLife: 65,
+          friction: 0.97,
+        });
       }
+
+      // Soft glow that fades over time
+      const glowDecay = Math.max(0, 1 - t * 0.16);
+      if (glowDecay > 0.04) {
+        const glow = 0.11 + 0.07 * Math.sin(t * 4.0);
+        g.beginFill(nd.col, glow * glowDecay);
+        g.drawCircle(nd.x, nd.worldY, r * 1.55);
+        g.endFill();
+      }
+
+      if (t > 7) nd.celebrate = false;
+    } else if (nd.openAnim) {
+      const glowAmp = Math.sin(nd.openT * Math.PI);
+      g.beginFill(drawCol, glowAmp * 0.22);
+      g.drawCircle(nd.x, nd.worldY, r * 1.6); g.endFill();
     }
-    drawBall(g,nd.x,nd.worldY,r,nd.col);
-    if(nd.isActive){
-      g.lineStyle(3,nd.col,0.35+0.45*pulse); g.drawCircle(nd.x,nd.worldY,r+5+pulse*8); g.lineStyle(0);
+
+    drawBall(g, nd.x, nd.worldY, r, drawCol);
+
+    if (nd.isActive) {
+      g.lineStyle(3, nd.col, 0.35+0.45*pulse);
+      g.drawCircle(nd.x, nd.worldY, r+5+pulse*8); g.lineStyle(0);
     }
-    if(nd.hovered){
-      g.lineStyle(2.5,0xffffff,0.35); g.drawCircle(nd.x,nd.worldY,r+4); g.lineStyle(0);
+    if (nd.hovered) {
+      g.lineStyle(2.5, 0xffffff, 0.35);
+      g.drawCircle(nd.x, nd.worldY, r+4); g.lineStyle(0);
+    }
+  }
+
+  _spawnBurstParticles(nd) {
+    const R = nd.nodeR;
+    nd.burstParticles = [];
+    const cols = [nd.col, 0xffffff, lightenInt(nd.col, 90), 0xffee44, 0xff88dd, lightenInt(nd.col, 40)];
+    const COUNT = 32;
+    for (let i = 0; i < COUNT; i++) {
+      const angle = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+      const speed = 4.5 + Math.random() * 7.5;
+      nd.burstParticles.push({
+        x: nd.x, y: nd.worldY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: 3.5 + Math.random() * 7,
+        col: cols[Math.floor(Math.random() * cols.length)],
+        life: 32 + Math.random() * 28,
+        maxLife: 60,
+        friction: 0.91,
+      });
     }
   }
 

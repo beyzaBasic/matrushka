@@ -33,8 +33,9 @@ export class Game {
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', () => { this._applyLayout(); });
     }
-    // Başlangıçta ses açık
-    if (typeof Howler !== 'undefined') Howler.mute(false);
+    // Ses durumu — localStorage'dan oku, varsayılan: açık
+    state.isMuted = localStorage.getItem('matrushka_muted') === 'true';
+    if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
 
     // Dark mode — localStorage'dan oku, varsayılan: dark
     state.isDarkMode = localStorage.getItem('matrushka_darkMode') !== 'false';
@@ -140,6 +141,7 @@ export class Game {
     const sb = state._soundBtn;
     if (sb && x >= sb.x && x <= sb.x + sb.w && y >= sb.y && y <= sb.y + sb.h) {
       state.isMuted = !state.isMuted;
+      localStorage.setItem('matrushka_muted', state.isMuted);
       if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
       return;
     }
@@ -401,8 +403,9 @@ export class Game {
     state.isTutorial        = (state.currentLevel === 0);
     state.tutStep           = 0;
     state.tutDone           = false;
-    state._nextLevelBtn     = null;
-    state._gameOverBtn      = null;
+    state._nextLevelBtn              = null;
+    state._gameOverBtn               = null;
+    state._checkpointPopupTriggered  = false;
     this.theme.applyForLevel(internalLevel);
     this._applyLayout();
     this.goals.initLevelGoals();
@@ -457,7 +460,6 @@ export class Game {
 
     if (isCheckpoint) {
       const cpIdx = Math.floor(completedGameLevels / LEVELS_PER_CP) - 1;
-      // index.html üzerinden map'e eriş
       if (window._matrushkaMap) {
         window._matrushkaMap.showCheckpoint(cpIdx);
       } else {
@@ -466,6 +468,242 @@ export class Game {
       return;
     }
     this._doNextLevel(nextLevel);
+  }
+
+  _showNewPackInterstitial(cpIdx, nextLevel) {
+    const nextWorld = getWorldConfig(cpIdx + 1);
+    const pal = nextWorld?.palette || ['#FFD700', '#FF9500'];
+    const mainCol = pal[Math.floor(pal.length / 2)] || '#FFD700';
+    const darkCol = pal[pal.length - 1] || '#FF9500';
+
+    // Ses durumunu koru (overlay sırasında WebAudio suspend olabilir)
+    if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
+
+    if (!document.getElementById('_npIntStyles')) {
+      const st = document.createElement('style');
+      st.id = '_npIntStyles';
+      st.textContent = `
+        @keyframes _npiFade{from{opacity:0}to{opacity:1}}
+        @keyframes _npiPop{from{transform:scale(0.5) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0deg);opacity:1}}
+        @keyframes _npiBounce{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-18px) scale(1.14)}65%{transform:translateY(5px) scale(0.96)}}
+        @keyframes _npiShine{0%{background-position:200% center}100%{background-position:-200% center}}
+        @keyframes _npiPulse{0%,100%{box-shadow:0 0 32px var(--np-glow),0 16px 48px rgba(0,0,0,0.5)}50%{box-shadow:0 0 72px var(--np-glow),0 16px 48px rgba(0,0,0,0.5)}}
+        @keyframes _npiSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+      `;
+      document.head.appendChild(st);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `position:fixed;inset:0;z-index:500;display:flex;align-items:center;
+      justify-content:center;background:rgba(0,0,0,0.78);animation:_npiFade 0.35s ease;`;
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+      --np-glow:${mainCol}77;
+      background:linear-gradient(160deg,#0d0820 0%,#1e1040 55%,#0d0820 100%);
+      border-radius:32px;padding:40px 32px 32px;text-align:center;
+      box-shadow:0 0 60px ${mainCol}55,0 24px 64px rgba(0,0,0,0.6);
+      border:2px solid ${mainCol}55;max-width:320px;width:86%;position:relative;
+      animation:_npiPop 0.45s cubic-bezier(0.34,1.56,0.64,1),_npiPulse 2.8s ease-in-out 0.5s infinite;`;
+
+    const badge = document.createElement('div');
+    badge.textContent = 'NEW PACK';
+    badge.style.cssText = `position:absolute;top:-16px;left:50%;transform:translateX(-50%);
+      background:linear-gradient(90deg,${mainCol},${darkCol},${mainCol});
+      background-size:200% auto;animation:_npiShine 2s linear infinite;
+      color:#000;font-weight:900;font-size:11px;letter-spacing:3px;padding:6px 22px;
+      border-radius:20px;font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
+      box-shadow:0 3px 16px ${mainCol}88;white-space:nowrap;`;
+
+    // Sonraki paketin şekli ile ikon çiz
+    const shape = nextWorld?.shape || 'sphere';
+    const iconWrap = document.createElement('div');
+    iconWrap.style.cssText = `display:block;margin:0 auto 10px;width:96px;height:112px;
+      animation:_npiBounce 1.3s ease 0.3s both;`;
+    const iconCanvas = document.createElement('canvas');
+    iconCanvas.width = 192; iconCanvas.height = 224;
+    iconCanvas.style.cssText = 'width:96px;height:112px;';
+    iconWrap.appendChild(iconCanvas);
+    this._drawPopupShape(iconCanvas, shape, mainCol, darkCol, pal);
+
+    const topLine = document.createElement('div');
+    topLine.textContent = 'UNLOCKING';
+    topLine.style.cssText = `color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:4px;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:6px;`;
+
+    const name = document.createElement('div');
+    name.textContent = (nextWorld?.name || 'New World').toUpperCase();
+    name.style.cssText = `
+      background:linear-gradient(90deg,${mainCol},#fff,${darkCol});
+      background-size:200% auto;animation:_npiShine 2s linear infinite;
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      font-size:28px;font-weight:900;letter-spacing:1px;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:8px;`;
+
+    const sub = document.createElement('div');
+    sub.textContent = nextWorld?.subtitle || '';
+    sub.style.cssText = `color:rgba(255,255,255,0.38);font-size:13px;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;margin-bottom:28px;`;
+
+    const btn = document.createElement('div');
+    btn.textContent = 'EXPLORE MAP  ▶';
+    btn.style.cssText = `
+      background:linear-gradient(135deg,${mainCol},${darkCol});
+      color:#000;font-weight:900;font-size:15px;letter-spacing:2px;
+      padding:16px 40px;border-radius:50px;cursor:pointer;display:inline-block;
+      font-family:"ui-rounded","Arial Rounded MT Bold",sans-serif;
+      box-shadow:0 4px 28px ${mainCol}77;transition:transform 0.12s,box-shadow 0.12s;`;
+    btn.addEventListener('pointerdown', () => {
+      btn.style.transform = 'scale(0.94)';
+      btn.style.boxShadow = `0 2px 12px ${mainCol}44`;
+    });
+    btn.addEventListener('pointerup', () => {
+      btn.style.transform = '';
+      btn.style.boxShadow = `0 4px 28px ${mainCol}77`;
+    });
+
+    card.append(badge, iconWrap, topLine, name, sub, btn);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    btn.addEventListener('click', () => {
+      // Ses durumunu yeniden uygula — overlay sırasında suspend olmuş olabilir
+      if (typeof Howler !== 'undefined') Howler.mute(state.isMuted);
+      overlay.style.transition = 'opacity 0.25s';
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.remove();
+        window._matrushkaMap.showCheckpoint(cpIdx);
+      }, 250);
+    });
+  }
+
+  // Popup ikonu — sonraki paketin shape'ini oyunla aynı tarzda çizer
+  _drawPopupShape(canvas, shape, mainCol, darkCol, pal) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2 + H * 0.04;
+    const R = Math.min(W, H) * 0.42;
+
+    const lighten = (hex, amt) => {
+      const n = parseInt(hex.replace('#',''), 16);
+      return `rgb(${Math.min(255,((n>>16)&255)+amt)},${Math.min(255,((n>>8)&255)+amt)},${Math.min(255,(n&255)+amt)})`;
+    };
+    const darken = (hex, amt) => {
+      const n = parseInt(hex.replace('#',''), 16);
+      return `rgb(${Math.max(0,((n>>16)&255)-amt)},${Math.max(0,((n>>8)&255)-amt)},${Math.max(0,(n&255)-amt)})`;
+    };
+    const radGrad = (gx, gy, rw, rh, c1, c2, c3) => {
+      const g = ctx.createRadialGradient(gx - rw*0.3, gy - rh*0.35, rh*0.05, gx, gy, Math.max(rw, rh));
+      g.addColorStop(0, c1); g.addColorStop(0.5, c2); g.addColorStop(1, c3);
+      return g;
+    };
+    const face = (hx, hy, hr) => {
+      const er = hr * 0.13;
+      ctx.fillStyle = 'rgba(20,10,5,0.85)';
+      ctx.beginPath(); ctx.arc(hx - hr*0.27, hy - hr*0.05, er, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(hx + hr*0.27, hy - hr*0.05, er, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.beginPath(); ctx.arc(hx - hr*0.22, hy - hr*0.10, er*0.38, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(hx + hr*0.32, hy - hr*0.10, er*0.38, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,120,100,0.28)';
+      ctx.beginPath(); ctx.ellipse(hx - hr*0.44, hy + hr*0.14, hr*0.18, hr*0.12, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx + hr*0.44, hy + hr*0.14, hr*0.18, hr*0.12, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(20,10,5,0.50)'; ctx.lineWidth = hr*0.07; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(hx, hy + hr*0.12, hr*0.20, 0.25, Math.PI - 0.25); ctx.stroke();
+    };
+    const specular = (sx, sy, sw, sh) => {
+      const sp = ctx.createRadialGradient(sx, sy, 0, sx, sy, sw);
+      sp.addColorStop(0, 'rgba(255,255,255,0.65)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath(); ctx.ellipse(sx, sy, sw, sh, 0, 0, Math.PI*2); ctx.fillStyle = sp; ctx.fill();
+    };
+
+    if (shape === 'matrushka') {
+      const bodyW = R*0.72, bodyH = R*0.78, bodyY = cy + R*0.18;
+      const headY = cy - R*0.38, headR = R*0.38;
+      ctx.beginPath(); ctx.ellipse(cx, bodyY, bodyW, bodyH, 0, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(cx, bodyY, bodyW, bodyH, lighten(mainCol,70), mainCol, darken(mainCol,70)); ctx.fill();
+      const innerCol = pal[1] || darkCol;
+      ctx.beginPath(); ctx.ellipse(cx, bodyY, bodyW*0.55, bodyH*0.55, 0, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(cx, bodyY, bodyW*0.55, bodyH*0.55, lighten(innerCol,60), innerCol, darken(innerCol,60)); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(cx, headY + headR*0.55, bodyW*0.78, R*0.10, 0, 0, Math.PI*2);
+      ctx.fillStyle = lighten(mainCol,50); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx, bodyY + bodyH*0.05, bodyW*0.44, bodyH*0.52, 0, 0, Math.PI*2);
+      ctx.fillStyle = lighten(mainCol,38); ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(cx, headY, headR, headR, lighten(mainCol,70), mainCol, darken(mainCol,70)); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx, headY - headR*0.42, headR*0.82, headR*0.28, 0, Math.PI, Math.PI*2);
+      ctx.fillStyle = darken(mainCol,25); ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
+      face(cx, headY, headR);
+      specular(cx - bodyW*0.26, bodyY - bodyH*0.30, bodyW*0.30, bodyH*0.22);
+
+    } else if (shape === 'jellybear') {
+      const jelly = (jx, jy, jr) => {
+        ctx.beginPath(); ctx.arc(jx, jy, jr, 0, Math.PI*2);
+        ctx.fillStyle = radGrad(jx, jy, jr, jr, lighten(mainCol,90), mainCol, darken(mainCol,80)); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = jr*0.06; ctx.stroke();
+        specular(jx - jr*0.28, jy - jr*0.32, jr*0.30, jr*0.20);
+      };
+      jelly(cx - R*0.36, cy - R*0.72, R*0.20); jelly(cx + R*0.36, cy - R*0.72, R*0.20);
+      jelly(cx - R*0.72, cy + R*0.08, R*0.20); jelly(cx + R*0.72, cy + R*0.08, R*0.20);
+      jelly(cx - R*0.36, cy + R*0.70, R*0.22); jelly(cx + R*0.36, cy + R*0.70, R*0.22);
+      jelly(cx, cy + R*0.12, R*0.72);
+      jelly(cx, cy - R*0.38, R*0.48);
+      face(cx, cy - R*0.38, R*0.48);
+
+    } else if (shape === 'duck') {
+      const bodyW = R*0.82, bodyH = R*0.72, bodyY = cy + R*0.08;
+      const headX = cx + R*0.42, headY = cy - R*0.52, headR = R*0.32;
+      ctx.beginPath(); ctx.ellipse(cx, bodyY, bodyW, bodyH, 0, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(cx, bodyY, bodyW, bodyH, lighten(mainCol,70), mainCol, darken(mainCol,70)); ctx.fill();
+      ctx.beginPath(); ctx.arc(headX, headY, headR, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(headX, headY, headR, headR, lighten(mainCol,70), mainCol, darken(mainCol,70)); ctx.fill();
+      // Gaga
+      const beakX = headX + headR*2.10*0.5, beakY = headY - headR*0.1;
+      ctx.beginPath(); ctx.ellipse(beakX, beakY, headR*0.38, headR*0.22, -0.2, 0, Math.PI*2);
+      ctx.fillStyle = '#FFB300'; ctx.fill();
+      // Göz
+      ctx.fillStyle = 'rgba(20,10,5,0.85)';
+      ctx.beginPath(); ctx.arc(headX + headR*0.18, headY - headR*0.22, headR*0.14, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.beginPath(); ctx.arc(headX + headR*0.22, headY - headR*0.28, headR*0.06, 0, Math.PI*2); ctx.fill();
+      specular(cx - bodyW*0.26, bodyY - bodyH*0.30, bodyW*0.28, bodyH*0.20);
+
+    } else if (shape === 'fish') {
+      const bodyW = R*0.90, bodyH = R*0.78, bodyX = cx + R*0.05, bodyY = cy;
+      ctx.beginPath(); ctx.ellipse(bodyX, bodyY, bodyW, bodyH, 0, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(bodyX, bodyY, bodyW, bodyH, lighten(mainCol,70), mainCol, darken(mainCol,70)); ctx.fill();
+      // Kuyruk
+      const tailX = cx - R*0.80, tailY = bodyY;
+      ctx.beginPath();
+      ctx.moveTo(tailX, tailY);
+      ctx.lineTo(tailX - R*0.45, tailY - R*0.38);
+      ctx.lineTo(tailX - R*0.45, tailY + R*0.38);
+      ctx.closePath();
+      ctx.fillStyle = darken(mainCol, 30); ctx.fill();
+      // Göz
+      ctx.fillStyle = 'rgba(20,10,5,0.85)';
+      ctx.beginPath(); ctx.arc(bodyX + bodyW*0.44, bodyY - bodyH*0.14, R*0.10, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.beginPath(); ctx.arc(bodyX + bodyW*0.46, bodyY - bodyH*0.18, R*0.04, 0, Math.PI*2); ctx.fill();
+      // Yüzgeç
+      ctx.beginPath(); ctx.ellipse(bodyX - R*0.10, bodyY - bodyH*0.55, R*0.28, R*0.18, -0.5, 0, Math.PI*2);
+      ctx.fillStyle = darken(mainCol, 20); ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
+      specular(bodyX - bodyW*0.22, bodyY - bodyH*0.28, bodyW*0.28, bodyH*0.20);
+
+    } else {
+      // sphere — candy gradient + specular
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(cx, cy, R, R, lighten(mainCol,80), mainCol, darken(mainCol,70)); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = R*0.07; ctx.stroke();
+      const innerCol = pal[2] || darkCol;
+      ctx.beginPath(); ctx.arc(cx, cy, R*0.58, 0, Math.PI*2);
+      ctx.fillStyle = radGrad(cx, cy, R*0.58, R*0.58, lighten(innerCol,60), innerCol, darken(innerCol,60));
+      ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1;
+      face(cx, cy, R);
+      specular(cx - R*0.28, cy - R*0.32, R*0.30, R*0.20);
+    }
   }
 
   _doNextLevel(nextLevel) {
@@ -489,8 +727,9 @@ export class Game {
     state.gameOver          = false;
     state.gameOverAlpha     = 0;
     state.isPaused          = false;
-    state._nextLevelBtn     = null;
-    state._gameOverBtn      = null;
+    state._nextLevelBtn              = null;
+    state._gameOverBtn               = null;
+    state._checkpointPopupTriggered  = false;
     // currentLevel artık tutorial değilse isTutorial false olmalı
     state.isTutorial        = (state.currentLevel === 0);
     // Success kartı animasyon state'ini sıfırla — sonraki level success ekranı
@@ -871,9 +1110,19 @@ export class Game {
     }
     if (state.levelSuccess) {
       this.goals.updateFlyingGoals(this.audio);
-      // Animasyon sayaçları devam etsin ama fizik dursun
       state.rotVel = 0;
       for (const c of state.circles) { c.vx = 0; c.vy = 0; }
+      // Checkpoint mi? İlk frame'de popup'ı tetikle
+      if (!state._checkpointPopupTriggered) {
+        const nextLevel = state.currentLevel + 1;
+        const completedGameLevels = nextLevel - TUTORIAL_LEVELS;
+        const isCheckpoint = completedGameLevels > 0 && completedGameLevels % LEVELS_PER_CP === 0;
+        if (isCheckpoint && window._matrushkaMap) {
+          state._checkpointPopupTriggered = true;
+          const cpIdx = Math.floor(completedGameLevels / LEVELS_PER_CP) - 1;
+          setTimeout(() => this._showNewPackInterstitial(cpIdx, nextLevel), 800);
+        }
+      }
       return;
     }
     if (state.gameOver) {

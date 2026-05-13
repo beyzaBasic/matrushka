@@ -1,6 +1,7 @@
 // ── renderer.js ───────────────────────────────────────────────────
 import { state } from './state.js';
 import { TUTORIAL_LEVELS, SHAPE_DEFS, RENDER_CONSTANTS, PHYSICS_CONSTANTS } from './constants.js';
+import { LEVELS_PER_CP } from './world-config.js';
 
 export class Renderer {
 
@@ -1220,8 +1221,10 @@ export class Renderer {
   drawSuccessOverlay(goalManager, tutorial) {
     const { levelSuccess, levelSuccessAlpha, currentLevel, levelStars } = state;
     if (!levelSuccess || levelSuccessAlpha <= 0) { state._nextLevelBtn = null; return; }
-    // Tutorial'da başarı ekranı gösterme — popup zaten var
     if (state.isTutorial) { state._nextLevelBtn = null; return; }
+    // Checkpoint levellerinde unpack popup gösterilir — success overlay çizme
+    const _completedGame = (currentLevel + 1) - TUTORIAL_LEVELS;
+    if (_completedGame > 0 && _completedGame % LEVELS_PER_CP === 0) { state._nextLevelBtn = null; return; }
     if (!tutorial || typeof tutorial.drawSuccess !== 'function') return;
 
     // Buton metni dinamik — bir SONRAKİ level'ın numarası
