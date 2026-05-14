@@ -14,7 +14,7 @@ class GamePopups {
     });
     _el('gp-success-cta').textContent = ctaLabel;
     _el('gp-success-cta').onclick = () => this.hide(() => onNext?.());
-    this._spawnConfetti(palette);
+    this._spawnConfetti(palette, 'gp-success-confetti');
     this._show('gp-success');
   }
 
@@ -39,6 +39,7 @@ class GamePopups {
   }
 
   showTutorial(onPlay) {
+    this._spawnConfetti(null, 'gp-tutorial-confetti');
     _el('gp-tutorial-cta').onclick = () => this.hide(() => onPlay?.());
     this._show('gp-tutorial');
   }
@@ -73,9 +74,9 @@ class GamePopups {
     requestAnimationFrame(() => el.classList.add('gp-visible'));
   }
 
-  _spawnConfetti(colors) {
+  _spawnConfetti(colors, containerId = 'gp-success-confetti') {
     const cols = (colors?.length ? colors : ['#FFD700','#FF6D00','#E91E8C','#9B27FF','#2979FF','#00E5FF','#00E676']);
-    const c = _el('gp-success-confetti');
+    const c = _el(containerId);
     if (!c) return;
     c.innerHTML = '';
     for (let i = 0; i < 26; i++) {
