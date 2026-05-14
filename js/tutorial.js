@@ -189,12 +189,17 @@ export class TutorialManager {
     ctx.translate(-CX, -CY);
 
     // ── Card body ─────────────────────────────────────────────────────────────
+    const _pal = state.theme?.palette || [];
+    const _borderCol = _pal[3] || _pal[0] || '#9B27FF';
     ctx.beginPath(); this._rr(ctx, cx, cy, cw, ch, Math.round(22 * CS));
     ctx.fillStyle = 'rgba(20, 18, 40, 0.72)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-    ctx.lineWidth = Math.max(1, Math.round(1.5 * CS));
+    ctx.shadowColor = _borderCol;
+    ctx.shadowBlur  = Math.round(18 * CS);
+    ctx.strokeStyle = _borderCol;
+    ctx.lineWidth = Math.max(2, Math.round(2.5 * CS));
     ctx.stroke();
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
@@ -468,8 +473,8 @@ export class TutorialManager {
     }
     ctx.restore();
 
-    const labelFs  = Math.round(Math.max(10, 13 * CS));
-    const subFs    = Math.round(Math.max(8,  10 * CS));
+    const labelFs  = Math.round(Math.max(15, 17 * CS));
+    const subFs    = Math.round(Math.max(13, 14 * CS));
     const labelY   = cy + Math.round(96 * CS);
     const subY     = cy + Math.round(112 * CS);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

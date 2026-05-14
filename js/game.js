@@ -381,6 +381,7 @@ export class Game {
   }
 
   _startFromLevel(internalLevel) {
+    state._gameActive       = true;
     state.currentLevel      = internalLevel;
     state.circles           = []; state._sortedCircles = null;
     state.particles         = [];
@@ -430,6 +431,7 @@ export class Game {
   }
 
   _resetGame() {
+    state._gameActive    = false; // tüm pending setTimeout spawn'larını keser
     state.circles        = [];
     state.particles      = [];
     state.blastAnims     = [];
@@ -449,8 +451,12 @@ export class Game {
     state.isTutorial        = false;
     state.tutStep           = 0;
     state.tutDone           = false;
-    state._nextLevelBtn  = null;
-    state._gameOverBtn   = null;
+    state._nextLevelBtn     = null;
+    state._gameOverBtn      = null;
+    state.nextBall          = null;
+    state.heldBall          = null;
+    state._nextBallBlocked  = false;
+    state.autoDropDeadline  = 0;
     // _preloadArena ve goals.init _startFromLevel tarafından çağrılır
   }
 
@@ -855,7 +861,7 @@ export class Game {
     state.heldBall = null;
     // Kısa gecikme: düşen top spawn bölgesini geçsin, sonra next üret
     setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+      if (state._gameActive && !state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
     }, 250);
   }
 
@@ -875,7 +881,7 @@ export class Game {
     state.heldBall = null;
     // Kısa gecikme: düşen top spawn bölgesini geçsin, sonra next üret
     setTimeout(() => {
-      if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+      if (state._gameActive && !state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
     }, 250);
   }
 
@@ -1078,7 +1084,7 @@ export class Game {
       state.circles.push(ball);
       this.audio.spawn();
       setTimeout(() => {
-        if (!state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
+        if (state._gameActive && !state.levelSuccess && !state.gameOver && !state.nextBall) this._generateNextBall();
       }, 250);
     }
 
