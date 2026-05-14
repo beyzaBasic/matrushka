@@ -78,6 +78,24 @@ export const WORLD_CONFIG = [
 
 ];
 
+// ── Spawn Difficulty Phases (10 level = 1 CP) ────────────────────
+// Her satır bir level pozisyonu (L01–L10): [wSmall, wMid, wNearGoal]
+// Small  = level 0-1 (merge/absorb baskısı)
+// Mid    = ara seviyeler
+// NearGoal = innerHigh (slota yakın, tamamlamayı kolaylaştırır)
+export const SPAWN_PHASES = [
+  [4, 1, 5], // L01 HOOK   — near-goal bol, hızlı kazanma hissi
+  [5, 2, 3], // L02 LEARN  — merge zorunlu ama yardım var
+  [8, 2, 0], // L03 MERGE  — saf absorb baskısı
+  [4, 1, 5], // L04 RELIEF — nefes al
+  [6, 3, 1], // L05 APPLY  — dengeli
+  [8, 2, 0], // L06 SPIKE  — yoğun absorb baskısı
+  [5, 3, 2], // L07 SETTLE — spike'tan iniş
+  [7, 2, 1], // L08 BUILD  — çoğunlukla small
+  [8, 2, 0], // L09 BOSS   — tam absorb baskısı
+  [5, 2, 3], // L10 FINALE — near-goal + small, hak edilmiş kapanış
+];
+
 export function getWorldConfig(cpIdx) {
   const idx = Math.max(0, Math.min(cpIdx, WORLD_CONFIG.length - 1));
   return WORLD_CONFIG[idx];

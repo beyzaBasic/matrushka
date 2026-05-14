@@ -8,7 +8,7 @@ import { BlastManager } from './blast.js';
 import { HintManager } from './hints.js';
 import { TutorialManager } from './tutorial.js';
 import { Renderer } from './renderer.js';
-import { LEVELS_PER_CP, levelFromCpIdx, cpIdxFromLevel, getWorldConfig } from './world-config.js';
+import { LEVELS_PER_CP, levelFromCpIdx, cpIdxFromLevel, getWorldConfig, SPAWN_PHASES } from './world-config.js';
 import { ThemeManager } from './theme.js';
 import { popupManager } from './popup-manager.js';
 
@@ -727,30 +727,37 @@ export class Game {
     const { LEVELS, currentLevel } = state;
     const def = this.goals.getLevelDef();
 
-    // Goal'lardan en küçük iç halka seviyesini bul (temel hammadde)
-    let minInner = 999;
+    // innerHigh = goal'lardaki dış kabuğun hemen içindeki katmanın maksimumu
+    // Spawn aralığı: 0 → innerHigh (oyuncu her koşulda merge yapmalı)
+    let innerHigh = 0;
     for (const g of def.goals) {
-      const inner = g.contains.length ? g.contains[g.contains.length - 1] : g.level;
-      if (inner < minInner) minInner = inner;
+      const firstInner = g.contains.length > 0 ? g.contains[0] : Math.max(0, g.level - 1);
+      if (firstInner > innerHigh) innerHigh = firstInner;
     }
-    if (minInner === 999) minInner = 0;
+    innerHigh = Math.min(LEVELS.length - 1, Math.max(1, innerHigh));
 
-    // CP içindeki konum (0–9): zorluk kademesini belirler
+    // CP içindeki konum (0–9)
     const posIdx = Math.max(0, (currentLevel - 1) % 10);
 
-    // Konum bazlı genişlik: erken levellarda küçük toplar, boss'ta geniş aralık
-    const rawCap = posIdx <= 1 ? 1   // L1–2: sadece minInner+1
-                 : posIdx <= 5 ? 2   // L3–6: minInner+2
-                 :               3;  // L7–10: minInner+3
-    const maxSpawn = Math.max(minInner, Math.min(LEVELS.length - 1, minInner + rawCap));
+    // [wSmall, wMid, wNearGoal] — world-config.js'den gelir
+    const [wSmall, wMid, wNearGoal] = SPAWN_PHASES[posIdx] ?? [6, 2, 2];
 
-    // Ağırlıklı havuz: küçük toplar ağırlıklı, büyükler giderek seyrek
     const pool = [];
-    for (let i = 0; i <= maxSpawn; i++) {
-      const w = i < minInner
-        ? 1                                // ön-dolgu: nadir
-        : Math.max(1, maxSpawn - i + 3);   // minInner en ağır, yukarısı azalır
-      for (let j = 0; j < w; j++) pool.push(i);
+    const addLv = (lv, w) => { for (let i = 0; i < w; i++) pool.push(lv); };
+
+    // Small tier: level 0 ve 1 (0 daha ağır — daha fazla merge)
+    addLv(0, wSmall);
+    if (innerHigh >= 1) addLv(1, Math.ceil(wSmall * 0.5));
+
+    // NearGoal tier: innerHigh seviyesi
+    if (wNearGoal > 0) addLv(innerHigh, wNearGoal);
+
+    // Mid tier: 2..innerHigh-1 arasındaki seviyeler
+    if (wMid > 0 && innerHigh > 2) {
+      const midLevels = [];
+      for (let lv = 2; lv < innerHigh; lv++) midLevels.push(lv);
+      const wEach = Math.max(1, Math.round(wMid / midLevels.length));
+      for (const lv of midLevels) addLv(lv, wEach);
     }
 
     const last = state._lastSpawnLevel ?? -1;
