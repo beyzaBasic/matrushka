@@ -11,6 +11,7 @@ import { Renderer } from './renderer.js';
 import { LEVELS_PER_CP, levelFromCpIdx, cpIdxFromLevel, getWorldConfig, SPAWN_PHASES } from './world-config.js';
 import { ThemeManager } from './theme.js';
 import { popupManager } from './popup-manager.js';
+import { gamePopups } from './game-popups.js';
 
 export class Game {
   constructor(canvas) {
@@ -118,26 +119,11 @@ export class Game {
     state.mousePos = { x, y };
     this.audio.unlock();
 
-    // Pause overlay — her durumda (gameOver dahil) önce kontrol et
-    const rb = state._resumeBtn;
-    if (rb && x >= rb.x && x <= rb.x + rb.w && y >= rb.y && y <= rb.y + rb.h) {
-      state.isPaused = false; return;
-    }
+    // HTML popup açıkken canvas input'u engelle
+    if (state.levelSuccess || state.gameOver || state.tutShowPopup) return;
 
-    // levelSuccess: sadece next level butonuna izin ver
-    if (state.levelSuccess) {
-      const nlb = state._nextLevelBtn;
-      if (nlb && nlb.a > 0.5 && x >= nlb.x && x <= nlb.x + nlb.w && y >= nlb.y && y <= nlb.y + nlb.h) {
-        this._nextLevel();
-      }
-      return;
-    }
-
-    if (state.gameOver) {
-      const gb = state._gameOverBtn;
-      if (gb && x >= gb.x && x <= gb.x + gb.w && y >= gb.y && y <= gb.y + gb.h) this._restartCurrentLevel();
-      return;
-    }
+    // Pause: HTML popup üzerinden yönetiliyor — canvas tıklamasını engelle
+    if (state.isPaused) return;
 
     const sb = state._soundBtn;
     if (sb && x >= sb.x && x <= sb.x + sb.w && y >= sb.y && y <= sb.y + sb.h) {
@@ -151,27 +137,6 @@ export class Game {
     if (db && x >= db.x && x <= db.x + db.w && y >= db.y && y <= db.y + db.h) {
       state.isDarkMode = !state.isDarkMode;
       localStorage.setItem('matrushka_darkMode', state.isDarkMode);
-      return;
-    }
-    // Tutorial popup butonu — PLAY! → direkt Level 1 (map atlanır)
-    // Map sadece "her 10 levelda kutlama" ve "uygulama açılışı" için açılır.
-    const tpb = state._tutPopupBtn;
-    if (state.tutShowPopup && tpb && x >= tpb.x && x <= tpb.x + tpb.w && y >= tpb.y && y <= tpb.y + tpb.h) {
-      state.tutShowPopup = false;
-      state.isTutorial   = false;
-      state.tutDone      = true;
-      localStorage.setItem('matrushka_tutDone', '1');
-      // Map açıksa kapat — gameplay'e geç
-      if (window._matrushkaMap && typeof window._matrushkaMap.hide === 'function') {
-        window._matrushkaMap.hide();
-      }
-      if (state.canvas) state.canvas.style.display = 'block';
-      // "?" ile açıldıysa kaydedilen level'a dön, yoksa ilk gerçek level
-      const returnLevel = (state._savedLevel != null && state._savedLevel >= TUTORIAL_LEVELS)
-        ? state._savedLevel
-        : TUTORIAL_LEVELS;
-      state._savedLevel = null;
-      this.startFromLevel(returnLevel);
       return;
     }
     // Tutorial butonu — toggle: ilk basışta tutorial aç, ikinci basışta önceki level'a dön
@@ -381,6 +346,8 @@ export class Game {
   }
 
   _startFromLevel(internalLevel) {
+    gamePopups.forceHide();
+    if (this._pp) this._pp = {};
     state._gameActive       = true;
     state.currentLevel      = internalLevel;
     state.circles           = []; state._sortedCircles = null;
@@ -1383,17 +1350,54 @@ export class Game {
     R.drawPauseBtn();
     if (_overlayActive) state.ctx.restore();
 
-    // Success / Game over / Tutorial overlay'leri — butonların üstüne çizilir
-    R.drawSuccessOverlay(this.goals, this.tutorial);
-    if (state.gameOver) R.drawGameOver(this.goals);
-    if (state.tutShowPopup) {
-      this.tutorial.drawPopup();
+    // HTML popup state geçişlerini takip et
+    const _pp = this._pp ?? (this._pp = {});
+
+    if (state.levelSuccess && !_pp.ls) {
+      const nextLv = (state.currentLevel + 1) - TUTORIAL_LEVELS + 1;
+      const isCP = ((state.currentLevel + 1 - TUTORIAL_LEVELS) % LEVELS_PER_CP === 0) && (state.currentLevel + 1 > TUTORIAL_LEVELS);
+      if (!isCP) {
+        gamePopups.showSuccess(
+          state.levelStars,
+          `LEVEL ${nextLv}  ▶`,
+          state.theme?.palette,
+          () => this._nextLevel()
+        );
+      }
     }
-    if (state.isPaused) {
-      R.drawPauseOverlay();
-    } else {
-      state._resumeBtn = null;
+    if (!state.levelSuccess && _pp.ls) gamePopups.hide();
+
+    if (state.gameOver && !_pp.go) {
+      gamePopups.showGameOver(
+        this.goals.displayLevelText(),
+        () => this._restartCurrentLevel()
+      );
     }
+
+    if (state.isPaused && !_pp.pa) {
+      gamePopups.showPause(() => { state.isPaused = false; });
+    }
+    if (!state.isPaused && _pp.pa) gamePopups.hidePause();
+
+    if (state.tutShowPopup && !_pp.tp) {
+      gamePopups.showTutorial(() => {
+        state.tutShowPopup = false;
+        state.isTutorial   = false;
+        state.tutDone      = true;
+        localStorage.setItem('matrushka_tutDone', '1');
+        if (window._matrushkaMap?.hide) window._matrushkaMap.hide();
+        if (state.canvas) state.canvas.style.display = 'block';
+        const returnLevel = (state._savedLevel != null && state._savedLevel >= TUTORIAL_LEVELS)
+          ? state._savedLevel : TUTORIAL_LEVELS;
+        state._savedLevel = null;
+        this.startFromLevel(returnLevel);
+      });
+    }
+
+    _pp.ls = state.levelSuccess;
+    _pp.go = state.gameOver;
+    _pp.pa = state.isPaused;
+    _pp.tp = state.tutShowPopup;
   }
 
   // ── capParams — her frame physics öncesi hesaplanır ──────────────

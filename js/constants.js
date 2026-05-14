@@ -153,80 +153,81 @@ export function buildLevels(MAIN_R, palette, shape = 'sphere') {
 function _buildCpLevels(cpIdx, _totalCp) {
   const CF = CONTAINER_FORMS;
   // depth her zaman ≥ 1: her slot en az bir absorb gerektirir
+  // Maksimum depth = lv (c(6,6) = 6→5→4→3→2→1→0 = 7 katman)
   const c = (lv, depth) => {
     const contains = [];
     for (let d = 1; d <= depth && lv - d >= 0; d++) contains.push(lv - d);
     return { level: lv, contains };
   };
 
-  // ── CP 0: Giriş — seviyeler 2–4, derinlik 1–2, maks 3 slot ─────
+  // ── CP 0: Giriş — seviyeler 2–4, derinlik 1–3, küçük toplar tanıtılıyor ──
   if (cpIdx === 0) return [
-    { goals: [c(3,1)],                          containerForm: CF.classicU   }, // L01 HOOK   tek slot, ilk absorb
-    { goals: [c(4,1), c(3,1)],                  containerForm: CF.roundBowl  }, // L02 LEARN  2 slot, her ikisi nested
-    { goals: [c(4,2)],                           containerForm: CF.classicU   }, // L03 APPLY  tek slot ama derin
-    { goals: [c(4,1), c(2,1)],                  containerForm: CF.classicU   }, // L04 TWIST  boyut farkı büyük
-    { goals: [c(3,2)],                           containerForm: CF.roundBowl  }, // L05 RELIEF tek slot, orta derinlik
-    { goals: [c(4,1), c(3,2)],                  containerForm: CF.tallNarrow }, // L06 SPIKE  farklı derinlikler
-    { goals: [c(4,2), c(3,1)],                  containerForm: CF.classicU   }, // L07 SETTLE derinlikler yer değiştirdi
-    { goals: [c(4,2), c(3,1), c(2,1)],         containerForm: CF.goblet     }, // L08 BUILD  3 slot
-    { goals: [c(4,2), c(3,2), c(2,1)],         containerForm: CF.goblet     }, // L09 BOSS   3 slot daha derin
-    { goals: [c(4,2), c(3,2), c(2,2)],         containerForm: CF.vase       }, // L10 FINALE tüm slotlar max depth
+    { goals: [c(3,1)],                          containerForm: CF.classicU   }, // L01 HOOK   3→2, tek slot
+    { goals: [c(4,1), c(3,1)],                  containerForm: CF.roundBowl  }, // L02 LEARN  2 slot, sığ
+    { goals: [c(4,2)],                           containerForm: CF.classicU   }, // L03 APPLY  4→3→2, derinleşiyor
+    { goals: [c(4,1), c(2,2)],                  containerForm: CF.classicU   }, // L04 TWIST  büyük+küçük derin (c(2,2)=2→1→0)
+    { goals: [c(3,2)],                           containerForm: CF.roundBowl  }, // L05 RELIEF 3→2→1, nefes
+    { goals: [c(4,2), c(3,2)],                  containerForm: CF.tallNarrow }, // L06 SPIKE  her ikisi depth-2
+    { goals: [c(4,2), c(3,1)],                  containerForm: CF.classicU   }, // L07 SETTLE spike'tan iniş
+    { goals: [c(4,3), c(3,1)],                  containerForm: CF.goblet     }, // L08 BUILD  depth-3 ilk kez! (4→3→2→1)
+    { goals: [c(4,3), c(3,2), c(2,2)],         containerForm: CF.goblet     }, // L09 BOSS   3 slot, küçük derin
+    { goals: [c(4,3), c(3,3), c(2,2)],         containerForm: CF.vase       }, // L10 FINALE c(3,3)=3→2→1→0
   ];
 
-  // ── CP 1: Tırmanış — seviyeler 2–5, derinlik 1–2, 4-slot finale ─
+  // ── CP 1: Tırmanış — seviyeler 2–5, derinlik 1–4, karışık boyutlar ──────
   if (cpIdx === 1) return [
-    { goals: [c(5,1)],                           containerForm: CF.classicU   }, // L01 HOOK   5 seviyesi giriyor
-    { goals: [c(5,1), c(3,1)],                  containerForm: CF.roundBowl  }, // L02 LEARN  büyük boyut farkı
-    { goals: [c(5,1), c(4,1)],                  containerForm: CF.classicU   }, // L03 APPLY  bitişik seviyeler
-    { goals: [c(5,2)],                           containerForm: CF.classicU   }, // L04 TWIST  tek slot, derin
-    { goals: [c(5,2), c(4,1)],                  containerForm: CF.roundBowl  }, // L05 RELIEF 2 slot, mixed depth
-    { goals: [c(5,1), c(4,1), c(3,1)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot, tümü depth-1
-    { goals: [c(5,2), c(4,2)],                  containerForm: CF.classicU   }, // L07 SETTLE 2 slot, tümü depth-2
-    { goals: [c(5,2), c(4,1), c(3,1)],         containerForm: CF.goblet     }, // L08 BUILD  3 slot mixed
-    { goals: [c(5,2), c(4,2), c(3,1)],         containerForm: CF.goblet     }, // L09 BOSS   3 slot daha derin
-    { goals: [c(5,2), c(4,2), c(3,2), c(2,1)], containerForm: CF.vase       }, // L10 FINALE 4 slot!
+    { goals: [c(5,1)],                           containerForm: CF.classicU   }, // L01 HOOK   5 giriyor
+    { goals: [c(5,2), c(3,1)],                  containerForm: CF.roundBowl  }, // L02 LEARN  büyük derin + küçük sığ
+    { goals: [c(5,1), c(4,2)],                  containerForm: CF.classicU   }, // L03 APPLY  sığ büyük + derin orta
+    { goals: [c(4,3)],                           containerForm: CF.classicU   }, // L04 TWIST  4→3→2→1 tek slot
+    { goals: [c(5,2), c(2,2)],                  containerForm: CF.roundBowl  }, // L05 RELIEF büyük + çok küçük derin
+    { goals: [c(5,2), c(4,2), c(3,1)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot
+    { goals: [c(5,3), c(3,2)],                  containerForm: CF.classicU   }, // L07 SETTLE depth-3 büyük + orta
+    { goals: [c(5,3), c(4,2), c(3,1)],         containerForm: CF.goblet     }, // L08 BUILD  3 slot kademeli
+    { goals: [c(5,3), c(4,3), c(2,2)],         containerForm: CF.goblet     }, // L09 BOSS   tümü derin
+    { goals: [c(5,4), c(4,3), c(3,2), c(2,2)], containerForm: CF.vase       }, // L10 FINALE 4 slot! c(5,4)=5→4→3→2→1
   ];
 
-  // ── CP 2: Fırtına — seviyeler 3–6, derinlik 1–3 ─────────────────
+  // ── CP 2: Fırtına — seviyeler 2–6, derinlik 1–4, kontrast kombinasyonlar ─
   if (cpIdx === 2) return [
-    { goals: [c(6,1), c(4,1)],                  containerForm: CF.classicU   }, // L01 HOOK   6 giriyor, boyut farkı
-    { goals: [c(6,1), c(5,1)],                  containerForm: CF.roundBowl  }, // L02 LEARN  üst seviyeler
-    { goals: [c(6,2), c(4,1)],                  containerForm: CF.classicU   }, // L03 APPLY  depth artıyor
-    { goals: [c(6,1), c(5,1), c(3,1)],         containerForm: CF.classicU   }, // L04 TWIST  3 slot, alt boşluk
-    { goals: [c(6,2), c(5,1)],                  containerForm: CF.roundBowl  }, // L05 RELIEF 2 slot, nefes
-    { goals: [c(6,2), c(5,1), c(4,1)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot, dar kap
-    { goals: [c(6,1), c(5,1), c(4,1)],         containerForm: CF.classicU   }, // L07 SETTLE tüm depth-1, settle
-    { goals: [c(6,2), c(5,2), c(4,1)],         containerForm: CF.goblet     }, // L08 BUILD  2 deep + 1 shallow
-    { goals: [c(6,3), c(5,1), c(4,1)],         containerForm: CF.goblet     }, // L09 BOSS   depth-3 ilk kez!
-    { goals: [c(6,2), c(5,2), c(4,2), c(3,1)], containerForm: CF.vase       }, // L10 FINALE 4 slot!
+    { goals: [c(6,1), c(4,2)],                  containerForm: CF.classicU   }, // L01 HOOK   6 giriyor + derin orta
+    { goals: [c(6,2), c(4,1)],                  containerForm: CF.roundBowl  }, // L02 LEARN  derin büyük + sığ orta
+    { goals: [c(6,2), c(5,1), c(3,2)],         containerForm: CF.classicU   }, // L03 APPLY  3 slot, çeşitli
+    { goals: [c(5,4), c(2,2)],                  containerForm: CF.tallNarrow }, // L04 TWIST  5→4→3→2→1 + 2→1→0 (derin zıtlık)
+    { goals: [c(6,1), c(5,2)],                  containerForm: CF.roundBowl  }, // L05 RELIEF 2 slot, nefes
+    { goals: [c(6,3), c(4,2), c(2,2)],         containerForm: CF.tallNarrow }, // L06 SPIKE  depth-3 büyük + küçük derin
+    { goals: [c(6,2), c(5,2), c(3,1)],         containerForm: CF.classicU   }, // L07 SETTLE settle
+    { goals: [c(6,3), c(5,2), c(4,1)],         containerForm: CF.goblet     }, // L08 BUILD  3 slot kademeli depth
+    { goals: [c(6,4), c(5,2), c(3,2)],         containerForm: CF.goblet     }, // L09 BOSS   depth-4 ilk kez!
+    { goals: [c(6,3), c(5,3), c(4,2), c(2,2)], containerForm: CF.vase       }, // L10 FINALE 4 slot, küçük derin dahil
   ];
 
-  // ── CP 3: Derinlik — seviyeler 3–6, derinlik 2–3, 4-slot standart ─
+  // ── CP 3: Derinlik — seviyeler 2–6, derinlik 2–5, küçük derin artıyor ───
   if (cpIdx === 3) return [
-    { goals: [c(6,1), c(4,2)],                  containerForm: CF.classicU   }, // L01 HOOK   asimetrik derinlik
-    { goals: [c(6,2), c(5,1), c(3,1)],         containerForm: CF.roundBowl  }, // L02 LEARN  3 slot, boşluklu
-    { goals: [c(6,2), c(5,2), c(4,2)],         containerForm: CF.classicU   }, // L03 APPLY  3 slot tümü depth-2
-    { goals: [c(6,3), c(5,1)],                  containerForm: CF.tallNarrow }, // L04 TWIST  depth-3 sürprizi
-    { goals: [c(6,1), c(3,1)],                  containerForm: CF.roundBowl  }, // L05 RELIEF 2 slot, geniş boşluk
-    { goals: [c(6,2), c(5,1), c(4,2)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot, çapraz depth
-    { goals: [c(6,3), c(5,2), c(4,1)],         containerForm: CF.goblet     }, // L07 SETTLE depth kademeli iniş
-    { goals: [c(6,2), c(5,2), c(4,1), c(3,1)], containerForm: CF.goblet     }, // L08 BUILD  4 slot ilk kez!
-    { goals: [c(6,3), c(5,2), c(4,2), c(3,1)], containerForm: CF.vase       }, // L09 BOSS   4 slot derin
-    { goals: [c(6,3), c(5,3), c(4,2), c(3,1)], containerForm: CF.vase       }, // L10 FINALE 4 slot, en derin
+    { goals: [c(6,3), c(4,3)],                  containerForm: CF.classicU   }, // L01 HOOK   her ikisi depth-3
+    { goals: [c(6,2), c(5,3), c(3,2)],         containerForm: CF.roundBowl  }, // L02 LEARN  3 slot
+    { goals: [c(5,4), c(4,3)],                  containerForm: CF.classicU   }, // L03 APPLY  5→4→3→2→1 + 4→3→2→1
+    { goals: [c(6,4), c(3,3)],                  containerForm: CF.tallNarrow }, // L04 TWIST  büyük max + küçük full stack (3→2→1→0)
+    { goals: [c(6,2), c(5,2)],                  containerForm: CF.roundBowl  }, // L05 RELIEF 2 slot, nefes
+    { goals: [c(6,4), c(5,3), c(3,3)],         containerForm: CF.tallNarrow }, // L06 SPIKE  3 slot, tümü derin
+    { goals: [c(6,3), c(5,3), c(4,2)],         containerForm: CF.goblet     }, // L07 SETTLE kademeli
+    { goals: [c(6,4), c(5,3), c(4,2), c(2,2)], containerForm: CF.goblet     }, // L08 BUILD  4 slot
+    { goals: [c(6,5), c(5,3), c(3,3)],         containerForm: CF.vase       }, // L09 BOSS   depth-5! 6→5→4→3→2→1
+    { goals: [c(6,4), c(5,4), c(4,3), c(3,3)], containerForm: CF.vase       }, // L10 FINALE 4 slot tümü derin
   ];
 
-  // ── CP 4: Endgame — derinlik 3–4, 4 slot standart ───────────────
+  // ── CP 4: Endgame — derinlik 3–6, küçük full stack + maksimum ───────────
   return [
-    { goals: [c(6,3), c(4,3)],                  containerForm: CF.classicU   }, // L01 HOOK   2 slot, ikisi derin
-    { goals: [c(6,3), c(5,3)],                  containerForm: CF.roundBowl  }, // L02 LEARN  üst seviyeler, depth-3
-    { goals: [c(6,3), c(5,2), c(3,1)],         containerForm: CF.classicU   }, // L03 APPLY  3 slot, geniş aralık
-    { goals: [c(6,4), c(5,2), c(4,1)],         containerForm: CF.tallNarrow }, // L04 TWIST  depth-4 ilk kez!
-    { goals: [c(6,3), c(5,3), c(4,1)],         containerForm: CF.roundBowl  }, // L05 RELIEF 3 slot, alt shallow
-    { goals: [c(6,4), c(5,2), c(4,2)],         containerForm: CF.tallNarrow }, // L06 SPIKE  depth-4 + 2×depth-2
-    { goals: [c(6,3), c(5,3), c(4,2)],         containerForm: CF.goblet     }, // L07 SETTLE 3 deep slot
-    { goals: [c(6,4), c(5,3), c(4,2), c(3,1)], containerForm: CF.goblet     }, // L08 BUILD  4 slot, kademeli
-    { goals: [c(6,4), c(5,3), c(4,2), c(3,2)], containerForm: CF.vase       }, // L09 BOSS   4 slot, en yoğun
-    { goals: [c(6,4), c(5,4), c(4,3), c(3,2)], containerForm: CF.vase       }, // L10 FINALE ultimate
+    { goals: [c(6,3), c(5,4)],                  containerForm: CF.classicU   }, // L01 HOOK   depth-3+4, giriş
+    { goals: [c(6,4), c(5,3), c(3,3)],         containerForm: CF.roundBowl  }, // L02 LEARN  3 slot
+    { goals: [c(6,5), c(4,3)],                  containerForm: CF.classicU   }, // L03 APPLY  6→5→4→3→2→1 (5 derin!)
+    { goals: [c(5,5), c(3,3)],                  containerForm: CF.tallNarrow }, // L04 TWIST  5→4→3→2→1→0 + 3→2→1→0
+    { goals: [c(6,3), c(5,3)],                  containerForm: CF.roundBowl  }, // L05 RELIEF 2 slot, nefes
+    { goals: [c(6,4), c(5,5), c(3,3)],         containerForm: CF.tallNarrow }, // L06 SPIKE  c(5,5) full stack!
+    { goals: [c(6,5), c(5,4), c(4,3)],         containerForm: CF.goblet     }, // L07 SETTLE 3 slot derin
+    { goals: [c(6,5), c(5,4), c(4,4), c(3,2)], containerForm: CF.goblet     }, // L08 BUILD  4 slot
+    { goals: [c(6,6), c(5,4), c(4,3)],         containerForm: CF.vase       }, // L09 BOSS   c(6,6)=6→5→4→3→2→1→0 MAXIMUM!
+    { goals: [c(6,5), c(5,5), c(4,4), c(3,3)], containerForm: CF.vase       }, // L10 FINALE 4 slot, tümü full stack
   ];
 }
 

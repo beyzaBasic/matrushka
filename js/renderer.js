@@ -1218,31 +1218,7 @@ export class Renderer {
 
   // Success overlay — paylaşılan şenlik kartını kullanır (tutorial.drawCelebrationCard).
   // Eski özel başlık/yıldız/buton çizimleri kaldırıldı; tek bir kart tasarımı altında birleşti.
-  drawSuccessOverlay(goalManager, tutorial) {
-    const { levelSuccess, levelSuccessAlpha, currentLevel, levelStars } = state;
-    if (!levelSuccess || levelSuccessAlpha <= 0) { state._nextLevelBtn = null; return; }
-    if (state.isTutorial) { state._nextLevelBtn = null; return; }
-    // Checkpoint levellerinde unpack popup gösterilir — success overlay çizme
-    const _completedGame = (currentLevel + 1) - TUTORIAL_LEVELS;
-    if (_completedGame > 0 && _completedGame % LEVELS_PER_CP === 0) { state._nextLevelBtn = null; return; }
-    if (!tutorial || typeof tutorial.drawSuccess !== 'function') return;
-
-    // Buton metni dinamik — bir SONRAKİ level'ın numarası
-    let ctaLabel;
-    const nextDisplayLevel = (currentLevel + 1) - TUTORIAL_LEVELS + 1; // 1-indexed
-    if (currentLevel < TUTORIAL_LEVELS) {
-      // Tutorial içi (şu an kullanılmıyor — isTutorial guard yukarıda)
-      ctaLabel = 'NEXT  ▶';
-    } else {
-      ctaLabel = `LEVEL ${nextDisplayLevel}  ▶`;
-    }
-
-    tutorial.drawSuccess({
-      alpha:   levelSuccessAlpha,
-      stars:   levelStars,
-      ctaLabel,
-    });
-  }
+  drawSuccessOverlay() { state._nextLevelBtn = null; }
 
   // Buton merkez koordinatı — idx: 0=pause,1=sound,2=dark,3=tutorial,4=home
   _btnCenter(idx) {
@@ -1420,42 +1396,9 @@ export class Renderer {
     if (!_disabled) state._homeBtn = { x: pcx-ICON, y: pcy-ICON, w: ICON*2, h: ICON*2 };
   }
 
-  drawPauseOverlay() {
-    const ctx = state.ctx, { W, H, CX, CY } = state;
-    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,W,H);
-    ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
-    const pFs=28, rbw=220, rbh=56, blockTop=CY-(pFs+20+rbh)/2;
-    ctx.font=`bold ${pFs}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=4;
-    ctx.fillText('PAUSED', CX, blockTop+pFs*0.5);
-    const rbx=CX-rbw/2, rby=blockTop+pFs+20;
-    this.rrect(rbx,rby,rbw,rbh,rbh*0.4);
-    ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.shadowBlur=0; ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=2; ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.font=`bold 22px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillText('▶  Play', CX, rby+rbh*0.55);
-    ctx.restore();
-    state._resumeBtn = { x:rbx, y:rby, w:rbw, h:rbh };
-  }
+  drawPauseOverlay() { state._resumeBtn = null; }
 
-  drawGameOver(goalManager) {
-    const ctx = state.ctx, { gameOverAlpha, W, H, CX, CY } = state;
-    ctx.fillStyle=`rgba(10,5,30,${gameOverAlpha*0.82})`; ctx.fillRect(0,0,W,H);
-    if (gameOverAlpha <= 0.2) return;
-    const a  = Math.min(1,(gameOverAlpha-0.1)/0.6);
-    const tt = Date.now()*0.001;
-    const bw = Math.min(W * 0.82, 340);
-    const CS = bw / 340;
-    ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.font=`${Math.round(Math.max(44,58*CS))}px sans-serif`;
-    ctx.globalAlpha=a; ctx.fillText('😵',CX,CY-Math.round(95*CS));
-    ctx.font=`bold ${Math.round(Math.max(26,36*CS))}px "ui-rounded","Arial Rounded MT Bold",sans-serif`;
-    ctx.fillStyle='#fff'; ctx.shadowColor='rgba(255,50,50,0.6)'; ctx.shadowBlur=18;
-    ctx.fillText('GAME OVER',CX,CY-Math.round(44*CS)); ctx.shadowBlur=0;
-    this._drawLevelPill(a, goalManager, CX, CY, CS);
-    this._drawPlayAgainBtn(a, tt, W, CX, CY, CS, bw);
-    ctx.restore();
-  }
+  drawGameOver() { state._gameOverBtn = null; }
 
   _drawLevelPill(a, goalManager, CX, CY, CS) {
     const ctx=state.ctx, lTxt=goalManager.displayLevelText();

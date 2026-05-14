@@ -87,33 +87,9 @@ export class TutorialManager {
     if (this._arrow) this._drawArrow();
   }
 
-  // "How to Play" popup — drawCelebrationCard ile çizilir
-  drawPopup() {
-    if (!state.tutShowPopup) return;
-    this.drawCelebrationCard({
-      key:        'tut',
-      title:      'READY?',
-      ctaLabel:   'PLAY!',
-      showDemo:   true,
-      btnRectKey: '_tutPopupBtn',
-    });
-  }
-
-  // Level success ekranı — aynı şenlik kartını kullanır.
-  // alpha: state.levelSuccessAlpha (0–1) — fade-in için
-  // stars: state.levelStars (0–3)
-  // ctaLabel: dinamik — "Level X ▶" veya "Start Game ▶"
-  drawSuccess({ alpha, stars, ctaLabel }) {
-    this.drawCelebrationCard({
-      key:        'success',
-      title:      'SUCCESS!',
-      ctaLabel,
-      showDemo:   false,
-      stars,
-      btnRectKey: '_nextLevelBtn',
-      alpha,
-    });
-  }
+  // HTML popup'a taşındı — artık canvas çizimi yok
+  drawPopup()  {}
+  drawSuccess() {}
 
   // ─────────────────────────────────────────────────────────────────────────
   // PAYLAŞILAN ŞENLİK KARTI — hem tutorial popup hem level success kullanır

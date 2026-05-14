@@ -27,6 +27,119 @@ body {
 }
 canvas { display: block; touch-action: none; }
 
+/* ── In-game HTML Popups ─────────────────────────────────────────────────── */
+.gp-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.78);
+  opacity: 0; transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+.gp-overlay.gp-visible { opacity: 1; pointer-events: all; }
+.gp-overlay[hidden] { display: none !important; }
+
+.gp-card {
+  background: linear-gradient(160deg, #0d0820 0%, #1e1040 55%, #0d0820 100%);
+  border-radius: 28px; padding: 36px 28px 28px;
+  text-align: center; position: relative;
+  border: 2px solid rgba(155,39,255,0.45);
+  box-shadow: 0 0 60px rgba(155,39,255,0.30), 0 20px 60px rgba(0,0,0,0.6);
+  max-width: 320px; width: 88%;
+  transform: scale(0.5) rotate(-4deg);
+  transition: transform 0.42s cubic-bezier(0.34,1.56,0.64,1);
+  font-family: "ui-rounded","Arial Rounded MT Bold",sans-serif;
+}
+.gp-visible .gp-card { transform: scale(1) rotate(0deg); }
+.gp-card--sm { max-width: 260px; padding: 32px 24px 24px; }
+
+.gp-title {
+  background: linear-gradient(90deg,#FFD700,#fff,#FF9500);
+  background-size: 200% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: gp-shimmer 2s linear infinite;
+  font-size: 32px; font-weight: 900; letter-spacing: 1px; margin-bottom: 8px;
+}
+.gp-title--red {
+  background: linear-gradient(90deg,#FF4444,#fff,#FF8800);
+  background-size: 200% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: gp-shimmer 2s linear infinite;
+}
+
+.gp-icon { font-size: 52px; margin-bottom: 12px; display: block; animation: gp-bounce 1.3s ease 0.3s both; }
+
+.gp-pill {
+  display: inline-block;
+  background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.25);
+  color: #fff; font-size: 14px; font-weight: 700;
+  padding: 6px 18px; border-radius: 20px; margin-bottom: 20px;
+}
+
+.gp-stars { font-size: 36px; margin: 14px 0 18px; letter-spacing: 4px; }
+.gp-star  { color: rgba(255,255,255,0.18); display: inline-block; }
+.gp-star.on {
+  color: #FFD700; text-shadow: 0 0 16px #FFD70099;
+  animation: gp-star-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.gp-star:nth-child(1).on { animation-delay: 0.30s; }
+.gp-star:nth-child(2).on { animation-delay: 0.46s; }
+.gp-star:nth-child(3).on { animation-delay: 0.62s; }
+
+.gp-btn {
+  display: block; width: 100%; padding: 16px; margin-top: 14px;
+  background: linear-gradient(135deg,#69F0AE,#00E676,#00C853);
+  color: #1B5E20; font-weight: 900; font-size: 16px; letter-spacing: 2px;
+  border: none; border-radius: 50px; cursor: pointer;
+  font-family: "ui-rounded","Arial Rounded MT Bold",sans-serif;
+  box-shadow: 0 4px 28px rgba(0,230,118,0.5);
+  animation: gp-pulse 2.8s ease-in-out 0.5s infinite;
+  position: relative; overflow: hidden;
+}
+.gp-btn::before {
+  content: ''; position: absolute;
+  top: 4px; left: 8px; right: 8px; height: 42%;
+  background: rgba(255,255,255,0.45); border-radius: 50px; pointer-events: none;
+}
+.gp-btn:active { transform: scale(0.95); }
+
+.gp-btn-ghost {
+  display: block; width: 100%; padding: 14px; margin-top: 16px;
+  background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.4);
+  color: #fff; font-weight: 700; font-size: 18px;
+  border-radius: 50px; cursor: pointer;
+  font-family: "ui-rounded","Arial Rounded MT Bold",sans-serif;
+}
+.gp-btn-ghost:active { transform: scale(0.95); }
+
+.gp-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 28px; }
+.gp-confetti-p {
+  position: absolute; top: -10px;
+  animation: gp-fall linear both;
+}
+
+.gp-demo {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px 0 20px;
+}
+.gp-demo-ball {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%,rgba(255,255,255,0.55) 0%,#9B27FF 40%,#4A0080 100%);
+  box-shadow: 0 0 14px rgba(155,39,255,0.55);
+}
+.gp-demo-ball--sm { width: 34px; height: 34px; animation: gp-merge-sm 2.2s ease-in-out infinite; }
+.gp-demo-ball--lg { width: 54px; height: 54px; animation: gp-merge-lg 2.2s ease-in-out infinite; }
+.gp-demo-plus, .gp-demo-arrow {
+  color: rgba(255,255,255,0.65); font-size: 20px; font-weight: 900;
+  font-family: "ui-rounded","Arial Rounded MT Bold",sans-serif;
+}
+
+@keyframes gp-shimmer  { from{background-position:200% center} to{background-position:-200% center} }
+@keyframes gp-bounce   { 0%,100%{transform:translateY(0) scale(1)} 35%{transform:translateY(-18px) scale(1.14)} 65%{transform:translateY(5px) scale(0.96)} }
+@keyframes gp-pulse    { 0%,100%{box-shadow:0 4px 28px rgba(0,230,118,0.5)} 50%{box-shadow:0 4px 52px rgba(0,230,118,0.85)} }
+@keyframes gp-star-in  { from{transform:scale(0) rotate(-30deg);opacity:0} to{transform:scale(1) rotate(0);opacity:1} }
+@keyframes gp-fall     { from{transform:translateY(-10px) rotate(0)} to{transform:translateY(340px) rotate(720deg);opacity:0} }
+@keyframes gp-merge-sm { 0%,35%{transform:scale(1) translateX(0);opacity:1} 50%{transform:scale(0) translateX(18px);opacity:0} 51%,100%{transform:scale(0);opacity:0} }
+@keyframes gp-merge-lg { 0%,48%{transform:scale(1)} 58%{transform:scale(1.28)} 68%{transform:scale(0.96)} 80%,100%{transform:scale(1)} }
+
 /* Portrait lock — telefon/tablet landscape'e döndürüldüğünde uyarı göster */
 #orientation-overlay {
   display: none;
@@ -55,6 +168,51 @@ canvas { display: block; touch-action: none; }
   <div style="font-size:13px;opacity:0.6;">Please rotate to portrait</div>
 </div>
 <canvas id="c"></canvas>
+
+<!-- ── In-game HTML Popups ───────────────────────────────────────────────── -->
+
+<div id="gp-success" class="gp-overlay" hidden>
+  <div class="gp-card">
+    <div class="gp-confetti" id="gp-success-confetti"></div>
+    <div class="gp-title">SUCCESS!</div>
+    <div class="gp-stars">
+      <span class="gp-star">★</span>
+      <span class="gp-star">★</span>
+      <span class="gp-star">★</span>
+    </div>
+    <button class="gp-btn" id="gp-success-cta">NEXT ▶</button>
+  </div>
+</div>
+
+<div id="gp-gameover" class="gp-overlay" hidden>
+  <div class="gp-card">
+    <span class="gp-icon">😵</span>
+    <div class="gp-title gp-title--red">GAME OVER</div>
+    <div class="gp-pill" id="gp-gameover-level">Level 1</div>
+    <button class="gp-btn" id="gp-gameover-cta">▶  PLAY AGAIN</button>
+  </div>
+</div>
+
+<div id="gp-pause" class="gp-overlay" hidden>
+  <div class="gp-card gp-card--sm">
+    <div class="gp-title">PAUSED</div>
+    <button class="gp-btn-ghost" id="gp-pause-cta">▶  Play</button>
+  </div>
+</div>
+
+<div id="gp-tutorial" class="gp-overlay" hidden>
+  <div class="gp-card">
+    <div class="gp-title">READY?</div>
+    <div class="gp-demo">
+      <div class="gp-demo-ball gp-demo-ball--sm"></div>
+      <div class="gp-demo-plus">+</div>
+      <div class="gp-demo-ball gp-demo-ball--sm"></div>
+      <div class="gp-demo-arrow">→</div>
+      <div class="gp-demo-ball gp-demo-ball--lg"></div>
+    </div>
+    <button class="gp-btn" id="gp-tutorial-cta">PLAY!</button>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
 <script type="module">
